@@ -1,0 +1,21 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+
+export default function SignUpSuccessPage() {
+  return (
+    <div className="flex min-h-screen w-full items-center justify-center bg-black p-6">
+      <div className="w-full max-w-sm">
+        <Card className="bg-background/50 backdrop-blur border-border">
+          <CardHeader>
+            <CardTitle className="text-2xl">Thank you for signing up!</CardTitle>
+            <CardDescription>Check your email to confirm</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              You&apos;ve successfully signed up. Please check your email to confirm your account before signing in.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
