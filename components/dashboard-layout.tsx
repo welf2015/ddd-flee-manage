@@ -4,34 +4,11 @@ import type React from "react"
 
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import {
-  Home09Icon,
-  Calendar03Icon,
-  Truck01Icon,
-  UserMultiple02Icon,
-  AlertCircleIcon,
-  Building03Icon,
-  ChartLineData03Icon,
-  Clipboard01Icon,
-  Settings02Icon,
-  Logout01Icon,
-  Menu01Icon,
-  Add01Icon,
-  PackageIcon,
-  ShoppingCart01Icon,
-  ArrowDown01Icon,
-  ArrowRight01Icon,
-  WrenchIcon,
-  Star01Icon,
-  CheckmarkSquare02Icon,
-  DollarCircleIcon,
-  Notification03Icon, // Added bell icon from hugeicons
-} from 'hugeicons-react'
+import { Home, Calendar, Truck, Users, AlertCircle, Building2, TrendingUp, ClipboardList, Settings, LogOut, Menu, Plus, Package, ShoppingCart, ChevronDown, ChevronRight, Wrench, Star, CheckSquare, DollarSign, Bell } from 'lucide-react'
 import Link from "next/link"
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
-import { NotificationBell } from "./notification-bell"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -55,28 +32,28 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
   }, [pathname])
 
   const navigation = [
-    { name: "Dashboard", href: "/dashboard", icon: Home09Icon },
-    { name: "Bookings", href: "/dashboard/bookings", icon: Clipboard01Icon },
+    { name: "Dashboard", href: "/dashboard", icon: Home },
+    { name: "Bookings", href: "/dashboard/bookings", icon: ClipboardList },
     {
       name: "Vehicle Management",
       href: "/dashboard/vehicle-management",
-      icon: Truck01Icon,
+      icon: Truck,
       hasSubmenu: true,
       submenu: [
-        { name: "Vehicles", href: "/dashboard/vehicles", icon: Truck01Icon },
-        { name: "Onboarding", href: "/dashboard/vehicle-management/onboarding", icon: Clipboard01Icon },
-        { name: "Feedbacks", href: "/dashboard/vehicle-management/feedbacks", icon: Star01Icon },
-        { name: "Compliance", href: "/dashboard/vehicle-management/compliance", icon: CheckmarkSquare02Icon },
-        { name: "Incidents", href: "/dashboard/incidents", icon: AlertCircleIcon },
-        { name: "Maintenance", href: "/dashboard/vehicle-management/maintenance", icon: WrenchIcon },
+        { name: "Vehicles", href: "/dashboard/vehicles", icon: Truck },
+        { name: "Onboarding", href: "/dashboard/vehicle-management/onboarding", icon: ClipboardList },
+        { name: "Feedbacks", href: "/dashboard/vehicle-management/feedbacks", icon: Star },
+        { name: "Compliance", href: "/dashboard/vehicle-management/compliance", icon: CheckSquare },
+        { name: "Incidents", href: "/dashboard/incidents", icon: AlertCircle },
+        { name: "Maintenance", href: "/dashboard/vehicle-management/maintenance", icon: Wrench },
       ],
     },
-    { name: "Clients", href: "/dashboard/clients", icon: Building03Icon },
-    { name: "Procurement", href: "/dashboard/procurement", icon: ShoppingCart01Icon },
-    { name: "Inventory", href: "/dashboard/inventory", icon: PackageIcon },
-    { name: "Sales Insights", href: "/dashboard/sales-insights", icon: DollarCircleIcon },
-    { name: "Reports", href: "/dashboard/reports", icon: ChartLineData03Icon },
-    { name: "Settings", href: "/dashboard/settings", icon: Settings02Icon },
+    { name: "Clients", href: "/dashboard/clients", icon: Building2 },
+    { name: "Procurement", href: "/dashboard/procurement", icon: ShoppingCart },
+    { name: "Inventory", href: "/dashboard/inventory", icon: Package },
+    { name: "Sales Insights", href: "/dashboard/sales-insights", icon: DollarSign },
+    { name: "Reports", href: "/dashboard/reports", icon: TrendingUp },
+    { name: "Settings", href: "/dashboard/settings", icon: Settings },
   ]
 
   const Sidebar = () => (
@@ -89,7 +66,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
           className="w-full justify-start gap-2 bg-accent hover:bg-accent/90 text-accent-foreground"
           onClick={() => router.push("/dashboard/bookings")}
         >
-          <Add01Icon size={18} variant="stroke" />
+          <Plus className="h-5 w-5" />
           Create Booking
         </Button>
       </div>
@@ -112,13 +89,13 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
                     onClick={() => setVehicleManagementOpen(!vehicleManagementOpen)}
                   >
                     <div className="flex items-center gap-3">
-                      <Icon size={24} variant="duotone" />
+                      <Icon className="h-6 w-6" />
                       <span className="text-sm font-medium">{item.name}</span>
                     </div>
                     {isSubmenuOpen ? (
-                      <ArrowDown01Icon size={16} variant="stroke" />
+                      <ChevronDown className="h-4 w-4" />
                     ) : (
-                      <ArrowRight01Icon size={16} variant="stroke" />
+                      <ChevronRight className="h-4 w-4" />
                     )}
                   </Button>
                   {isSubmenuOpen && item.submenu && (
@@ -139,7 +116,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
                                 isSubActive && "bg-accent text-accent-foreground hover:bg-accent/90"
                               )}
                             >
-                              <SubIcon size={20} variant="duotone" />
+                              <SubIcon className="h-5 w-5" />
                               {subitem.name}
                             </Button>
                           </Link>
@@ -157,7 +134,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
                       isActive && "bg-accent text-accent-foreground hover:bg-accent/90"
                     )}
                   >
-                    <Icon size={24} variant="duotone" />
+                    <Icon className="h-6 w-6" />
                     <span className="text-sm font-medium">{item.name}</span>
                   </Button>
                 </Link>
@@ -168,7 +145,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
       </nav>
       <div className="p-2 border-t border-border">
         <Button variant="ghost" className="w-full justify-start gap-3 h-11" onClick={onSignOut}>
-          <Logout01Icon size={24} variant="duotone" />
+          <LogOut className="h-6 w-6" />
           <span className="text-sm font-medium">Sign Out</span>
         </Button>
       </div>
@@ -189,12 +166,12 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon">
-              <Notification03Icon size={24} variant="stroke" />
+              <Bell className="h-5 w-5" />
             </Button>
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
-                  <Menu01Icon size={24} variant="stroke" />
+                  <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-[280px] p-0 bg-background/95 backdrop-blur flex flex-col">
@@ -207,7 +184,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
         {/* Desktop header with bell icon */}
         <div className="hidden lg:flex fixed top-0 right-0 left-[280px] z-50 px-6 h-16 items-center justify-end border-b border-border bg-background/95 backdrop-blur">
           <Button variant="ghost" size="icon">
-            <Notification03Icon size={24} variant="stroke" />
+            <Bell className="h-5 w-5" />
           </Button>
         </div>
 
