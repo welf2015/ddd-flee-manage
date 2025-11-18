@@ -1,9 +1,17 @@
 import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { DashboardLayout } from '@/components/dashboard-layout'
 import MaintenanceClient from './maintenance-client'
 
 export default async function MaintenancePage() {
   const supabase = await createClient()
+  
+  // Check authentication
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    redirect('/auth/login')
+  }
   
   // Fetch maintenance schedules with vehicle info
   const { data: schedules } = await supabase
@@ -22,12 +30,21 @@ export default async function MaintenancePage() {
     .select('*')
     .order('vehicle_number')
   
+  const handleSignOut = async () => {
+    'use server'
+    const supabase = await createClient()
+    await supabase.auth.signOut()
+    redirect('/auth/login')
+  }
+  
   return (
-    <Suspense fallback={<div>Loading maintenance schedules...</div>}>
-      <MaintenanceClient 
-        initialSchedules={schedules || []} 
-        vehicles={vehicles || []}
-      />
-    </Suspense>
+    <DashboardLayout onSignOut={handleSignOut}>
+      <Suspense fallback={<div>Loading maintenance schedules...</div>}>
+        <MaintenanceClient 
+          initialSchedules={schedules || []} 
+          vehicles={vehicles || []}
+        />
+      </Suspense>
+    </DashboardLayout>
   )
 }

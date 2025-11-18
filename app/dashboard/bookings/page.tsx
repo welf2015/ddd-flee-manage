@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 import { createClient } from "@/lib/supabase/server"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { BookingsTable } from "@/components/bookings-table"
@@ -59,6 +59,8 @@ export default async function BookingsPage() {
 
   return (
     <DashboardLayout onSignOut={handleSignOut}>
+      <BookingStats {...stats} />
+      
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">Bookings</h1>
@@ -66,8 +68,6 @@ export default async function BookingsPage() {
         </div>
         <CreateBookingDialog />
       </div>
-
-      <BookingStats {...stats} />
 
       <BookingsTable bookings={bookings || []} />
     </DashboardLayout>
