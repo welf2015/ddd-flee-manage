@@ -15,10 +15,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Plus } from "lucide-react"
+import { Plus } from 'lucide-react'
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { createDriver } from "@/app/actions/drivers"
 import { createClient } from "@/lib/supabase/client"
 
@@ -51,16 +50,8 @@ export function CreateDriverDialog() {
     e.preventDefault()
     setLoading(true)
 
-    console.log("[v0] Starting driver creation...")
     const formData = new FormData(e.currentTarget)
-
-    // Log form data
-    for (const [key, value] of formData.entries()) {
-      console.log(`[v0] Form field ${key}:`, value)
-    }
-
     const result = await createDriver(formData)
-    console.log("[v0] Create driver result:", result)
 
     if (result.success) {
       setOpen(false)
@@ -80,111 +71,38 @@ export function CreateDriverDialog() {
           Add Driver
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl bg-background/95 backdrop-blur-xl border-border/50 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md bg-background/95 backdrop-blur-xl border-border/50">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Add New Driver</DialogTitle>
-            <DialogDescription>Add a new driver to your fleet with all necessary information</DialogDescription>
+            <DialogDescription>Add a driver and assign them to a vehicle</DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-6 py-4">
+          <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="photo_url">Driver Photo URL (Optional)</Label>
-              <Input id="photo_url" name="photo_url" type="url" placeholder="https://example.com/photo.jpg" />
-              <p className="text-xs text-muted-foreground">Upload photo to a service and paste the URL here</p>
+              <Label htmlFor="full_name">Driver Name *</Label>
+              <Input id="full_name" name="full_name" placeholder="John Doe" required />
             </div>
 
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Personal Information</h3>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="full_name">Full Name *</Label>
-                  <Input id="full_name" name="full_name" placeholder="John Doe" required />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="phone">Phone Number *</Label>
-                  <Input id="phone" name="phone" type="tel" placeholder="+234 800 000 0000" required />
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="address">Address</Label>
-                <Textarea id="address" name="address" placeholder="Full residential address" rows={2} />
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="assigned_vehicle_id">Assign Vehicle *</Label>
+              <Select name="assigned_vehicle_id" required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a vehicle" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vehicles.map((vehicle) => (
+                    <SelectItem key={vehicle.id} value={vehicle.id}>
+                      {vehicle.vehicle_number} - {vehicle.make} {vehicle.model}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">License Information</h3>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="license_number">License Number *</Label>
-                  <Input id="license_number" name="license_number" placeholder="DL-123456" required />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="license_expiry">License Expiry Date</Label>
-                  <Input id="license_expiry" name="license_expiry" type="date" />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Emergency Contact</h3>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="emergency_contact_name">Contact Name</Label>
-                  <Input id="emergency_contact_name" name="emergency_contact_name" placeholder="Jane Doe" />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="emergency_contact_phone">Contact Phone</Label>
-                  <Input
-                    id="emergency_contact_phone"
-                    name="emergency_contact_phone"
-                    type="tel"
-                    placeholder="+234 800 000 0000"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="emergency_contact_relationship">Relationship</Label>
-                  <Select name="emergency_contact_relationship">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select relationship" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Spouse">Spouse</SelectItem>
-                      <SelectItem value="Parent">Parent</SelectItem>
-                      <SelectItem value="Sibling">Sibling</SelectItem>
-                      <SelectItem value="Child">Child</SelectItem>
-                      <SelectItem value="Friend">Friend</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Vehicle Assignment</h3>
-              <div className="grid gap-2">
-                <Label htmlFor="assigned_vehicle_id">Assign Vehicle (Optional)</Label>
-                <Select name="assigned_vehicle_id">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a vehicle" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No vehicle</SelectItem>
-                    {vehicles.map((vehicle) => (
-                      <SelectItem key={vehicle.id} value={vehicle.id}>
-                        {vehicle.vehicle_number} - {vehicle.make} {vehicle.model} ({vehicle.vehicle_type})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            {/* Hidden fields with default values */}
+            <input type="hidden" name="license_number" value="TBD" />
+            <input type="hidden" name="phone" value="N/A" />
           </div>
 
           <DialogFooter>

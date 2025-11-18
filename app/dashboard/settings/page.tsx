@@ -3,11 +3,13 @@ import { CardDescription } from "@/components/ui/card"
 import { CardTitle } from "@/components/ui/card"
 import { CardHeader } from "@/components/ui/card"
 import { Card } from "@/components/ui/card"
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 import { createClient } from "@/lib/supabase/server"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProfileSettings } from "@/components/profile-settings"
+import { DriversTable } from "@/components/drivers-table"
+import { CreateDriverDialog } from "@/components/create-driver-dialog"
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -18,6 +20,17 @@ export default async function SettingsPage() {
   if (!user) {
     redirect("/auth/login")
   }
+
+  const { data: drivers } = await supabase
+    .from("drivers")
+    .select(
+      `
+      *,
+      vehicles:assigned_vehicle_id(*),
+      current_job:bookings!drivers_current_job_id_fkey(id, job_id, status)
+    `,
+    )
+    .order("created_at", { ascending: false })
 
   const handleSignOut = async () => {
     "use server"
@@ -31,7 +44,7 @@ export default async function SettingsPage() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">Settings</h1>
-          <div className="text-sm text-muted-foreground">Manage your account settings</div>
+          <div className="text-sm text-muted-foreground">Manage your account settings and drivers</div>
         </div>
       </div>
 
@@ -40,6 +53,9 @@ export default async function SettingsPage() {
           <TabsTrigger value="profile" className="flex-1 sm:flex-none">
             Profile
           </TabsTrigger>
+          <TabsTrigger value="drivers" className="flex-1 sm:flex-none">
+            Drivers
+          </TabsTrigger>
           <TabsTrigger value="notifications" className="flex-1 sm:flex-none">
             Notifications
           </TabsTrigger>
@@ -47,6 +63,21 @@ export default async function SettingsPage() {
 
         <TabsContent value="profile">
           <ProfileSettings />
+        </TabsContent>
+
+        <TabsContent value="drivers">
+          <Card className="bg-background/50 backdrop-blur mb-4">
+            <CardHeader>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle>Driver Management</CardTitle>
+                  <CardDescription>Add and manage drivers for your fleet</CardDescription>
+                </div>
+                <CreateDriverDialog />
+              </div>
+            </CardHeader>
+          </Card>
+          <DriversTable drivers={drivers || []} />
         </TabsContent>
 
         <TabsContent value="notifications">
