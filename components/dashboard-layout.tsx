@@ -25,6 +25,7 @@ import {
   Star01Icon,
   CheckmarkSquare02Icon,
   DollarCircleIcon,
+  Notification03Icon, // Added bell icon from hugeicons
 } from 'hugeicons-react'
 import Link from "next/link"
 import { usePathname, useRouter } from 'next/navigation'
@@ -181,12 +182,15 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
           <Sidebar />
         </aside>
 
+        {/* Mobile header with bell icon */}
         <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-16 px-4 border-b border-border bg-background/95 backdrop-blur">
           <div className="flex items-center gap-2">
             <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
           </div>
           <div className="flex items-center gap-2">
-            <NotificationBell />
+            <Button variant="ghost" size="icon">
+              <Notification03Icon size={24} variant="stroke" />
+            </Button>
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -200,8 +204,11 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
           </div>
         </div>
 
+        {/* Desktop header with bell icon */}
         <div className="hidden lg:flex fixed top-0 right-0 left-[280px] z-50 px-6 h-16 items-center justify-end border-b border-border bg-background/95 backdrop-blur">
-          <NotificationBell />
+          <Button variant="ghost" size="icon">
+            <Notification03Icon size={24} variant="stroke" />
+          </Button>
         </div>
 
         <main className="flex-1 lg:ml-[280px] p-4 md:p-6 pt-20 lg:pt-20 min-h-screen">{children}</main>
