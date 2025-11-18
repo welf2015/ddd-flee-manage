@@ -3,15 +3,16 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Eye } from "lucide-react"
+import { Eye } from 'lucide-react'
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
 import { useState } from "react"
 import { ProcurementDetailDialog } from "./procurement-detail-dialog"
+import { ProcurementDetailSheet } from "./procurement-detail-sheet"
 
 export function ProcurementsTable() {
   const supabase = createClient()
-  const [selectedProcurement, setSelectedProcurement] = useState<any>(null)
+  const [selectedProcurementId, setSelectedProcurementId] = useState<string | null>(null)
   const [showDetail, setShowDetail] = useState(false)
 
   const { data: procurements = [], isLoading } = useSWR(
@@ -93,7 +94,7 @@ export function ProcurementsTable() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setSelectedProcurement(proc)
+                      setSelectedProcurementId(proc.id)
                       setShowDetail(true)
                     }}
                   >
@@ -107,12 +108,11 @@ export function ProcurementsTable() {
         </CardContent>
       </Card>
 
-      {showDetail && selectedProcurement && (
-        <ProcurementDetailDialog
+      {showDetail && selectedProcurementId && (
+        <ProcurementDetailSheet
           open={showDetail}
           onOpenChange={setShowDetail}
-          procurement={selectedProcurement}
-          onUpdate={() => {}}
+          procurementId={selectedProcurementId}
         />
       )}
     </>

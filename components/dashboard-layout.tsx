@@ -30,6 +30,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
+import { NotificationBell } from "./notification-bell"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -184,19 +185,26 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
           <div className="flex items-center gap-2">
             <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
           </div>
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu01Icon size={24} variant="stroke" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[280px] p-0 bg-background/95 backdrop-blur flex flex-col">
-              <Sidebar />
-            </SheetContent>
-          </Sheet>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <Sheet open={open} onOpenChange={setOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu01Icon size={24} variant="stroke" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px] p-0 bg-background/95 backdrop-blur flex flex-col">
+                <Sidebar />
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
 
-        <main className="flex-1 lg:ml-[280px] p-4 md:p-6 pt-20 lg:pt-6 min-h-screen">{children}</main>
+        <div className="hidden lg:flex fixed top-0 right-0 left-[280px] z-50 px-6 h-16 items-center justify-end border-b border-border bg-background/95 backdrop-blur">
+          <NotificationBell />
+        </div>
+
+        <main className="flex-1 lg:ml-[280px] p-4 md:p-6 pt-20 lg:pt-20 min-h-screen">{children}</main>
       </div>
     </div>
   )

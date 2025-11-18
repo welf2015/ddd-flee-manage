@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
-import { DollarSign, User, Clock } from "lucide-react"
+import { DollarSign, User, Clock } from 'lucide-react'
 
 type NegotiateBookingDialogProps = {
   open: boolean
@@ -58,6 +58,8 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
         data: { user },
       } = await supabase.auth.getUser()
 
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user?.id).single()
+
       if (isCounter) {
         // Counter negotiation
         const { error } = await supabase
@@ -72,6 +74,25 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
           .eq("id", threads[0]?.id)
 
         if (error) throw error
+
+        if (profile?.role !== "MD" && profile?.role !== "ED") {
+          // Get MD and ED users
+          const { data: admins } = await supabase
+            .from("profiles")
+            .select("id")
+            .in("role", ["MD", "ED"])
+
+          if (admins) {
+            const notifications = admins.map((admin) => ({
+              user_id: admin.id,
+              type: "booking",
+              title: "Client Counter Offer",
+              message: `Staff has sent client's counter-offer of ₦${Number.parseFloat(amount).toLocaleString()} for ${booking.job_id}`,
+              related_id: booking.id,
+            }))
+            await supabase.from("notifications").insert(notifications)
+          }
+        }
       } else {
         // New negotiation proposal
         const { error } = await supabase.from("negotiation_threads").insert({
@@ -83,12 +104,30 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
         })
 
         if (error) throw error
+
+        if (profile?.role === "MD" || profile?.role === "ED") {
+          const { data: bookingData } = await supabase
+            .from("bookings")
+            .select("created_by")
+            .eq("id", booking.id)
+            .single()
+
+          if (bookingData?.created_by) {
+            await supabase.from("notifications").insert({
+              user_id: bookingData.created_by,
+              type: "booking",
+              title: "Negotiation Started",
+              message: `${profile.role} has proposed ₦${Number.parseFloat(amount).toLocaleString()} for ${booking.job_id}. Please get client's response.`,
+              related_id: booking.id,
+            })
+          }
+        }
       }
 
       // Update booking status to Negotiation
       await supabase
         .from("bookings")
-        .update({ status: "Negotiation", negotiation_status: "Pending" })
+        .update({ status: "Negotiation", negotiation_status: "Pending", current_negotiation_amount: Number.parseFloat(amount) })
         .eq("id", booking.id)
 
       toast.success(isCounter ? "Counter proposal sent" : "Negotiation started")

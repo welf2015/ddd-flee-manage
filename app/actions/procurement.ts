@@ -367,3 +367,201 @@ export async function moveProcurementToOnboarding(procurementId: string) {
   revalidatePath("/dashboard/vehicle-management/onboarding")
   return { success: true, data: onboarding }
 }
+
+export async function closeDealWithVendor(procurementId: string, finalPrice: number) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  const { error } = await supabase
+    .from("procurements")
+    .update({
+      status: "Vendor Accepted",
+      final_price: finalPrice,
+      deal_closed_date: new Date().toISOString(),
+      payment_status: "Pending",
+    })
+    .eq("id", procurementId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  await supabase.from("procurement_timeline").insert({
+    procurement_id: procurementId,
+    action_type: "Deal Closed with Vendor",
+    new_value: finalPrice.toString(),
+    action_by: user.id,
+    notes: `Vendor accepted deal at ₦${finalPrice.toLocaleString()}`,
+  })
+
+  // Create notification for MD/ED
+  const { data: admins } = await supabase
+    .from("profiles")
+    .select("id")
+    .in("role", ["MD", "ED"])
+
+  if (admins) {
+    const notifications = admins.map((admin) => ({
+      user_id: admin.id,
+      type: "procurement",
+      title: "Procurement Deal Closed",
+      message: `Deal closed for procurement at ₦${finalPrice.toLocaleString()}. Payment pending.`,
+      related_id: procurementId,
+    }))
+    await supabase.from("notifications").insert(notifications)
+  }
+
+  revalidatePath("/dashboard/procurement")
+  return { success: true }
+}
+
+export async function markProcurementAsPaid(procurementId: string, invoiceUrl?: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  const { error } = await supabase
+    .from("procurements")
+    .update({
+      payment_status: "Paid",
+      status: "Paid",
+    })
+    .eq("id", procurementId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  await supabase.from("procurement_timeline").insert({
+    procurement_id: procurementId,
+    action_type: "Payment Completed",
+    action_by: user.id,
+    notes: "Payment has been made to vendor",
+  })
+
+  // Optionally upload invoice
+  if (invoiceUrl) {
+    await supabase.from("procurement_documents").insert({
+      procurement_id: procurementId,
+      document_name: "Payment Invoice",
+      document_url: invoiceUrl,
+      document_type: "Invoice",
+      uploaded_by: user.id,
+    })
+  }
+
+  revalidatePath("/dashboard/procurement")
+  return { success: true }
+}
+
+export async function updateShippingInfo(
+  procurementId: string,
+  data: {
+    waybill_number: string
+    tracking_info: string
+    estimated_delivery_months: number
+    shipping_date: string
+  },
+) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  const { error } = await supabase
+    .from("procurements")
+    .update({
+      ...data,
+      status: "In Transit",
+    })
+    .eq("id", procurementId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  await supabase.from("procurement_timeline").insert({
+    procurement_id: procurementId,
+    action_type: "Shipping Details Updated",
+    action_by: user.id,
+    notes: `Waybill: ${data.waybill_number}, ETA: ${data.estimated_delivery_months} months`,
+  })
+
+  revalidatePath("/dashboard/procurement")
+  return { success: true }
+}
+
+export async function markVehicleAsArrived(procurementId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  const { error } = await supabase
+    .from("procurements")
+    .update({
+      status: "Arrived",
+      actual_arrival_date: new Date().toISOString().split("T")[0],
+    })
+    .eq("id", procurementId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  await supabase.from("procurement_timeline").insert({
+    procurement_id: procurementId,
+    action_type: "Vehicle Arrived",
+    action_by: user.id,
+    notes: "Vehicle has arrived and ready for clearing",
+  })
+
+  // Notify relevant staff
+  const { data: admins } = await supabase
+    .from("profiles")
+    .select("id")
+    .in("role", ["MD", "ED", "Head of Operations"])
+
+  if (admins) {
+    const notifications = admins.map((admin) => ({
+      user_id: admin.id,
+      type: "procurement",
+      title: "Vehicle Arrived",
+      message: "Procured vehicle has arrived. Please assign clearing agent.",
+      related_id: procurementId,
+    }))
+    await supabase.from("notifications").insert(notifications)
+  }
+
+  revalidatePath("/dashboard/procurement")
+  return { success: true }
+}
+
+export const negotiateProcurement = updateProcurementPrice
+export const closeProcurementDeal = closeDealWithVendor
+export const addShippingInfo = updateShippingInfo
+export const markAsArrived = markVehicleAsArrived
+export const moveToOnboarding = moveProcurementToOnboarding
