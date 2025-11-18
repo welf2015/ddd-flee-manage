@@ -1,40 +1,123 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Truck, ClipboardCheck, AlertTriangle } from "lucide-react"
+import { Truck, ClipboardCheck, AlertTriangle, Users, Building2, Package } from 'lucide-react'
+import useSWR from "swr"
+import { createClient } from "@/lib/supabase/client"
+
+const fetcher = async () => {
+  const supabase = createClient()
+
+  const [bookingsRes, vehiclesRes, driversRes, incidentsRes, clientsRes, inventoryRes] = await Promise.all([
+    supabase.from("bookings").select("status", { count: "exact", head: false }),
+    supabase.from("vehicles").select("status", { count: "exact", head: false }),
+    supabase.from("drivers").select("id", { count: "exact", head: true }),
+    supabase.from("incidents").select("severity,status", { count: "exact", head: false }),
+    supabase.from("clients").select("id", { count: "exact", head: true }),
+    supabase.from("inventory_parts").select("quantity,reorder_level", { count: "exact", head: false }),
+  ])
+
+  // Calculate active bookings (not completed or closed)
+  const activeBookings =
+    bookingsRes.data?.filter((b) => !["Completed", "Closed"].includes(b.status)).length || 0
+
+  // Calculate vehicle statistics
+  const activeVehicles = vehiclesRes.data?.filter((v) => v.status === "Active").length || 0
+  const maintenanceVehicles = vehiclesRes.data?.filter((v) => v.status === "Maintenance").length || 0
+
+  // Calculate pending approvals (Open bookings waiting for admin action)
+  const pendingApprovals = bookingsRes.data?.filter((b) => b.status === "Open").length || 0
+
+  // Calculate open incidents with high priority
+  const openIncidents = incidentsRes.data?.filter((i) => i.status === "Open").length || 0
+  const highPriorityIncidents = incidentsRes.data?.filter((i) => i.severity === "High" && i.status === "Open").length || 0
+
+  // Calculate low stock items
+  const lowStockItems =
+    inventoryRes.data?.filter((item) => item.quantity <= item.reorder_level).length || 0
+
+  return {
+    activeBookings,
+    totalBookings: bookingsRes.count || 0,
+    activeVehicles,
+    maintenanceVehicles,
+    totalVehicles: vehiclesRes.count || 0,
+    pendingApprovals,
+    openIncidents,
+    highPriorityIncidents,
+    totalDrivers: driversRes.count || 0,
+    totalClients: clientsRes.count || 0,
+    lowStockItems,
+    totalInventory: inventoryRes.count || 0,
+  }
+}
 
 export function FleetStats() {
-  // Mock data - will be replaced with real data from Supabase
+  const { data, error } = useSWR("dashboard-stats", fetcher, {
+    refreshInterval: 5000, // Refresh every 5 seconds
+  })
+
   const stats = [
     {
-      title: "Active Bookings",
-      value: "12",
+      title: "Total Bookings",
+      value: data?.totalBookings?.toString() || "0",
       icon: ClipboardCheck,
-      description: "+3 from last week",
-      trend: "up",
+      description: `${data?.activeBookings || 0} active`,
+      trend: "neutral",
     },
     {
       title: "Total Vehicles",
-      value: "45",
+      value: data?.totalVehicles?.toString() || "0",
       icon: Truck,
-      description: "38 active, 7 maintenance",
+      description: `${data?.activeVehicles || 0} active, ${data?.maintenanceVehicles || 0} maintenance`,
       trend: "neutral",
     },
     {
       title: "Pending Approvals",
-      value: "5",
+      value: data?.pendingApprovals?.toString() || "0",
       icon: ClipboardCheck,
-      description: "Requires attention",
+      description: "Booking approvals needed",
       trend: "neutral",
     },
     {
       title: "Open Incidents",
-      value: "3",
+      value: data?.openIncidents?.toString() || "0",
       icon: AlertTriangle,
-      description: "2 high priority",
+      description: `${data?.highPriorityIncidents || 0} high priority`,
       trend: "down",
     },
+    {
+      title: "Total Drivers",
+      value: data?.totalDrivers?.toString() || "0",
+      icon: Users,
+      description: "Active drivers",
+      trend: "neutral",
+    },
+    {
+      title: "Total Clients",
+      value: data?.totalClients?.toString() || "0",
+      icon: Building2,
+      description: "Registered clients",
+      trend: "neutral",
+    },
+    {
+      title: "Inventory",
+      value: data?.totalInventory?.toString() || "0",
+      icon: Package,
+      description: `${data?.lowStockItems || 0} low stock`,
+      trend: "neutral",
+    },
   ]
+
+  if (error) {
+    return (
+      <Card className="bg-background/50 backdrop-blur">
+        <CardContent className="p-6">
+          <p className="text-sm text-destructive">Failed to load dashboard statistics</p>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

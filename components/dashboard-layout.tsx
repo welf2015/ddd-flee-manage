@@ -4,24 +4,11 @@ import type React from "react"
 
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import {
-  LayoutDashboard,
-  Truck,
-  Users,
-  AlertTriangle,
-  Building2,
-  BarChart3,
-  ClipboardCheck,
-  Settings,
-  LogOut,
-  Menu,
-  Plus,
-  Package,
-  ShoppingCart,
-} from "lucide-react"
+import { LayoutDashboard, Truck, Users, AlertTriangle, Building2, BarChart3, ClipboardCheck, Settings, LogOut, Menu, Plus, Package, ShoppingCart, ChevronDown, ChevronRight, Wrench, Star, FileCheck, DollarSign } from 'lucide-react'
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, useRouter } from 'next/navigation'
 import { useState } from "react"
+import { cn } from "@/lib/utils"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -30,18 +17,32 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
   const [open, setOpen] = useState(false)
+  const [vehicleManagementOpen, setVehicleManagementOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Bookings", href: "/dashboard/bookings", icon: ClipboardCheck },
-    { name: "Vehicles", href: "/dashboard/vehicles", icon: Truck },
+    {
+      name: "Vehicle Management",
+      href: "/dashboard/vehicle-management",
+      icon: Truck,
+      hasSubmenu: true,
+      submenu: [
+        { name: "Vehicles", href: "/dashboard/vehicles", icon: Truck },
+        { name: "Onboarding", href: "/dashboard/vehicle-management/onboarding", icon: ClipboardCheck },
+        { name: "Feedbacks", href: "/dashboard/vehicle-management/feedbacks", icon: Star },
+        { name: "Compliance", href: "/dashboard/vehicle-management/compliance", icon: FileCheck },
+        { name: "Incidents", href: "/dashboard/incidents", icon: AlertTriangle },
+        { name: "Maintenance", href: "/dashboard/vehicle-management/maintenance", icon: Wrench },
+      ],
+    },
     { name: "Drivers", href: "/dashboard/drivers", icon: Users },
-    { name: "Incidents", href: "/dashboard/incidents", icon: AlertTriangle },
     { name: "Clients", href: "/dashboard/clients", icon: Building2 },
     { name: "Procurement", href: "/dashboard/procurement", icon: ShoppingCart },
     { name: "Inventory", href: "/dashboard/inventory", icon: Package },
+    { name: "Sales Insights", href: "/dashboard/sales-insights", icon: DollarSign }, // Added sales insights link
     { name: "Reports", href: "/dashboard/reports", icon: BarChart3 },
     { name: "Settings", href: "/dashboard/settings", icon: Settings },
   ]
@@ -63,14 +64,64 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
       <nav className="space-y-2 px-2 flex-1 overflow-y-auto">
         {navigation.map((item) => {
           const Icon = item.icon
-          const isActive = pathname === item.href
+          const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
+          const isSubmenuOpen = vehicleManagementOpen && item.hasSubmenu
+
           return (
-            <Link key={item.href} href={item.href} onClick={() => setOpen(false)}>
-              <Button variant={isActive ? "secondary" : "ghost"} className="w-full justify-start gap-2">
-                <Icon className="h-4 w-4" />
-                {item.name}
-              </Button>
-            </Link>
+            <div key={item.href}>
+              {item.hasSubmenu ? (
+                <>
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    className="w-full justify-between"
+                    onClick={() => setVehicleManagementOpen(!vehicleManagementOpen)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon className="h-4 w-4" />
+                      {item.name}
+                    </div>
+                    {isSubmenuOpen ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </Button>
+                  {isSubmenuOpen && item.submenu && (
+                    <div className="ml-4 mt-2 space-y-1">
+                      {item.submenu.map((subitem) => {
+                        const SubIcon = subitem.icon
+                        const isSubActive = pathname === subitem.href
+                        return (
+                          <Link
+                            key={subitem.href}
+                            href={subitem.href}
+                            onClick={() => setOpen(false)}
+                          >
+                            <Button
+                              variant={isSubActive ? "secondary" : "ghost"}
+                              className="w-full justify-start gap-2 text-sm"
+                            >
+                              <SubIcon className="h-3.5 w-3.5" />
+                              {subitem.name}
+                            </Button>
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Link href={item.href} onClick={() => setOpen(false)}>
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    className="w-full justify-start gap-2"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.name}
+                  </Button>
+                </Link>
+              )}
+            </div>
           )
         })}
       </nav>

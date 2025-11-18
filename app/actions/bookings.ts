@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import { notifyAdminsForBookingApproval, notifyStatusChange } from "@/lib/notifications"
 
 export async function createBooking(formData: FormData) {
   const supabase = await createClient()
@@ -27,6 +28,8 @@ export async function createBooking(formData: FormData) {
   const clientName = formData.get("client_name") as string
   const clientContact = formData.get("client_contact") as string
   const clientEmail = formData.get("client_email") as string
+  const route = formData.get("route") as string
+  const proposedBudget = Number.parseFloat(formData.get("proposed_client_budget") as string)
 
   let clientId: string | null = null
 
@@ -69,9 +72,9 @@ export async function createBooking(formData: FormData) {
     client_name: clientName,
     client_contact: clientContact,
     client_id: clientId,
-    route: formData.get("route") as string,
+    route,
     number_of_loads: Number.parseInt(formData.get("number_of_loads") as string),
-    proposed_client_budget: Number.parseFloat(formData.get("proposed_client_budget") as string),
+    proposed_client_budget: proposedBudget,
     timeline: formData.get("timeline") as string,
     request_details: formData.get("request_details") as string,
     status: "Open",
@@ -91,6 +94,14 @@ export async function createBooking(formData: FormData) {
       action_type: "Booking Created",
       action_by: user.id,
       notes: `New booking created for ${clientName}`,
+    })
+
+    await notifyAdminsForBookingApproval({
+      jobId: jobIdData,
+      clientName,
+      route,
+      budget: proposedBudget,
+      createdBy: user.id,
     })
   }
 
@@ -154,6 +165,16 @@ export async function updateBookingStatus(bookingId: string, status: string) {
     return { success: false, error: "Not authenticated" }
   }
 
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("status, job_id, client_name")
+    .eq("id", bookingId)
+    .single()
+
+  if (!booking) {
+    return { success: false, error: "Booking not found" }
+  }
+
   const updateData: any = { status }
 
   // Set timestamps based on status
@@ -171,6 +192,16 @@ export async function updateBookingStatus(bookingId: string, status: string) {
     console.error("[v0] Error updating status:", error)
     return { success: false, error: error.message }
   }
+
+  const notifyRoles = ["MD", "ED", "Head of Operations"]
+  await notifyStatusChange({
+    jobId: booking.job_id,
+    clientName: booking.client_name,
+    oldStatus: booking.status,
+    newStatus: status,
+    changedBy: user.id,
+    notifyRoles,
+  })
 
   console.log("[v0] Status update successful")
   revalidatePath("/dashboard/bookings")

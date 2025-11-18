@@ -291,3 +291,79 @@ export async function uploadProcurementDocument(
   revalidatePath("/dashboard/procurement")
   return { success: true }
 }
+
+export async function moveProcurementToOnboarding(procurementId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  // Get procurement details
+  const { data: procurement } = await supabase
+    .from("procurements")
+    .select("*")
+    .eq("id", procurementId)
+    .single()
+
+  if (!procurement) {
+    return { success: false, error: "Procurement not found" }
+  }
+
+  // Create onboarding
+  const { data: onboarding, error: onboardingError } = await supabase
+    .from("vehicle_onboarding")
+    .insert({
+      procurement_id: procurementId,
+      vehicle_type: procurement.vehicle_type,
+      assigned_to: user.id,
+      status: "In Progress",
+    })
+    .select()
+    .single()
+
+  if (onboardingError) {
+    return { success: false, error: onboardingError.message }
+  }
+
+  // Get all checklist items
+  const { data: checklistItems } = await supabase
+    .from("onboarding_checklist_items")
+    .select("id")
+    .order("order_index")
+
+  // Create progress entries for all checklist items
+  if (checklistItems) {
+    const progressEntries = checklistItems.map((item) => ({
+      onboarding_id: onboarding.id,
+      checklist_item_id: item.id,
+      is_completed: false,
+    }))
+
+    await supabase.from("vehicle_onboarding_progress").insert(progressEntries)
+  }
+
+  // Update procurement
+  await supabase
+    .from("procurements")
+    .update({
+      onboarding_id: onboarding.id,
+      status: "Onboarding",
+    })
+    .eq("id", procurementId)
+
+  await supabase.from("procurement_timeline").insert({
+    procurement_id: procurementId,
+    action_type: "Moved to Onboarding",
+    action_by: user.id,
+    notes: "Vehicle moved to onboarding process",
+  })
+
+  revalidatePath("/dashboard/procurement")
+  revalidatePath("/dashboard/vehicle-management/onboarding")
+  return { success: true, data: onboarding }
+}

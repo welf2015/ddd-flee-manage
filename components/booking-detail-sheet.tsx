@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Truck, User, AlertCircle, CheckCircle2, Upload, X, MapPin, Clock, DollarSign, FileText } from "lucide-react"
+import { Truck, User, AlertCircle, CheckCircle2, Upload, X, MapPin, Clock, DollarSign, FileText, ArrowRight } from 'lucide-react'
 import { AssignDriverDialog } from "./assign-driver-dialog"
 import { UpdateJobStatusDialog } from "./update-job-status-dialog"
 import { CloseJobDialog } from "./close-job-dialog"
@@ -141,7 +141,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate }: Bo
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:w-full lg:w-3/4 p-0 bg-background">
+        <SheetContent side="right" className="w-full sm:w-full lg:w-11/12 xl:w-5/6 p-0 bg-background overflow-y-auto">
           <div className="h-full flex flex-col">
             {/* Header */}
             <SheetHeader className="px-6 py-4 border-b sticky top-0 bg-background z-10 space-y-0">
@@ -160,7 +160,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate }: Bo
             </SheetHeader>
 
             {/* Action Buttons */}
-            <div className="px-6 py-3 border-b flex gap-2 flex-wrap">
+            <div className="px-6 py-3 border-b flex gap-2 flex-wrap bg-muted/30">
               {canNegotiate && (
                 <Button
                   onClick={() => setShowNegotiate(true)}
@@ -226,62 +226,139 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate }: Bo
                   </TabsTrigger>
                 </TabsList>
 
-                <div className="px-6">
+                <div className="px-6 pb-6">
                   <TabsContent value="details" className="space-y-4 mt-4">
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-lg">Client Info</CardTitle>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <User className="h-5 w-5 text-accent" />
+                          Client Information
+                        </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{displayBooking.client?.name}</span>
-                        </div>
-                        {displayBooking.client?.contact && (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <FileText className="h-4 w-4" />
-                            <span>{displayBooking.client.contact}</span>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-muted-foreground text-xs">Client Name</Label>
+                            <p className="font-semibold text-lg mt-1">{displayBooking.client?.name}</p>
                           </div>
+                          <div>
+                            <Label className="text-muted-foreground text-xs">Contact</Label>
+                            <p className="text-sm mt-1">{displayBooking.client?.contact || "N/A"}</p>
+                          </div>
+                        </div>
+                        {displayBooking.client && (
+                          <>
+                            <Separator />
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                              {displayBooking.client.email && (
+                                <div>
+                                  <Label className="text-muted-foreground text-xs">Email</Label>
+                                  <p className="mt-1">{displayBooking.client.email}</p>
+                                </div>
+                              )}
+                              {displayBooking.client.phone && (
+                                <div>
+                                  <Label className="text-muted-foreground text-xs">Phone</Label>
+                                  <p className="mt-1">{displayBooking.client.phone}</p>
+                                </div>
+                              )}
+                              {displayBooking.client.address && (
+                                <div>
+                                  <Label className="text-muted-foreground text-xs">Address</Label>
+                                  <p className="mt-1">{displayBooking.client.address}</p>
+                                </div>
+                              )}
+                            </div>
+                          </>
                         )}
                       </CardContent>
                     </Card>
 
+                    {displayBooking.route && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <MapPin className="h-5 w-5 text-accent" />
+                            Route Map
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {/* Route Display with Icons */}
+                          <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
+                            <div className="flex items-center gap-2 flex-1">
+                              <div className="flex flex-col items-center">
+                                <MapPin className="h-5 w-5 text-green-500" />
+                                <span className="text-xs text-muted-foreground mt-1">From</span>
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium">
+                                  {displayBooking.route.split("→")[0]?.trim() || "Origin"}
+                                </p>
+                              </div>
+                            </div>
+                            <ArrowRight className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+                            <div className="flex items-center gap-2 flex-1">
+                              <div className="flex-1">
+                                <p className="font-medium">
+                                  {displayBooking.route.split("→")[1]?.trim() || "Destination"}
+                                </p>
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <MapPin className="h-5 w-5 text-red-500" />
+                                <span className="text-xs text-muted-foreground mt-1">To</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Embedded Map */}
+                          <div className="w-full h-64 rounded-lg overflow-hidden border bg-muted/30 flex items-center justify-center">
+                            <div className="text-center text-muted-foreground space-y-2">
+                              <MapPin className="h-12 w-12 mx-auto opacity-50" />
+                              <p className="text-sm">Interactive map coming soon</p>
+                              <p className="text-xs">
+                                Route: {displayBooking.route.split("→")[0]?.trim()} →{" "}
+                                {displayBooking.route.split("→")[1]?.trim()}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-lg">Job Details</CardTitle>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-accent" />
+                          Job Details
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div>
-                          <label className="text-sm font-medium text-muted-foreground">Request Details</label>
-                          <p className="mt-1">{displayBooking.request_details}</p>
+                          <Label className="text-sm font-medium text-muted-foreground">Request Details</Label>
+                          <p className="mt-2 text-base leading-relaxed">{displayBooking.request_details}</p>
                         </div>
                         <Separator />
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="text-sm font-medium text-muted-foreground">Route</label>
-                            <div className="flex items-start gap-2 mt-1">
-                              <MapPin className="h-4 w-4 text-green-500 mt-0.5" />
-                              <span className="text-sm">{displayBooking.route || "Not specified"}</span>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {displayBooking.timeline && (
+                            <div>
+                              <Label className="text-sm font-medium text-muted-foreground">Timeline</Label>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Clock className="h-4 w-4 text-accent" />
+                                <span className="text-sm font-medium">{displayBooking.timeline}</span>
+                              </div>
                             </div>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium text-muted-foreground">Timeline</label>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm">{displayBooking.timeline || "Not specified"}</span>
-                            </div>
-                          </div>
+                          )}
                           {displayBooking.number_of_loads && (
                             <div>
-                              <label className="text-sm font-medium text-muted-foreground">Number of Loads</label>
-                              <p className="mt-1">{displayBooking.number_of_loads}</p>
+                              <Label className="text-sm font-medium text-muted-foreground">Number of Loads</Label>
+                              <p className="mt-1 font-medium">{displayBooking.number_of_loads}</p>
                             </div>
                           )}
                           <div>
-                            <label className="text-sm font-medium text-muted-foreground">Proposed Budget</label>
+                            <Label className="text-sm font-medium text-muted-foreground">Proposed Budget</Label>
                             <div className="flex items-center gap-2 mt-1">
                               <DollarSign className="h-4 w-4 text-green-500" />
-                              <span className="font-semibold">
+                              <span className="font-semibold text-lg text-green-600">
                                 {formatCurrency(displayBooking.proposed_client_budget)}
                               </span>
                             </div>
@@ -291,8 +368,10 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate }: Bo
                           <>
                             <Separator />
                             <div>
-                              <label className="text-sm font-medium text-muted-foreground">Negotiation Notes</label>
-                              <p className="mt-1 text-sm">{displayBooking.negotiation_notes}</p>
+                              <Label className="text-sm font-medium text-muted-foreground">Negotiation Notes</Label>
+                              <p className="mt-2 text-sm bg-muted/50 p-3 rounded-lg">
+                                {displayBooking.negotiation_notes}
+                              </p>
                             </div>
                           </>
                         )}
@@ -333,12 +412,12 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate }: Bo
                             <Separator />
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <label className="text-sm font-medium text-muted-foreground">License Number</label>
+                                <Label className="text-sm font-medium text-muted-foreground">License Number</Label>
                                 <p className="mt-1 text-sm">{displayBooking.driver?.license_number}</p>
                               </div>
                               {displayBooking.driver?.address && (
                                 <div>
-                                  <label className="text-sm font-medium text-muted-foreground">Address</label>
+                                  <Label className="text-sm font-medium text-muted-foreground">Address</Label>
                                   <p className="mt-1 text-sm">{displayBooking.driver.address}</p>
                                 </div>
                               )}
@@ -347,7 +426,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate }: Bo
                               <>
                                 <Separator />
                                 <div>
-                                  <label className="text-sm font-medium text-muted-foreground">Emergency Contact</label>
+                                  <Label className="text-sm font-medium text-muted-foreground">Emergency Contact</Label>
                                   <p className="mt-1 text-sm">{displayBooking.driver.emergency_contact_name}</p>
                                   <p className="text-sm text-muted-foreground">
                                     {displayBooking.driver.emergency_contact_phone}
@@ -376,11 +455,11 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate }: Bo
                             </div>
                             <div className="grid grid-cols-2 gap-4 text-sm">
                               <div>
-                                <label className="text-muted-foreground">Type</label>
+                                <Label className="text-muted-foreground">Type</Label>
                                 <p className="font-medium">{displayBooking.vehicle?.vehicle_type}</p>
                               </div>
                               <div>
-                                <label className="text-muted-foreground">Make & Model</label>
+                                <Label className="text-muted-foreground">Make & Model</Label>
                                 <p className="font-medium">
                                   {displayBooking.vehicle?.make} {displayBooking.vehicle?.model}
                                 </p>
