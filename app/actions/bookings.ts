@@ -91,7 +91,7 @@ export async function createBooking(formData: FormData) {
   if (insertedData?.[0]) {
     await supabase.from("job_timeline").insert({
       booking_id: insertedData[0].id,
-      action_type: "Booking Created",
+      action_type: "Created",
       action_by: user.id,
       notes: `New booking created for ${clientName}`,
     })
@@ -102,6 +102,7 @@ export async function createBooking(formData: FormData) {
       route,
       budget: proposedBudget,
       createdBy: user.id,
+      bookingId: insertedData[0].id,
     })
   }
 
@@ -201,6 +202,7 @@ export async function updateBookingStatus(bookingId: string, status: string) {
     newStatus: status,
     changedBy: user.id,
     notifyRoles,
+    bookingId: bookingId,
   })
 
   console.log("[v0] Status update successful")
@@ -350,5 +352,80 @@ export async function addTimelineEvent(
     return { success: false, error: error.message }
   }
 
+  return { success: true }
+}
+
+export async function reportTripHold(bookingId: string, holdReason: string, notes: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  const { error: statusError } = await supabase
+    .from("bookings")
+    .update({ status: "On Hold" })
+    .eq("id", bookingId)
+
+  if (statusError) {
+    return { success: false, error: statusError.message }
+  }
+
+  const { error } = await supabase.from("job_timeline").insert({
+    booking_id: bookingId,
+    action_type: "Status Updated",
+    action_by: user.id,
+    notes: `Trip on hold - ${holdReason}: ${notes}`,
+    hold_reason: holdReason,
+  })
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath("/dashboard/bookings")
+  return { success: true }
+}
+
+export async function logTripExpenses(bookingId: string, expenses: any[]) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  const expensesData = expenses.map((expense) => ({
+    booking_id: bookingId,
+    cost_type: expense.cost_type,
+    amount: parseFloat(expense.amount),
+    description: expense.description,
+    receipt_url: expense.receipt_url || null,
+    created_by: user.id,
+  }))
+
+  const { error } = await supabase.from("job_costs").insert(expensesData)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  // Add timeline event
+  const totalAmount = expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0)
+  await supabase.from("job_timeline").insert({
+    booking_id: bookingId,
+    action_type: "Status Updated",
+    action_by: user.id,
+    notes: `Trip expenses logged: ${expenses.length} items totaling ₦${totalAmount.toLocaleString()}`,
+  })
+
+  revalidatePath("/dashboard/bookings")
   return { success: true }
 }

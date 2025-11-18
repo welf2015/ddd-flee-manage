@@ -13,6 +13,8 @@ import { UpdateJobStatusDialog } from "./update-job-status-dialog"
 import { CloseJobDialog } from "./close-job-dialog"
 import { RateDriverDialog } from "./rate-driver-dialog"
 import { NegotiateBookingDialog } from "./negotiate-booking-dialog"
+import { TripExpenseDialog } from "./trip-expense-dialog"
+import { TripHoldDialog } from "./trip-hold-dialog"
 import { createClient } from "@/lib/supabase/client"
 import { useState } from "react"
 import { Label } from "@/components/ui/label"
@@ -23,14 +25,17 @@ type BookingDetailSheetProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onUpdate: () => void
+  isAdmin: boolean // New prop to identify admin users
 }
 
-export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate }: BookingDetailSheetProps) {
+export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAdmin }: BookingDetailSheetProps) {
   const [showAssignDriver, setShowAssignDriver] = useState(false)
   const [showUpdateStatus, setShowUpdateStatus] = useState(false)
   const [showCloseJob, setShowCloseJob] = useState(false)
   const [showRateDriver, setShowRateDriver] = useState(false)
   const [showNegotiate, setShowNegotiate] = useState(false)
+  const [showTripExpenses, setShowTripExpenses] = useState(false)
+  const [showTripHold, setShowTripHold] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const supabase = createClient()
 
@@ -120,6 +125,8 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate }: Bo
         return "bg-green-600/10 text-green-600 border-green-600/20"
       case "Closed":
         return "bg-gray-500/10 text-gray-500 border-gray-500/20"
+      case "On Hold":
+        return "bg-orange-500/10 text-orange-500 border-orange-500/20"
       default:
         return "bg-gray-500/10 text-gray-500 border-gray-500/20"
     }
@@ -132,16 +139,16 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate }: Bo
 
   const canAssignDriver = displayBooking.status === "Approved" && !displayBooking.assigned_driver_id
   const canUpdateStatus =
-    displayBooking.assigned_driver_id && ["Assigned", "In Progress", "In Transit"].includes(displayBooking.status)
+    displayBooking.assigned_driver_id && ["Assigned", "In Progress", "In Transit", "On Hold"].includes(displayBooking.status)
   const canCloseJob = displayBooking.status === "In Transit"
   const canRateDriver = displayBooking.status === "Closed" && displayBooking.assigned_driver_id
-  const canApprove = ["Open", "Negotiation"].includes(displayBooking.status)
-  const canNegotiate = displayBooking.status === "Open"
+  const canApprove = ["Open", "Negotiation"].includes(displayBooking.status) && isAdmin
+  const canNegotiate = (displayBooking.status === "Open" && isAdmin) || (isAdmin && displayBooking.status === "Negotiation")
 
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:w-full lg:w-11/12 xl:w-5/6 p-0 bg-background overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:w-full md:w-1/2 lg:w-1/2 xl:w-1/2 p-0 bg-background overflow-y-auto">
           <div className="h-full flex flex-col">
             {/* Header */}
             <SheetHeader className="px-6 py-4 border-b sticky top-0 bg-background z-10 space-y-0">
@@ -161,24 +168,22 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate }: Bo
 
             {/* Action Buttons */}
             <div className="px-6 py-3 border-b flex gap-2 flex-wrap bg-muted/30">
+              {console.log("[v0] Rendering action buttons:", {
+                status: displayBooking.status,
+                isAdmin,
+                canNegotiate,
+                canApprove,
+                canAssignDriver
+              })}
+              
               {canNegotiate && (
                 <Button
                   onClick={() => setShowNegotiate(true)}
-                  variant="outline"
+                  variant="default"
                   size="sm"
-                  className="border-accent text-accent hover:bg-accent/10"
+                  className="bg-accent hover:bg-accent/90 text-white"
                 >
-                  Negotiate
-                </Button>
-              )}
-              {canApprove && !canNegotiate && (
-                <Button
-                  onClick={() => handleStatusChange("Approved")}
-                  disabled={updatingStatus}
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-sm"
-                >
-                  {updatingStatus ? "Approving..." : "Approve"}
+                  {displayBooking.status === "Negotiation" ? "Continue Negotiation" : "Start Negotiation"}
                 </Button>
               )}
               {canAssignDriver && (
@@ -205,6 +210,16 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate }: Bo
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   Close Job
                 </Button>
+              )}
+              {["In Transit", "On Hold"].includes(displayBooking.status) && (
+                <>
+                  <Button onClick={() => setShowTripHold(true)} variant="outline" size="sm">
+                    Report Hold-Up
+                  </Button>
+                  <Button onClick={() => setShowTripExpenses(true)} variant="outline" size="sm">
+                    Log Expenses
+                  </Button>
+                </>
               )}
             </div>
 
@@ -661,6 +676,30 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate }: Bo
             onUpdate()
             setShowRateDriver(false)
             mutateBooking()
+          }}
+        />
+      )}
+
+      {showTripExpenses && (
+        <TripExpenseDialog
+          open={showTripExpenses}
+          onOpenChange={setShowTripExpenses}
+          bookingId={displayBooking.id}
+          onSuccess={() => {
+            mutateBooking()
+            onUpdate()
+          }}
+        />
+      )}
+
+      {showTripHold && (
+        <TripHoldDialog
+          open={showTripHold}
+          onOpenChange={setShowTripHold}
+          bookingId={displayBooking.id}
+          onSuccess={() => {
+            mutateBooking()
+            onUpdate()
           }}
         />
       )}

@@ -24,9 +24,9 @@
     --secondary-foreground: 0 0% 9%;
     --muted: 0 0% 96.1%;
     --muted-foreground: 0 0% 45.1%;
-    /* Changed accent color to #003e31 (dark teal) */
-    --accent: 168 100% 12%;
-    --accent-foreground: 0 0% 98%;
+    /* Changed accent color to bright green (#22c55e / emerald-500) */
+    --accent: 142 71% 45%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 89.8%;
@@ -60,9 +60,9 @@
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 14.9%;
     --muted-foreground: 0 0% 63.9%;
-    /* Changed accent color to #003e31 (dark teal) for dark mode */
-    --accent: 168 100% 12%;
-    --accent-foreground: 0 0% 98%;
+    /* Changed accent color to bright green (#22c55e / emerald-500) for dark mode */
+    --accent: 142 71% 45%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 14.9%;

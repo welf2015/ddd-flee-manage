@@ -9,6 +9,7 @@ export async function notifyAdminsForBookingApproval(bookingData: {
   route: string
   budget: number
   createdBy: string
+  bookingId?: string
 }) {
   const supabase = await createClient()
 
@@ -55,8 +56,8 @@ export async function notifyAdminsForBookingApproval(bookingData: {
     user_id: admin.id,
     title: "New Booking Approval Required",
     message: `Booking ${bookingData.jobId} from ${bookingData.clientName} requires your approval`,
-    type: "booking_approval",
-    related_id: bookingData.jobId,
+    type: "Approval",
+    related_id: bookingData.bookingId || null,
     read: false,
   }))
 
@@ -70,6 +71,7 @@ export async function notifyStatusChange(data: {
   newStatus: string
   changedBy: string
   notifyRoles: string[]
+  bookingId?: string
 }) {
   const supabase = await createClient()
 
@@ -115,8 +117,8 @@ export async function notifyStatusChange(data: {
     user_id: user.id,
     title: `Booking ${data.jobId} Status Updated`,
     message: `Status changed from ${data.oldStatus} to ${data.newStatus}`,
-    type: "status_change",
-    related_id: data.jobId,
+    type: "Booking",
+    related_id: data.bookingId || null,
     read: false,
   }))
 

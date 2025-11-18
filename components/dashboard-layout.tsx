@@ -42,6 +42,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
       submenu: [
         { name: "Vehicles", href: "/dashboard/vehicles", icon: Truck },
         { name: "Onboarding", href: "/dashboard/vehicle-management/onboarding", icon: ClipboardList },
+        { name: "Fuel/Charging", href: "/dashboard/vehicle-management/fuel", icon: DollarSign },
         { name: "Feedbacks", href: "/dashboard/vehicle-management/feedbacks", icon: Star },
         { name: "Compliance", href: "/dashboard/vehicle-management/compliance", icon: CheckSquare },
         { name: "Incidents", href: "/dashboard/incidents", icon: AlertCircle },
@@ -155,7 +156,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="flex">
-        <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:w-[280px] border-r border-border bg-background/50 backdrop-blur">
+        <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:w-[320px] border-r border-border bg-background/50 backdrop-blur">
           <Sidebar />
         </aside>
 
@@ -174,7 +175,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[280px] p-0 bg-background/95 backdrop-blur flex flex-col">
+              <SheetContent side="left" className="w-[320px] p-0 bg-background/95 backdrop-blur flex flex-col">
                 <Sidebar />
               </SheetContent>
             </Sheet>
@@ -182,13 +183,13 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
         </div>
 
         {/* Desktop header with bell icon */}
-        <div className="hidden lg:flex fixed top-0 right-0 left-[280px] z-50 px-6 h-16 items-center justify-end border-b border-border bg-background/95 backdrop-blur">
+        <div className="hidden lg:flex fixed top-0 right-0 left-[320px] z-50 px-6 h-16 items-center justify-end border-b border-border bg-background/95 backdrop-blur">
           <Button variant="ghost" size="icon">
             <Bell className="h-5 w-5" />
           </Button>
         </div>
 
-        <main className="flex-1 lg:ml-[280px] p-4 md:p-6 pt-20 lg:pt-20 min-h-screen">{children}</main>
+        <main className="flex-1 lg:ml-[320px] p-4 md:p-6 pt-20 lg:pt-20 min-h-screen">{children}</main>
       </div>
     </div>
   )
