@@ -18,30 +18,49 @@ import { useRouter } from 'next/navigation'
 import { formatDistanceToNow } from "date-fns"
 
 export function NotificationBell() {
-  const supabase = createClient()
   const router = useRouter()
 
-  const { data: notifications = [], mutate } = useSWR("notifications", async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return []
+  const { data: notifications = [] } = useSWR("notifications", async () => {
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      
+      if (!user) return []
 
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(10)
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(10)
 
-    return data || []
-  }, { refreshInterval: 5000 })
+      if (error) {
+        console.error("[v0] Error fetching notifications:", error)
+        return []
+      }
+
+      return data || []
+    } catch (error) {
+      console.error("[v0] Notification fetch failed:", error)
+      return []
+    }
+  }, { 
+    refreshInterval: 5000,
+    shouldRetryOnError: false,
+    revalidateOnFocus: false
+  })
 
   const unreadCount = notifications.filter((n: any) => !n.read).length
 
   const handleMarkAsRead = async (notificationId: string) => {
-    await supabase.from("notifications").update({ read: true }).eq("id", notificationId)
-    mutate()
+    try {
+      const supabase = createClient()
+      await supabase.from("notifications").update({ read: true }).eq("id", notificationId)
+    } catch (error) {
+      console.error("[v0] Failed to mark notification as read:", error)
+    }
   }
 
   const handleNotificationClick = (notification: any) => {
