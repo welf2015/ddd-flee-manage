@@ -4,11 +4,12 @@ import type React from "react"
 
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Home, Calendar, Truck, Users, AlertCircle, Building2, TrendingUp, ClipboardList, Settings, LogOut, Menu, Plus, Package, ShoppingCart, ChevronDown, ChevronRight, Wrench, Star, CheckSquare, DollarSign, Bell } from 'lucide-react'
+import { Home, Calendar, Truck, Users, AlertCircle, Building2, TrendingUp, ClipboardList, Settings, LogOut, Menu, Plus, Package, ShoppingCart, ChevronDown, ChevronRight, Wrench, Star, CheckSquare, DollarSign } from 'lucide-react'
 import Link from "next/link"
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
+import { NotificationsBell } from "@/components/notifications-bell"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -45,6 +46,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
         { name: "Fuel/Charging", href: "/dashboard/vehicle-management/fuel", icon: DollarSign },
         { name: "Feedbacks", href: "/dashboard/vehicle-management/feedbacks", icon: Star },
         { name: "Compliance", href: "/dashboard/vehicle-management/compliance", icon: CheckSquare },
+        { name: "Inspections", href: "/dashboard/vehicle-management/inspections", icon: ClipboardList },
         { name: "Incidents", href: "/dashboard/incidents", icon: AlertCircle },
         { name: "Maintenance", href: "/dashboard/vehicle-management/maintenance", icon: Wrench },
       ],
@@ -160,15 +162,12 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
           <Sidebar />
         </aside>
 
-        {/* Mobile header with bell icon */}
         <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-16 px-4 border-b border-border bg-background/95 backdrop-blur">
           <div className="flex items-center gap-2">
             <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
+            <NotificationsBell />
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -182,11 +181,8 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
           </div>
         </div>
 
-        {/* Desktop header with bell icon */}
         <div className="hidden lg:flex fixed top-0 right-0 left-[320px] z-50 px-6 h-16 items-center justify-end border-b border-border bg-background/95 backdrop-blur">
-          <Button variant="ghost" size="icon">
-            <Bell className="h-5 w-5" />
-          </Button>
+          <NotificationsBell />
         </div>
 
         <main className="flex-1 lg:ml-[320px] p-4 md:p-6 pt-20 lg:pt-20 min-h-screen">{children}</main>

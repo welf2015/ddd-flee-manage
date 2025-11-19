@@ -1,45 +1,75 @@
 "use client"
 
 import { useState } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, AlertTriangle } from "lucide-react"
-import { InventoryPartsTable } from "@/components/inventory/inventory-parts-table"
-import { InventoryTransactionsTable } from "@/components/inventory/inventory-transactions-table"
-import { AddPartDialog } from "@/components/inventory/add-part-dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
+import { Plus, AlertTriangle, Edit, Trash2 } from 'lucide-react'
+import { InventorySpreadsheet } from "@/components/inventory/inventory-spreadsheet"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
+import { toast } from "sonner"
 
 export function InventoryClient() {
   const [showAddPart, setShowAddPart] = useState(false)
+  const [selectedPart, setSelectedPart] = useState<any>(null)
+  const [searchQuery, setSearchQuery] = useState("")
   const supabase = createClient()
 
-  const { data: lowStock = [] } = useSWR(
-    "low-stock",
+  const { data: parts = [], mutate } = useSWR(
+    "inventory-parts",
     async () => {
       const { data } = await supabase
         .from("inventory_parts")
         .select("*")
-        .lte("current_stock", "reorder_level")
-        .order("current_stock", { ascending: true })
+        .order("name", { ascending: true })
 
       return data || []
     },
-    { refreshInterval: 10000 },
+    { refreshInterval: 10000 }
   )
 
-  const { data: stats } = useSWR("inventory-stats", async () => {
-    const { count: totalParts } = await supabase.from("inventory_parts").select("*", { count: "exact", head: true })
+  const lowStock = parts.filter((part: any) => part.current_stock <= part.reorder_level)
+    .sort((a: any, b: any) => a.current_stock - b.current_stock)
 
-    const { count: lowStockCount } = await supabase
+  const stats = {
+    totalParts: parts.length,
+    lowStockCount: lowStock.length
+  }
+
+  const handleEdit = (part: any) => {
+    setSelectedPart(part)
+    setShowAddPart(true)
+  }
+
+  const handleDelete = async (partId: string) => {
+    if (!confirm("Are you sure you want to delete this part?")) return
+
+    const { error } = await supabase
       .from("inventory_parts")
-      .select("*", { count: "exact", head: true })
-      .lte("current_stock", "reorder_level")
+      .delete()
+      .eq("id", partId)
 
-    return { totalParts: totalParts || 0, lowStockCount: lowStockCount || 0 }
-  })
+    if (error) {
+      toast.error("Failed to delete part")
+    } else {
+      toast.success("Part deleted successfully")
+      mutate()
+    }
+  }
+
+  const handleCloseSheet = () => {
+    setShowAddPart(false)
+    setSelectedPart(null)
+  }
+
+  const filteredParts = parts.filter((part: any) =>
+    part.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    part.part_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    part.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   return (
     <div className="space-y-6">
@@ -66,73 +96,113 @@ export function InventoryClient() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Categories</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">--</div>
-            <p className="text-xs text-muted-foreground mt-1">Inventory categories</p>
+            <div className="text-2xl font-bold">₦--</div>
+            <p className="text-xs text-muted-foreground mt-1">Inventory value</p>
           </CardContent>
         </Card>
       </div>
 
-      {lowStock.length > 0 && (
-        <Card className="border-yellow-200 bg-yellow-50/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-yellow-900">
-              <AlertTriangle className="h-5 w-5" />
-              Low Stock Alert
-            </CardTitle>
-            <CardDescription className="text-yellow-800">{lowStock.length} part(s) below reorder level</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {lowStock.slice(0, 5).map((part: any) => (
-                <div key={part.id} className="flex items-center justify-between text-sm">
-                  <span>
-                    {part.name} ({part.part_number})
-                  </span>
-                  <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
-                    {part.current_stock}/{part.reorder_level}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Tabs defaultValue="parts" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="parts">Parts Inventory</TabsTrigger>
-          <TabsTrigger value="transactions">Transactions</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="parts" className="space-y-4 mt-4">
+      <Card>
+        <CardHeader>
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-lg font-semibold">Inventory Parts</h2>
-              <p className="text-sm text-muted-foreground">Manage vehicle parts and supplies</p>
+              <CardTitle>Spare Parts Inventory List</CardTitle>
+              <CardDescription>Manage vehicle parts and supplies</CardDescription>
             </div>
             <Button onClick={() => setShowAddPart(true)} className="bg-accent hover:bg-accent/90">
               <Plus className="h-4 w-4 mr-2" />
               Add Part
             </Button>
           </div>
-
-          <InventoryPartsTable />
-
-          {showAddPart && <AddPartDialog open={showAddPart} onOpenChange={setShowAddPart} />}
-        </TabsContent>
-
-        <TabsContent value="transactions" className="space-y-4 mt-4">
-          <div>
-            <h2 className="text-lg font-semibold">Transaction History</h2>
-            <p className="text-sm text-muted-foreground">Track all inventory movements</p>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4">
+            <Input
+              placeholder="Search parts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="max-w-sm"
+            />
           </div>
 
-          <InventoryTransactionsTable />
-        </TabsContent>
-      </Tabs>
+          <div className="border rounded-lg overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">S/N</TableHead>
+                  <TableHead>Part Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Applicable Vehicle Type</TableHead>
+                  <TableHead>Description / Notes</TableHead>
+                  <TableHead className="text-center">Current Qty</TableHead>
+                  <TableHead className="text-center">Reorder Level</TableHead>
+                  <TableHead>Supplier / Brand</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredParts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                      No parts found. Click "Add Part" to get started.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredParts.map((part: any, index: number) => (
+                    <TableRow key={part.id}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell className="font-medium">{part.name}</TableCell>
+                      <TableCell>{part.category || '-'}</TableCell>
+                      <TableCell>{part.applicable_vehicle_type || 'All'}</TableCell>
+                      <TableCell>{part.description || '-'}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={part.current_stock <= part.reorder_level ? "destructive" : "secondary"}>
+                          {part.current_stock}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">{part.reorder_level}</TableCell>
+                      <TableCell>{part.supplier_brand || '-'}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(part)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(part.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {showAddPart && (
+        <InventorySpreadsheet
+          open={showAddPart}
+          onOpenChange={handleCloseSheet}
+          part={selectedPart}
+          onSuccess={() => {
+            mutate()
+            handleCloseSheet()
+          }}
+        />
+      )}
     </div>
   )
 }

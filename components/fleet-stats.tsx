@@ -14,7 +14,7 @@ const fetcher = async () => {
     supabase.from("drivers").select("id", { count: "exact", head: true }),
     supabase.from("incidents").select("severity,status", { count: "exact", head: false }),
     supabase.from("clients").select("id", { count: "exact", head: true }),
-    supabase.from("inventory_parts").select("quantity,reorder_level", { count: "exact", head: false }),
+    supabase.from("inventory_parts").select("current_stock,reorder_level", { count: "exact", head: false }),
   ])
 
   // Calculate active bookings (not completed or closed)
@@ -34,7 +34,7 @@ const fetcher = async () => {
 
   // Calculate low stock items
   const lowStockItems =
-    inventoryRes.data?.filter((item) => item.quantity <= item.reorder_level).length || 0
+    inventoryRes.data?.filter((item) => item.current_stock <= item.reorder_level).length || 0
 
   return {
     activeBookings,

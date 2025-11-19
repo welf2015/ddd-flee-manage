@@ -7,9 +7,11 @@ import { Card } from '@/components/ui/card'
 import MaintenanceSchedulesTable from '@/components/maintenance/maintenance-schedules-table'
 import CreateMaintenanceDialog from '@/components/maintenance/create-maintenance-dialog'
 import MaintenanceStats from '@/components/maintenance/maintenance-stats'
+import { MaintenanceLogSheet } from "@/components/maintenance/maintenance-log-sheet"
 
 export default function MaintenanceClient({ initialSchedules, vehicles }: any) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [showLogSheet, setShowLogSheet] = useState(false)
   
   return (
     <div className="space-y-6">
@@ -21,11 +23,11 @@ export default function MaintenanceClient({ initialSchedules, vehicles }: any) {
           </p>
         </div>
         <Button 
-          onClick={() => setCreateDialogOpen(true)}
-          className="bg-[#003e31] hover:bg-[#003e31]/90"
+          onClick={() => setShowLogSheet(true)}
+          className="bg-accent hover:bg-accent/90 text-accent-foreground"
         >
           <Plus className="mr-2 h-4 w-4" />
-          Schedule Maintenance
+          Log Maintenance
         </Button>
       </div>
 
@@ -38,10 +40,14 @@ export default function MaintenanceClient({ initialSchedules, vehicles }: any) {
         />
       </Card>
 
-      <CreateMaintenanceDialog
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
+      <MaintenanceLogSheet
+        open={showLogSheet}
+        onOpenChange={setShowLogSheet}
         vehicles={vehicles}
+        onSuccess={() => {
+          // Refresh data if needed, or just close
+          // In a real app we might want to refetch schedules or logs
+        }}
       />
     </div>
   )

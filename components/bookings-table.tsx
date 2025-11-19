@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Eye } from 'lucide-react'
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { BookingDetailSheet } from "./booking-detail-sheet"
+import { createClient } from "@/lib/supabase/client"
 
 type Booking = {
   id: string
@@ -42,6 +43,27 @@ export function BookingsTable({ bookings, onUpdate }: BookingsTableProps) {
   const [statusFilter, setStatusFilter] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    const checkUserRole = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+        
+        setIsAdmin(profile?.role === 'MD' || profile?.role === 'ED')
+        console.log('[v0] User role check:', { role: profile?.role, isAdmin: profile?.role === 'MD' || profile?.role === 'ED' })
+      }
+    }
+    
+    checkUserRole()
+  }, [])
 
   const filteredBookings = useMemo(() => {
     return bookings.filter((booking) => {
@@ -176,6 +198,7 @@ export function BookingsTable({ bookings, onUpdate }: BookingsTableProps) {
           open={!!selectedBooking}
           onOpenChange={(open) => !open && setSelectedBooking(null)}
           onUpdate={() => onUpdate?.()}
+          isAdmin={isAdmin}
         />
       )}
     </>

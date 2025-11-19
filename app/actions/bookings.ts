@@ -422,10 +422,60 @@ export async function logTripExpenses(bookingId: string, expenses: any[]) {
   await supabase.from("job_timeline").insert({
     booking_id: bookingId,
     action_type: "Status Updated",
-    action_by: user.id,
     notes: `Trip expenses logged: ${expenses.length} items totaling ₦${totalAmount.toLocaleString()}`,
+    action_by: user.id,
   })
 
   revalidatePath("/dashboard/bookings")
+  return { success: true }
+}
+
+export async function saveDriverFeedback(formData: FormData) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  const bookingId = formData.get("booking_id") as string
+  const driverRating = parseInt(formData.get("driver_rating") as string)
+  const punctualityRating = parseInt(formData.get("punctuality_rating") as string)
+  const vehicleConditionRating = parseInt(formData.get("vehicle_condition_rating") as string)
+  const communicationRating = parseInt(formData.get("communication_rating") as string)
+  const feedback = formData.get("feedback") as string
+
+  // Update booking with ratings
+  const { error } = await supabase
+    .from("bookings")
+    .update({
+      driver_rating: driverRating,
+      punctuality_rating: punctualityRating,
+      vehicle_condition_rating: vehicleConditionRating,
+      communication_rating: communicationRating,
+      driver_feedback: feedback,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", bookingId)
+
+  if (error) {
+    console.error("[v0] Failed to save feedback:", error)
+    return { success: false, error: error.message }
+  }
+
+  // Add to timeline
+  await supabase.from("job_timeline").insert({
+    booking_id: bookingId,
+    action_type: "Status Updated",
+    notes: `Driver feedback submitted with ${driverRating}/5 rating`,
+    action_by: user.id,
+  })
+
+  revalidatePath("/dashboard/bookings")
+  revalidatePath("/dashboard/vehicle-management/feedbacks")
+
   return { success: true }
 }

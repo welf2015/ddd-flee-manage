@@ -8,21 +8,107 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Search, AlertTriangle, CheckCircle, Clock, FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { ComplianceChecklistSheet } from '@/components/compliance/compliance-checklist-sheet'
+import { formatRelativeTime } from '@/lib/utils/time-format'
+import { ComplianceProgressBar } from '@/components/compliance/compliance-progress-bar'
+
+// Helper functions moved up before they are used to fix ReferenceError
+const getCompletionPercentage = (vehicle: any) => {
+  if (!vehicle.checklist) return 0
+
+  const CHECKLIST_ITEMS = [
+    'proof_of_ownership', 'vehicle_insurance', 'vehicle_license', 'customs_documents',
+    'number_plate', 'road_worthiness', 'hackney_permit', 'cmr_registration',
+    'local_govt_permit', 'npa_registration', 'heavy_duty_permit', 'tt_permit',
+    'commercial_parking', 'cdl_license', 'driver_license', 'lasdri_card',
+    'lasrra_card', 'medical_cert', 'fire_extinguisher', 'reflective_triangles',
+    'jumpstart_cables', 'seatbelts', 'spare_tire', 'jack_spanner',
+    'first_aid_kit', 'phone_usage', 'speed_limit', 'pretrip_check',
+    'posttrip_check', 'violations_logged',
+  ]
+
+  let completedItems = 0
+  CHECKLIST_ITEMS.forEach((item) => {
+    if (vehicle.checklist[item] === 'Yes') completedItems++
+  })
+
+  return Math.round((completedItems / CHECKLIST_ITEMS.length) * 100)
+}
+
+const getExpiringItems = (vehicle: any) => {
+  if (!vehicle.checklist) return []
+
+  const thirtyDaysFromNow = new Date()
+  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
+
+  const expiringItems: string[] = []
+  const ITEMS_WITH_DATES = [
+    { key: 'proof_of_ownership', label: 'Proof of Ownership' },
+    { key: 'vehicle_insurance', label: 'Vehicle Insurance' },
+    { key: 'vehicle_license', label: 'Vehicle License' },
+    { key: 'customs_documents', label: 'Customs Documents' },
+    { key: 'number_plate', label: 'Number Plate' },
+    { key: 'road_worthiness', label: 'Road Worthiness' },
+    { key: 'hackney_permit', label: 'Hackney Permit' },
+    { key: 'cmr_registration', label: 'CMR Registration' },
+    { key: 'local_govt_permit', label: 'Local Govt Permit' },
+    { key: 'npa_registration', label: 'NPA Registration' },
+    { key: 'heavy_duty_permit', label: 'Heavy Duty Permit' },
+    { key: 'tt_permit', label: 'T&T Permit' },
+    { key: 'commercial_parking', label: 'Commercial Parking' },
+    { key: 'cdl_license', label: 'CDL License' },
+    { key: 'driver_license', label: "Driver's License" },
+    { key: 'lasdri_card', label: 'LASDRI Card' },
+    { key: 'lasrra_card', label: 'LASRRA Card' },
+    { key: 'medical_cert', label: 'Medical Certification' },
+    { key: 'fire_extinguisher', label: 'Fire Extinguisher' },
+    { key: 'first_aid_kit', label: 'First Aid Kit' },
+  ]
+
+  ITEMS_WITH_DATES.forEach((item) => {
+    const expiryDate = vehicle.checklist[`${item.key}_expiry_date`]
+    if (expiryDate) {
+      const expiry = new Date(expiryDate)
+      if (expiry < thirtyDaysFromNow && expiry > new Date()) {
+        expiringItems.push(item.label)
+      }
+    }
+  })
+
+  return expiringItems
+}
 
 export function ComplianceClient() {
   const [search, setSearch] = useState('')
+  const [selectedVehicle, setSelectedVehicle] = useState<any>(null)
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false)
   const supabase = createClient()
 
   const { data: vehicles, error } = useSWR(
     'compliance-vehicles',
     async () => {
-      const { data, error } = await supabase
+      const { data: vehicleData, error: vehicleError } = await supabase
         .from('vehicles')
         .select('*')
         .order('vehicle_number')
       
-      if (error) throw error
-      return data || []
+      if (vehicleError) throw vehicleError
+
+      // Fetch all compliance checklists
+      const { data: checklistData } = await supabase
+        .from('vehicle_compliance_checklist')
+        .select('*')
+
+      // Merge checklist data with vehicles
+      const vehiclesWithProgress = (vehicleData || []).map((vehicle) => {
+        const checklist = checklistData?.find((c) => c.vehicle_id === vehicle.id)
+        return {
+          ...vehicle,
+          checklist,
+        }
+      })
+
+      return vehiclesWithProgress
     },
     { refreshInterval: 5000 }
   )
@@ -35,19 +121,11 @@ export function ComplianceClient() {
   // Calculate compliance metrics
   const totalVehicles = vehicles?.length || 0
   const compliantVehicles = vehicles?.filter((v) => 
-    v.insurance_expiry && new Date(v.insurance_expiry) > new Date() &&
-    v.license_expiry && new Date(v.license_expiry) > new Date()
+    v.checklist && getCompletionPercentage(v) >= 80
   ).length || 0
   const expiringSoon = vehicles?.filter((v) => {
-    const insuranceExpiry = v.insurance_expiry ? new Date(v.insurance_expiry) : null
-    const licenseExpiry = v.license_expiry ? new Date(v.license_expiry) : null
-    const thirtyDaysFromNow = new Date()
-    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
-    
-    return (
-      (insuranceExpiry && insuranceExpiry < thirtyDaysFromNow && insuranceExpiry > new Date()) ||
-      (licenseExpiry && licenseExpiry < thirtyDaysFromNow && licenseExpiry > new Date())
-    )
+    const expiringItems = getExpiringItems(v)
+    return expiringItems.length > 0
   }).length || 0
   const nonCompliant = totalVehicles - compliantVehicles
 
@@ -137,44 +215,23 @@ export function ComplianceClient() {
               <thead>
                 <tr className="border-b bg-muted/50">
                   <th className="p-3 text-left text-sm font-medium">Vehicle</th>
-                  <th className="p-3 text-left text-sm font-medium">Insurance Expiry</th>
-                  <th className="p-3 text-left text-sm font-medium">License Expiry</th>
+                  <th className="p-3 text-left text-sm font-medium">Progress</th>
+                  <th className="p-3 text-left text-sm font-medium">Expiring Items</th>
                   <th className="p-3 text-left text-sm font-medium">Status</th>
                   <th className="p-3 text-right text-sm font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredVehicles.map((vehicle) => {
-                  const insuranceExpiry = vehicle.insurance_expiry ? new Date(vehicle.insurance_expiry) : null
-                  const licenseExpiry = vehicle.license_expiry ? new Date(vehicle.license_expiry) : null
-                  const now = new Date()
-                  const thirtyDays = new Date()
-                  thirtyDays.setDate(thirtyDays.getDate() + 30)
-
-                  const insuranceStatus = insuranceExpiry
-                    ? insuranceExpiry < now
-                      ? 'expired'
-                      : insuranceExpiry < thirtyDays
-                      ? 'expiring'
-                      : 'valid'
-                    : 'missing'
-
-                  const licenseStatus = licenseExpiry
-                    ? licenseExpiry < now
-                      ? 'expired'
-                      : licenseExpiry < thirtyDays
-                      ? 'expiring'
-                      : 'valid'
-                    : 'missing'
-
+                  const completionPercentage = getCompletionPercentage(vehicle)
+                  const expiringItems = getExpiringItems(vehicle)
+                  
                   const overallStatus =
-                    insuranceStatus === 'expired' || licenseStatus === 'expired'
-                      ? 'non-compliant'
-                      : insuranceStatus === 'expiring' || licenseStatus === 'expiring'
-                      ? 'expiring-soon'
-                      : insuranceStatus === 'missing' || licenseStatus === 'missing'
-                      ? 'incomplete'
-                      : 'compliant'
+                    completionPercentage >= 80
+                      ? 'compliant'
+                      : completionPercentage >= 50
+                      ? 'partial'
+                      : 'non-compliant'
 
                   return (
                     <tr key={vehicle.id} className="border-b">
@@ -187,61 +244,42 @@ export function ComplianceClient() {
                         </div>
                       </td>
                       <td className="p-3">
-                        {insuranceExpiry ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm">
-                              {insuranceExpiry.toLocaleDateString()}
-                            </span>
-                            {insuranceStatus === 'expired' && (
-                              <Badge variant="destructive">Expired</Badge>
-                            )}
-                            {insuranceStatus === 'expiring' && (
-                              <Badge variant="outline" className="border-yellow-500 text-yellow-500">
-                                Expiring Soon
-                              </Badge>
-                            )}
-                          </div>
-                        ) : (
-                          <Badge variant="outline">Not Set</Badge>
-                        )}
+                        <ComplianceProgressBar percentage={completionPercentage} />
                       </td>
                       <td className="p-3">
-                        {licenseExpiry ? (
+                        {expiringItems.length > 0 ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-sm">
-                              {licenseExpiry.toLocaleDateString()}
+                            <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                            <span className="text-sm font-medium text-yellow-600">
+                              {expiringItems.length} item{expiringItems.length > 1 ? 's' : ''}
                             </span>
-                            {licenseStatus === 'expired' && (
-                              <Badge variant="destructive">Expired</Badge>
-                            )}
-                            {licenseStatus === 'expiring' && (
-                              <Badge variant="outline" className="border-yellow-500 text-yellow-500">
-                                Expiring Soon
-                              </Badge>
-                            )}
                           </div>
                         ) : (
-                          <Badge variant="outline">Not Set</Badge>
+                          <span className="text-sm text-muted-foreground">None</span>
                         )}
                       </td>
                       <td className="p-3">
                         {overallStatus === 'compliant' && (
-                          <Badge className="bg-accent text-accent-foreground">Compliant</Badge>
+                          <Badge className="bg-green-500 text-white">Compliant</Badge>
                         )}
-                        {overallStatus === 'expiring-soon' && (
-                          <Badge variant="outline" className="border-yellow-500 text-yellow-500">
-                            Expiring Soon
+                        {overallStatus === 'partial' && (
+                          <Badge variant="outline" className="border-yellow-500 text-yellow-600">
+                            Partial
                           </Badge>
                         )}
                         {overallStatus === 'non-compliant' && (
                           <Badge variant="destructive">Non-Compliant</Badge>
                         )}
-                        {overallStatus === 'incomplete' && (
-                          <Badge variant="outline">Incomplete</Badge>
-                        )}
                       </td>
                       <td className="p-3 text-right">
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedVehicle(vehicle)
+                            setShowUpdateDialog(true)
+                          }}
+                        >
                           <FileText className="h-4 w-4 mr-2" />
                           Update
                         </Button>
@@ -254,6 +292,15 @@ export function ComplianceClient() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Compliance Update Dialog */}
+      {selectedVehicle && (
+        <ComplianceChecklistSheet
+          vehicle={selectedVehicle}
+          open={showUpdateDialog}
+          onOpenChange={setShowUpdateDialog}
+        />
+      )}
     </div>
   )
 }

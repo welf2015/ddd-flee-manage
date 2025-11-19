@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 
 export async function createDriver(formData: FormData) {
@@ -18,11 +19,38 @@ export async function createDriver(formData: FormData) {
     return { success: false, error: "Not authenticated" }
   }
 
+  const email = formData.get("email") as string
+  const password = formData.get("password") as string
+  const fullName = formData.get("full_name") as string
+
+  if (!email || !password) {
+    return { success: false, error: "Email and password are required for driver accounts" }
+  }
+
+  // Create Auth User using Admin Client
+  const adminClient = createAdminClient()
+  const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: {
+      full_name: fullName,
+      role: 'driver'
+    }
+  })
+
+  if (authError) {
+    console.error("[v0] Error creating auth user:", authError)
+    return { success: false, error: `Auth Error: ${authError.message}` }
+  }
+
   const assignedVehicleId = formData.get("assigned_vehicle_id") as string
   const vehicleId = !assignedVehicleId || assignedVehicleId === "none" ? null : assignedVehicleId
 
   const driver = {
-    full_name: formData.get("full_name") as string,
+    full_name: fullName,
+    email: email,
+    user_id: authData.user.id, // Link to Auth User
     phone: formData.get("phone") as string,
     address: (formData.get("address") as string) || null,
     license_number: formData.get("license_number") as string,
@@ -41,6 +69,8 @@ export async function createDriver(formData: FormData) {
 
   if (error) {
     console.error("[v0] Error creating driver:", error)
+    // Try to clean up the auth user if DB insert fails
+    await adminClient.auth.admin.deleteUser(authData.user.id)
     return { success: false, error: error.message }
   }
 

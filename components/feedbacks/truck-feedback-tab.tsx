@@ -10,7 +10,9 @@ import { Search, Star } from 'lucide-react'
 
 const fetcher = async () => {
   const supabase = createClient()
-  const { data } = await supabase
+  
+  // Fetch from driver_ratings table
+  const { data: driverRatings } = await supabase
     .from('driver_ratings')
     .select(`
       *,
@@ -20,7 +22,56 @@ const fetcher = async () => {
     `)
     .order('created_at', { ascending: false })
   
-  return data || []
+  const { data: bookingRatings } = await supabase
+    .from('bookings')
+    .select(`
+      id,
+      job_id,
+      client_name,
+      route,
+      driver_rating,
+      punctuality_rating,
+      vehicle_condition_rating,
+      communication_rating,
+      driver_feedback,
+      completed_at,
+      assigned_driver:drivers!assigned_driver_id(full_name, phone, photo_url)
+    `)
+    .not('driver_rating', 'is', null)
+    .order('completed_at', { ascending: false })
+  
+  const combined = [
+    ...(driverRatings || []).map(r => ({
+      id: r.id,
+      type: 'driver_rating',
+      driver: r.driver,
+      booking: r.booking,
+      rating: r.rating,
+      client_feedback: r.client_feedback,
+      feedback: r.feedback,
+      rated_by_user: r.rated_by_user,
+      created_at: r.created_at,
+    })),
+    ...(bookingRatings || []).map(r => ({
+      id: r.id,
+      type: 'booking_rating',
+      driver: r.assigned_driver,
+      booking: { job_id: r.job_id, client_name: r.client_name, route: r.route },
+      rating: r.driver_rating,
+      punctuality_rating: r.punctuality_rating,
+      vehicle_condition_rating: r.vehicle_condition_rating,
+      communication_rating: r.communication_rating,
+      client_feedback: r.driver_feedback,
+      feedback: null,
+      rated_by_user: null,
+      created_at: r.completed_at,
+    }))
+  ]
+  
+  // Sort by date
+  return combined.sort((a, b) => 
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )
 }
 
 export default function TruckFeedbackTab({ initialRatings }: any) {
@@ -98,6 +149,29 @@ export default function TruckFeedbackTab({ initialRatings }: any) {
                   </div>
                 )}
               </div>
+              
+              {rating.type === 'booking_rating' && (
+                <div className="grid grid-cols-3 gap-2 text-sm">
+                  {rating.punctuality_rating && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">Punctuality:</span>
+                      <span className="font-medium">{rating.punctuality_rating}/5</span>
+                    </div>
+                  )}
+                  {rating.vehicle_condition_rating && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">Vehicle:</span>
+                      <span className="font-medium">{rating.vehicle_condition_rating}/5</span>
+                    </div>
+                  )}
+                  {rating.communication_rating && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">Communication:</span>
+                      <span className="font-medium">{rating.communication_rating}/5</span>
+                    </div>
+                  )}
+                </div>
+              )}
               
               {rating.client_feedback && (
                 <div className="bg-muted/50 rounded-md p-3">

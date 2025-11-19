@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useState } from "react"
 import { Label } from "@/components/ui/label"
 import useSWR from "swr"
+import cn from "classnames"
 
 type BookingDetailSheetProps = {
   booking: any
@@ -226,7 +227,10 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
             {/* Content */}
             <ScrollArea className="flex-1">
               <Tabs defaultValue="details" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 rounded-none border-b bg-muted/50 px-6">
+                <TabsList className={cn(
+                  "grid w-full rounded-none border-b bg-muted/50 px-6",
+                  ["Completed", "Closed"].includes(displayBooking.status) ? "grid-cols-5" : "grid-cols-4"
+                )}>
                   <TabsTrigger value="details" className="rounded-none">
                     Details
                   </TabsTrigger>
@@ -239,6 +243,11 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                   <TabsTrigger value="docs" className="rounded-none">
                     Docs
                   </TabsTrigger>
+                  {["Completed", "Closed"].includes(displayBooking.status) && (
+                    <TabsTrigger value="feedback" className="rounded-none">
+                      Feedback
+                    </TabsTrigger>
+                  )}
                 </TabsList>
 
                 <div className="px-6 pb-6">
@@ -607,6 +616,153 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                       </CardContent>
                     </Card>
                   </TabsContent>
+
+                  {["Completed", "Closed"].includes(displayBooking.status) && (
+                    <TabsContent value="feedback" className="space-y-4 mt-4">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg">Driver Feedback & Ratings</CardTitle>
+                          <p className="text-sm text-muted-foreground">
+                            Call the customer to collect feedback about the driver's performance
+                          </p>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                          {displayBooking.driver_rating ? (
+                            <>
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium">Driver Behavior</Label>
+                                <div className="flex items-center gap-2">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <svg
+                                      key={star}
+                                      className={cn(
+                                        "h-6 w-6",
+                                        star <= (displayBooking.driver_rating || 0)
+                                          ? "fill-yellow-400 text-yellow-400"
+                                          : "fill-gray-200 text-gray-200"
+                                      )}
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                    </svg>
+                                  ))}
+                                  <span className="ml-2 text-sm font-semibold">
+                                    {displayBooking.driver_rating}/5
+                                  </span>
+                                </div>
+                              </div>
+
+                              <Separator />
+
+                              <div className="space-y-4">
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium">Punctuality</Label>
+                                  <div className="flex items-center gap-2">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <svg
+                                        key={star}
+                                        className={cn(
+                                          "h-5 w-5",
+                                          star <= (displayBooking.punctuality_rating || 0)
+                                            ? "fill-yellow-400 text-yellow-400"
+                                            : "fill-gray-200 text-gray-200"
+                                        )}
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                      </svg>
+                                    ))}
+                                    <span className="ml-2 text-sm">
+                                      {displayBooking.punctuality_rating || 0}/5
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium">Vehicle Condition</Label>
+                                  <div className="flex items-center gap-2">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <svg
+                                        key={star}
+                                        className={cn(
+                                          "h-5 w-5",
+                                          star <= (displayBooking.vehicle_condition_rating || 0)
+                                            ? "fill-yellow-400 text-yellow-400"
+                                            : "fill-gray-200 text-gray-200"
+                                        )}
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                      </svg>
+                                    ))}
+                                    <span className="ml-2 text-sm">
+                                      {displayBooking.vehicle_condition_rating || 0}/5
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium">Communication</Label>
+                                  <div className="flex items-center gap-2">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <svg
+                                        key={star}
+                                        className={cn(
+                                          "h-5 w-5",
+                                          star <= (displayBooking.communication_rating || 0)
+                                            ? "fill-yellow-400 text-yellow-400"
+                                            : "fill-gray-200 text-gray-200"
+                                        )}
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                      </svg>
+                                    ))}
+                                    <span className="ml-2 text-sm">
+                                      {displayBooking.communication_rating || 0}/5
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {displayBooking.driver_feedback && (
+                                <>
+                                  <Separator />
+                                  <div className="space-y-2">
+                                    <Label className="text-sm font-medium">Additional Comments</Label>
+                                    <div className="bg-muted/50 p-4 rounded-lg">
+                                      <p className="text-sm leading-relaxed">{displayBooking.driver_feedback}</p>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+
+                              <div className="text-xs text-muted-foreground mt-4">
+                                <p>This feedback is attached to the driver's profile and contributes to their overall rating.</p>
+                              </div>
+
+                              <Button onClick={() => setShowRateDriver(true)} variant="outline" className="w-full">
+                                Edit Feedback
+                              </Button>
+                            </>
+                          ) : (
+                            <div className="text-center py-8">
+                              <p className="text-muted-foreground mb-4">
+                                Call the customer to collect feedback about the driver's performance, then submit the ratings below.
+                              </p>
+                              <Button onClick={() => setShowRateDriver(true)} className="bg-accent hover:bg-accent/90">
+                                Submit Driver Feedback
+                              </Button>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+                  )}
                 </div>
               </Tabs>
             </ScrollArea>
