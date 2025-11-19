@@ -9,17 +9,26 @@ import { createClient } from "@/lib/supabase/client"
 
 const fetcher = async () => {
   const supabase = createClient()
+  
   const { data, error } = await supabase
     .from("vehicle_onboarding")
     .select(`
       *,
-      procurement:procurements(procurement_number, vendor:vendors(name)),
+      procurement:procurements(
+        procurement_number,
+        vendor:vendors(name)
+      ),
       assigned_to:profiles(full_name),
       progress:vehicle_onboarding_progress(is_completed)
     `)
     .order("created_at", { ascending: false })
 
-  if (error) throw error
+  if (error) {
+    console.error("[v0] Onboarding fetch error:", error)
+    throw error
+  }
+  
+  console.log("[v0] Onboarding data fetched:", data?.length || 0, "records")
   return data || []
 }
 
@@ -38,7 +47,11 @@ export function OnboardingTable({ search, onViewDetails }: OnboardingTableProps)
   )
 
   if (error) {
-    return <div className="text-sm text-destructive">Failed to load onboarding data</div>
+    return (
+      <div className="text-sm text-destructive">
+        Failed to load onboarding data: {error.message || "Unknown error"}
+      </div>
+    )
   }
 
   if (!onboarding) {
@@ -58,6 +71,8 @@ export function OnboardingTable({ search, onViewDetails }: OnboardingTableProps)
     const completed = progressArray.filter((p) => p.is_completed).length
     return Math.round((completed / progressArray.length) * 100)
   }
+
+  console.log("[v0] Rendering action buttons:", { count: filteredData?.length })
 
   return (
     <div className="overflow-x-auto">
