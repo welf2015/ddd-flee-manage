@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
     // Get new bookings (Pending status)
     const { data: newBookings } = await supabase
-      .from("jobs")
+      .from("bookings")
       .select("*, client:clients(*), vehicle:vehicles(*)")
       .eq("status", "Pending")
       .order("created_at", { ascending: false })

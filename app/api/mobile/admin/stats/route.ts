@@ -29,19 +29,19 @@ export async function GET(request: Request) {
       .select("*", { count: "only" })
       .eq("status", "Active")
 
-    const { count: totalBookings } = await supabase.from("jobs").select("*", { count: "only" })
+    const { count: totalBookings } = await supabase.from("bookings").select("*", { count: "only" })
 
     const { count: pendingBookings } = await supabase
-      .from("jobs")
+      .from("bookings")
       .select("*", { count: "only" })
       .eq("status", "Pending")
 
     const { data: revenueData } = await supabase
-      .from("jobs")
-      .select("final_amount")
+      .from("bookings")
+      .select("actual_cost")
       .in("status", ["Completed", "Approved"])
 
-    const totalRevenue = revenueData?.reduce((sum, job) => sum + (job.final_amount || 0), 0) || 0
+    const totalRevenue = revenueData?.reduce((sum, booking) => sum + (booking.actual_cost || 0), 0) || 0
 
     return NextResponse.json({
       totalVehicles: totalVehicles || 0,

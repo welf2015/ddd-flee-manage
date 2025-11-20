@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     // Update booking status
     const newStatus = action === "approve" ? "Approved" : "Rejected"
 
-    const { error } = await supabase.from("jobs").update({ status: newStatus }).eq("id", bookingId)
+    const { error } = await supabase.from("bookings").update({ status: newStatus }).eq("id", bookingId)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 })
