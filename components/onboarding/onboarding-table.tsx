@@ -14,18 +14,39 @@ const fetcher = async () => {
     .from("vehicle_onboarding")
     .select(`
       *,
-      procurement:procurements(
-        procurement_number,
-        vendor:vendors(name)
-      ),
-      assigned_to:profiles(full_name),
-      progress:vehicle_onboarding_progress(is_completed)
+      assigned_to_profile:profiles!vehicle_onboarding_assigned_to_fkey(full_name),
+      vehicle_onboarding_progress(is_completed)
     `)
     .order("created_at", { ascending: false })
 
   if (error) {
-    console.error("[v0] Onboarding fetch error:", error)
+    console.error("[v0] Onboarding fetch error:", error.message)
     throw error
+  }
+  
+  // Manually fetch procurement data to avoid circular reference
+  if (data && data.length > 0) {
+    const procurementIds = data
+      .filter(item => item.procurement_id)
+      .map(item => item.procurement_id)
+    
+    if (procurementIds.length > 0) {
+      const { data: procurements } = await supabase
+        .from("procurements")
+        .select(`
+          id,
+          procurement_number,
+          vendor:vendors(name)
+        `)
+        .in("id", procurementIds)
+      
+      // Map procurement data to onboarding records
+      data.forEach(item => {
+        if (item.procurement_id) {
+          item.procurement = procurements?.find(p => p.id === item.procurement_id)
+        }
+      })
+    }
   }
   
   console.log("[v0] Onboarding data fetched:", data?.length || 0, "records")
@@ -72,8 +93,6 @@ export function OnboardingTable({ search, onViewDetails }: OnboardingTableProps)
     return Math.round((completed / progressArray.length) * 100)
   }
 
-  console.log("[v0] Rendering action buttons:", { count: filteredData?.length })
-
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -91,7 +110,7 @@ export function OnboardingTable({ search, onViewDetails }: OnboardingTableProps)
         </TableHeader>
         <TableBody>
           {filteredData?.map((item) => {
-            const completion = getCompletionPercentage(item.progress)
+            const completion = getCompletionPercentage(item.vehicle_onboarding_progress)
             return (
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.vehicle_number || "TBD"}</TableCell>
@@ -107,7 +126,7 @@ export function OnboardingTable({ search, onViewDetails }: OnboardingTableProps)
                     </div>
                   )}
                 </TableCell>
-                <TableCell>{item.assigned_to?.full_name || "Unassigned"}</TableCell>
+                <TableCell>{item.assigned_to_profile?.full_name || "Unassigned"}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <div className="w-full bg-secondary rounded-full h-2">

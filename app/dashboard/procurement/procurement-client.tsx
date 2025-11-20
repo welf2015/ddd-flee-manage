@@ -8,8 +8,8 @@ import { ProcurementsTable } from "@/components/procurement/procurements-table"
 import { VendorsTable } from "@/components/procurement/vendors-table"
 import { ClearingAgentsTable } from "@/components/procurement/clearing-agents-table"
 import { CreateProcurementDialog } from "@/components/procurement/create-procurement-dialog"
-import { CreateVendorDialog } from "@/components/procurement/create-vendor-dialog"
 import { CreateClearingAgentDialog } from "@/components/procurement/create-clearing-agent-dialog"
+import { AddVendorDialog } from "@/components/procurement/add-vendor-dialog"
 
 export function ProcurementClient() {
   const [showCreateProcurement, setShowCreateProcurement] = useState(false)
@@ -25,13 +25,7 @@ export function ProcurementClient() {
       </TabsList>
 
       <TabsContent value="procurements" className="space-y-4 mt-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-lg font-semibold">Procurement Orders</h2>
-            <p className="text-sm text-muted-foreground">
-              Track vehicle procurement from negotiation to fleet addition
-            </p>
-          </div>
+        <div className="flex justify-end items-center">
           <Button onClick={() => setShowCreateProcurement(true)} className="bg-accent hover:bg-accent/90">
             <Plus className="h-4 w-4 mr-2" />
             New Procurement
@@ -46,11 +40,7 @@ export function ProcurementClient() {
       </TabsContent>
 
       <TabsContent value="vendors" className="space-y-4 mt-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-lg font-semibold">Vendors</h2>
-            <p className="text-sm text-muted-foreground">Manage vehicle suppliers and negotiate prices</p>
-          </div>
+        <div className="flex justify-end items-center">
           <Button onClick={() => setShowCreateVendor(true)} className="bg-accent hover:bg-accent/90">
             <Plus className="h-4 w-4 mr-2" />
             Add Vendor
@@ -59,15 +49,11 @@ export function ProcurementClient() {
 
         <VendorsTable />
 
-        {showCreateVendor && <CreateVendorDialog open={showCreateVendor} onOpenChange={setShowCreateVendor} />}
+        {showCreateVendor && <AddVendorDialog open={showCreateVendor} onOpenChange={setShowCreateVendor} />}
       </TabsContent>
 
       <TabsContent value="agents" className="space-y-4 mt-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-lg font-semibold">Clearing Agents</h2>
-            <p className="text-sm text-muted-foreground">Manage port clearing agents for vehicle imports</p>
-          </div>
+        <div className="flex justify-end items-center">
           <Button onClick={() => setShowCreateAgent(true)} className="bg-accent hover:bg-accent/90">
             <Plus className="h-4 w-4 mr-2" />
             Add Agent

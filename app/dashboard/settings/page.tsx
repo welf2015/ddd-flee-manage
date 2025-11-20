@@ -3,13 +3,14 @@ import { CardDescription } from "@/components/ui/card"
 import { CardTitle } from "@/components/ui/card"
 import { CardHeader } from "@/components/ui/card"
 import { Card } from "@/components/ui/card"
-import { redirect } from 'next/navigation'
+import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProfileSettings } from "@/components/profile-settings"
 import { DriversTable } from "@/components/drivers-table"
 import { CreateDriverDialog } from "@/components/create-driver-dialog"
+import { AccessControlSettings } from "@/components/settings/access-control-settings"
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -56,6 +57,9 @@ export default async function SettingsPage() {
           <TabsTrigger value="drivers" className="flex-1 sm:flex-none">
             Drivers
           </TabsTrigger>
+          <TabsTrigger value="access-control" className="flex-1 sm:flex-none">
+            Access Control
+          </TabsTrigger>
           <TabsTrigger value="notifications" className="flex-1 sm:flex-none">
             Notifications
           </TabsTrigger>
@@ -78,6 +82,10 @@ export default async function SettingsPage() {
             </CardHeader>
           </Card>
           <DriversTable drivers={drivers || []} />
+        </TabsContent>
+
+        <TabsContent value="access-control">
+          <AccessControlSettings />
         </TabsContent>
 
         <TabsContent value="notifications">

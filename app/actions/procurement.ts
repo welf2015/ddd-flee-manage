@@ -5,10 +5,17 @@ import { revalidatePath } from "next/cache"
 
 export async function createProcurement(data: {
   vendor_id: string
-  vehicle_type: string
+  vehicle_make?: string
+  vehicle_model?: string
+  year_of_manufacture?: number | null
+  vin_chassis_number?: string
+  engine_number?: string
+  vehicle_color?: string
+  fuel_type?: string
+  transmission_type?: string
   quantity: number
   initial_quote: number
-  expected_arrival_date: string
+  notes?: string
 }) {
   const supabase = await createClient()
 
@@ -33,10 +40,17 @@ export async function createProcurement(data: {
     .insert({
       procurement_number: procurementNumber,
       vendor_id: data.vendor_id,
-      vehicle_type: data.vehicle_type,
+      vehicle_make: data.vehicle_make,
+      vehicle_model: data.vehicle_model,
+      year_of_manufacture: data.year_of_manufacture,
+      vin_chassis_number: data.vin_chassis_number,
+      engine_number: data.engine_number,
+      vehicle_color: data.vehicle_color,
+      fuel_type: data.fuel_type,
+      transmission_type: data.transmission_type,
       quantity: data.quantity,
       initial_quote: data.initial_quote,
-      expected_arrival_date: data.expected_arrival_date,
+      notes: data.notes,
       status: "Negotiation",
       created_by: user.id,
     })
@@ -52,8 +66,21 @@ export async function createProcurement(data: {
     procurement_id: procurement.id,
     action_type: "Procurement Created",
     action_by: user.id,
-    notes: `New procurement for ${data.vehicle_type}`,
+    notes: `New procurement for ${data.vehicle_make} ${data.vehicle_model}`,
   })
+
+  const { data: allUsers } = await supabase.from("profiles").select("id").neq("id", user.id)
+
+  if (allUsers) {
+    const notifications = allUsers.map((u) => ({
+      user_id: u.id,
+      type: "procurement",
+      title: "New Procurement Created",
+      message: `${procurement.procurement_number} - ${data.vehicle_make} ${data.vehicle_model} has been created`,
+      related_id: procurement.id,
+    }))
+    await supabase.from("notifications").insert(notifications)
+  }
 
   revalidatePath("/dashboard/procurement")
   return { success: true, data: procurement }
@@ -185,7 +212,7 @@ export async function assignClearingAgent(procurementId: string, clearingAgentId
     .from("procurements")
     .update({
       clearing_agent_id: clearingAgentId,
-      clearing_status: "Clearing in Progress",
+      status: "Clearing",
     })
     .eq("id", procurementId)
 
@@ -193,10 +220,15 @@ export async function assignClearingAgent(procurementId: string, clearingAgentId
     return { success: false, error: error.message }
   }
 
+  // Get agent details for timeline
+  const { data: agent } = await supabase.from("clearing_agents").select("name").eq("id", clearingAgentId).single()
+
   await supabase.from("procurement_timeline").insert({
     procurement_id: procurementId,
     action_type: "Clearing Agent Assigned",
+    new_value: agent?.name,
     action_by: user.id,
+    notes: `${agent?.name} assigned for customs clearing`,
   })
 
   revalidatePath("/dashboard/procurement")
@@ -304,11 +336,7 @@ export async function moveProcurementToOnboarding(procurementId: string) {
   }
 
   // Get procurement details
-  const { data: procurement } = await supabase
-    .from("procurements")
-    .select("*")
-    .eq("id", procurementId)
-    .single()
+  const { data: procurement } = await supabase.from("procurements").select("*").eq("id", procurementId).single()
 
   if (!procurement) {
     return { success: false, error: "Procurement not found" }
@@ -331,10 +359,7 @@ export async function moveProcurementToOnboarding(procurementId: string) {
   }
 
   // Get all checklist items
-  const { data: checklistItems } = await supabase
-    .from("onboarding_checklist_items")
-    .select("id")
-    .order("order_index")
+  const { data: checklistItems } = await supabase.from("onboarding_checklist_items").select("id").order("order_index")
 
   // Create progress entries for all checklist items
   if (checklistItems) {
@@ -379,13 +404,19 @@ export async function closeDealWithVendor(procurementId: string, finalPrice: num
     return { success: false, error: "Not authenticated" }
   }
 
+  const { data: currentProcurement } = await supabase
+    .from("procurements")
+    .select("negotiated_price")
+    .eq("id", procurementId)
+    .single()
+
+  const dealPrice = finalPrice || currentProcurement?.negotiated_price || 0
+
   const { error } = await supabase
     .from("procurements")
     .update({
-      status: "Vendor Accepted",
-      final_price: finalPrice,
-      deal_closed_date: new Date().toISOString(),
-      payment_status: "Pending",
+      status: "Deal Closed",
+      final_price: dealPrice,
     })
     .eq("id", procurementId)
 
@@ -396,23 +427,20 @@ export async function closeDealWithVendor(procurementId: string, finalPrice: num
   await supabase.from("procurement_timeline").insert({
     procurement_id: procurementId,
     action_type: "Deal Closed with Vendor",
-    new_value: finalPrice.toString(),
+    new_value: dealPrice.toString(),
     action_by: user.id,
-    notes: `Vendor accepted deal at ₦${finalPrice.toLocaleString()}`,
+    notes: `Vendor accepted deal at ₦${dealPrice.toLocaleString()}`,
   })
 
   // Create notification for MD/ED
-  const { data: admins } = await supabase
-    .from("profiles")
-    .select("id")
-    .in("role", ["MD", "ED"])
+  const { data: admins } = await supabase.from("profiles").select("id").in("role", ["MD", "ED"])
 
   if (admins) {
     const notifications = admins.map((admin) => ({
       user_id: admin.id,
       type: "procurement",
       title: "Procurement Deal Closed",
-      message: `Deal closed for procurement at ₦${finalPrice.toLocaleString()}. Payment pending.`,
+      message: `Deal closed for procurement at ₦${dealPrice.toLocaleString()}. Awaiting shipping details.`,
       related_id: procurementId,
     }))
     await supabase.from("notifications").insert(notifications)
@@ -436,7 +464,6 @@ export async function markProcurementAsPaid(procurementId: string, invoiceUrl?: 
   const { error } = await supabase
     .from("procurements")
     .update({
-      payment_status: "Paid",
       status: "Paid",
     })
     .eq("id", procurementId)
@@ -540,10 +567,7 @@ export async function markVehicleAsArrived(procurementId: string) {
   })
 
   // Notify relevant staff
-  const { data: admins } = await supabase
-    .from("profiles")
-    .select("id")
-    .in("role", ["MD", "ED", "Head of Operations"])
+  const { data: admins } = await supabase.from("profiles").select("id").in("role", ["MD", "ED", "Head of Operations"])
 
   if (admins) {
     const notifications = admins.map((admin) => ({
@@ -554,6 +578,73 @@ export async function markVehicleAsArrived(procurementId: string) {
       related_id: procurementId,
     }))
     await supabase.from("notifications").insert(notifications)
+  }
+
+  revalidatePath("/dashboard/procurement")
+  return { success: true }
+}
+
+export async function updatePostDealInfo(
+  procurementId: string,
+  data: {
+    waybill_number?: string
+    shipping_tracking_no?: string
+    shipping_date?: string
+    estimated_delivery_months?: number
+    condition_on_arrival?: string
+    warranty_details?: string
+    received_by?: string
+    clearing_date?: string
+    license_plate_number?: string
+    customs_documents?: string
+    cif_lagos_terms?: boolean
+    tdo_obtained?: boolean
+    idec_waiver_valid?: boolean
+  },
+) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  const statusUpdate: any = {}
+  let timelineAction = ""
+  let timelineNotes = ""
+
+  if (data.waybill_number && data.shipping_tracking_no) {
+    statusUpdate.status = "Payment Pending"
+    timelineAction = "Shipping Details Added"
+    timelineNotes = `Waybill: ${data.waybill_number}, Expected delivery: ${data.estimated_delivery_months} months`
+  } else if (data.clearing_date && data.license_plate_number) {
+    statusUpdate.status = "Ready for Onboarding"
+    timelineAction = "Clearing Completed"
+    timelineNotes = `Vehicle cleared, License Plate: ${data.license_plate_number}`
+  } else if (data.condition_on_arrival) {
+    timelineAction = "Arrival Details Updated"
+    timelineNotes = `Vehicle condition documented by ${data.received_by}`
+  }
+
+  const { error } = await supabase
+    .from("procurements")
+    .update({ ...data, ...statusUpdate })
+    .eq("id", procurementId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  if (timelineAction) {
+    await supabase.from("procurement_timeline").insert({
+      procurement_id: procurementId,
+      action_type: timelineAction,
+      action_by: user.id,
+      notes: timelineNotes,
+    })
   }
 
   revalidatePath("/dashboard/procurement")

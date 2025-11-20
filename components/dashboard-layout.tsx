@@ -4,9 +4,29 @@ import type React from "react"
 
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Home, Calendar, Truck, Users, AlertCircle, Building2, TrendingUp, ClipboardList, Settings, LogOut, Menu, Plus, Package, ShoppingCart, ChevronDown, ChevronRight, Wrench, Star, CheckSquare, DollarSign } from 'lucide-react'
+import {
+  Home,
+  Truck,
+  AlertCircle,
+  Building2,
+  TrendingUp,
+  ClipboardList,
+  Settings,
+  LogOut,
+  Menu,
+  Plus,
+  Package,
+  ShoppingCart,
+  ChevronDown,
+  ChevronRight,
+  Wrench,
+  Star,
+  CheckSquare,
+  DollarSign,
+  FileText,
+} from "lucide-react"
 import Link from "next/link"
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { NotificationsBell } from "@/components/notifications-bell"
@@ -24,9 +44,9 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
 
   useEffect(() => {
     if (
-      pathname.startsWith('/dashboard/vehicle-management') ||
-      pathname === '/dashboard/vehicles' ||
-      pathname === '/dashboard/incidents'
+      pathname.startsWith("/dashboard/vehicle-management") ||
+      pathname === "/dashboard/vehicles" ||
+      pathname === "/dashboard/incidents"
     ) {
       setVehicleManagementOpen(true)
     }
@@ -41,7 +61,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
       icon: Truck,
       hasSubmenu: true,
       submenu: [
-        { name: "Vehicles", href: "/dashboard/vehicles", icon: Truck },
+        { name: "Vehicles", href: "/dashboard/vehicle-management/vehicles", icon: Truck },
         { name: "Onboarding", href: "/dashboard/vehicle-management/onboarding", icon: ClipboardList },
         { name: "Fuel/Charging", href: "/dashboard/vehicle-management/fuel", icon: DollarSign },
         { name: "Feedbacks", href: "/dashboard/vehicle-management/feedbacks", icon: Star },
@@ -56,6 +76,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
     { name: "Inventory", href: "/dashboard/inventory", icon: Package },
     { name: "Sales Insights", href: "/dashboard/sales-insights", icon: DollarSign },
     { name: "Reports", href: "/dashboard/reports", icon: TrendingUp },
+    { name: "Accountability", href: "/dashboard/accountability", icon: FileText },
     { name: "Settings", href: "/dashboard/settings", icon: Settings },
   ]
 
@@ -76,7 +97,8 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
       <nav className="space-y-1 px-2 flex-1">
         {navigation.map((item) => {
           const Icon = item.icon
-          const isActive = pathname === item.href || (pathname.startsWith(item.href + "/") && item.href !== "/dashboard")
+          const isActive =
+            pathname === item.href || (pathname.startsWith(item.href + "/") && item.href !== "/dashboard")
           const isSubmenuOpen = vehicleManagementOpen && item.hasSubmenu
 
           return (
@@ -87,7 +109,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
                     variant={isActive ? "ghost" : "ghost"}
                     className={cn(
                       "w-full justify-between h-11",
-                      isActive && "bg-accent text-accent-foreground hover:bg-accent/90"
+                      isActive && "bg-accent text-accent-foreground hover:bg-accent/90",
                     )}
                     onClick={() => setVehicleManagementOpen(!vehicleManagementOpen)}
                   >
@@ -95,11 +117,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
                       <Icon className="h-6 w-6" />
                       <span className="text-sm font-medium">{item.name}</span>
                     </div>
-                    {isSubmenuOpen ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
+                    {isSubmenuOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </Button>
                   {isSubmenuOpen && item.submenu && (
                     <div className="ml-4 mt-1 space-y-1">
@@ -107,16 +125,12 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
                         const SubIcon = subitem.icon
                         const isSubActive = pathname === subitem.href
                         return (
-                          <Link
-                            key={subitem.href}
-                            href={subitem.href}
-                            onClick={() => setOpen(false)}
-                          >
+                          <Link key={subitem.href} href={subitem.href} onClick={() => setOpen(false)}>
                             <Button
                               variant="ghost"
                               className={cn(
                                 "w-full justify-start gap-3 text-sm h-10",
-                                isSubActive && "bg-accent text-accent-foreground hover:bg-accent/90"
+                                isSubActive && "bg-accent text-accent-foreground hover:bg-accent/90",
                               )}
                             >
                               <SubIcon className="h-5 w-5" />
@@ -134,7 +148,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
                     variant="ghost"
                     className={cn(
                       "w-full justify-start gap-3 h-11",
-                      isActive && "bg-accent text-accent-foreground hover:bg-accent/90"
+                      isActive && "bg-accent text-accent-foreground hover:bg-accent/90",
                     )}
                   >
                     <Icon className="h-6 w-6" />

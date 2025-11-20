@@ -17,15 +17,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Badge } from "@/components/ui/badge"
-import { Plus, X, Star } from 'lucide-react'
+import { Plus, X } from "lucide-react"
 import { useState } from "react"
 import { createBooking } from "@/app/actions/bookings"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import useSWR from "swr"
-import cn from "classnames"
 
 export function CreateBookingDialog() {
   const [open, setOpen] = useState(false)
@@ -35,62 +33,53 @@ export function CreateBookingDialog() {
   const router = useRouter()
   const supabase = createClient()
 
-  const { data: driversWithRatings = [] } = useSWR(
-    open ? "drivers-with-ratings" : null,
-    async () => {
-      // Get all drivers
-      const { data: drivers } = await supabase
-        .from("drivers")
-        .select("*")
-        .eq("status", "Active")
-        .order("full_name")
+  const { data: driversWithRatings = [] } = useSWR(open ? "drivers-with-ratings" : null, async () => {
+    // Get all drivers
+    const { data: drivers } = await supabase.from("drivers").select("*").eq("status", "Active").order("full_name")
 
-      if (!drivers) return []
+    if (!drivers) return []
 
-      // Get ratings for each driver from completed bookings
-      const driversWithAvgRatings = await Promise.all(
-        drivers.map(async (driver) => {
-          const { data: ratings } = await supabase
-            .from("bookings")
-            .select("driver_rating, punctuality_rating, vehicle_condition_rating, communication_rating")
-            .eq("assigned_driver_id", driver.id)
-            .not("driver_rating", "is", null)
+    // Get ratings for each driver from completed bookings
+    const driversWithAvgRatings = await Promise.all(
+      drivers.map(async (driver) => {
+        const { data: ratings } = await supabase
+          .from("bookings")
+          .select("driver_rating, punctuality_rating, vehicle_condition_rating, communication_rating")
+          .eq("assigned_driver_id", driver.id)
+          .not("driver_rating", "is", null)
 
-          if (!ratings || ratings.length === 0) {
-            return { ...driver, avgRating: null, totalRatings: 0 }
-          }
+        if (!ratings || ratings.length === 0) {
+          return { ...driver, avgRating: null, totalRatings: 0 }
+        }
 
-          // Calculate average of all ratings
-          const allRatings = ratings.flatMap((r) => [
-            r.driver_rating,
-            r.punctuality_rating,
-            r.vehicle_condition_rating,
-            r.communication_rating,
-          ]).filter(Boolean)
+        // Calculate average of all ratings
+        const allRatings = ratings
+          .flatMap((r) => [r.driver_rating, r.punctuality_rating, r.vehicle_condition_rating, r.communication_rating])
+          .filter(Boolean)
 
-          const avgRating = allRatings.length > 0
+        const avgRating =
+          allRatings.length > 0
             ? (allRatings.reduce((sum, rating) => sum + rating, 0) / allRatings.length).toFixed(1)
             : null
 
-          return {
-            ...driver,
-            avgRating: avgRating ? parseFloat(avgRating) : null,
-            totalRatings: ratings.length,
-          }
-        })
-      )
-
-      // Sort by rating (highest first), then by name
-      return driversWithAvgRatings.sort((a, b) => {
-        if (a.avgRating && b.avgRating) {
-          return b.avgRating - a.avgRating
+        return {
+          ...driver,
+          avgRating: avgRating ? Number.parseFloat(avgRating) : null,
+          totalRatings: ratings.length,
         }
-        if (a.avgRating) return -1
-        if (b.avgRating) return 1
-        return a.full_name.localeCompare(b.full_name)
-      })
-    }
-  )
+      }),
+    )
+
+    // Sort by rating (highest first), then by name
+    return driversWithAvgRatings.sort((a, b) => {
+      if (a.avgRating && b.avgRating) {
+        return b.avgRating - a.avgRating
+      }
+      if (a.avgRating) return -1
+      if (b.avgRating) return 1
+      return a.full_name.localeCompare(b.full_name)
+    })
+  })
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -164,7 +153,7 @@ export function CreateBookingDialog() {
             </div>
 
             <div className="grid gap-2">
-              <Label>Route (Destinations)</Label>
+              <Label>Route (Stops)</Label>
               {destinations.map((dest, index) => (
                 <div key={index} className="flex gap-2 items-center">
                   <Input
@@ -195,8 +184,21 @@ export function CreateBookingDialog() {
                 className="w-fit bg-transparent"
               >
                 <Plus className="mr-2 h-3 w-3" />
-                Add Destination
+                Add Stop
               </Button>
+              {destinations.length > 0 && destinations[0].from && (
+                <div className="text-sm text-muted-foreground mt-2 p-3 bg-muted/50 rounded-md">
+                  <p className="font-medium mb-1">Route Preview:</p>
+                  <p>
+                    {destinations[0].from}
+                    {destinations
+                      .slice(1)
+                      .map((d, i) => d.from && ` → ${d.from}`)
+                      .join("")}
+                    {destinations[destinations.length - 1].to && ` → ${destinations[destinations.length - 1].to}`}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

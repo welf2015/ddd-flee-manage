@@ -36,9 +36,10 @@ const fetcher = async (timeRange: string) => {
     sum + (Number(b.proposed_client_budget) || 0), 0
   ) / (totalNegotiations || 1)
 
-  const avgFinalAmount = negotiations?.reduce((sum, b) => 
-    sum + (Number(b.current_negotiation_amount) || 0), 0
-  ) / (totalNegotiations || 1)
+  const avgFinalAmount = negotiations?.reduce((sum, b) => {
+    const finalAmount = Number(b.current_negotiation_amount) || Number(b.proposed_client_budget) || 0
+    return sum + finalAmount
+  }, 0) / (totalNegotiations || 1)
 
   const avgNegotiationIncrease = avgFinalAmount - avgOriginalBudget
 
@@ -129,13 +130,16 @@ export function NegotiationMetrics({ timeRange }: NegotiationMetricsProps) {
             </TableHeader>
             <TableBody>
               {data?.recentNegotiations?.map((neg: any) => {
-                const increase = (Number(neg.current_negotiation_amount) || 0) - (Number(neg.proposed_client_budget) || 0)
+                const finalAmount = Number(neg.current_negotiation_amount) || Number(neg.proposed_client_budget) || 0
+                const originalBudget = Number(neg.proposed_client_budget) || 0
+                const increase = finalAmount - originalBudget
+                
                 return (
                   <TableRow key={neg.job_id}>
                     <TableCell className="font-medium">{neg.job_id}</TableCell>
                     <TableCell>{neg.client_name || "Unknown"}</TableCell>
-                    <TableCell>₦{(Number(neg.proposed_client_budget) || 0).toLocaleString()}</TableCell>
-                    <TableCell>₦{(Number(neg.current_negotiation_amount) || 0).toLocaleString()}</TableCell>
+                    <TableCell>₦{originalBudget.toLocaleString()}</TableCell>
+                    <TableCell>₦{finalAmount.toLocaleString()}</TableCell>
                     <TableCell className={increase >= 0 ? "text-accent" : "text-destructive"}>
                       {increase >= 0 ? "+" : ""}₦{increase.toLocaleString()}
                     </TableCell>
