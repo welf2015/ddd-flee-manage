@@ -8,9 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Search, Filter, Download } from "lucide-react"
-import { format } from "date-fns"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
+import { formatDateTime } from "@/lib/utils"
 
 const fetcher = async (url: string) => {
   const supabase = createClient()
@@ -127,7 +127,7 @@ export function AccountabilityClient() {
                   {filteredActivities?.map((activity) => (
                     <TableRow key={activity.id}>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                        {format(new Date(activity.created_at), "MMM dd, yyyy HH:mm")}
+                        {formatDateTime(activity.created_at)}
                       </TableCell>
                       <TableCell>
                         <Badge className={getModuleBadgeColor(activity.module)} variant="outline">

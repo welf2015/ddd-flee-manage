@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server"
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 
-const r2Client =
-  process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY
-    ? new S3Client({
-        region: "auto",
-        endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-        credentials: {
-          accessKeyId: process.env.R2_ACCESS_KEY_ID,
-          secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-        },
-      })
-    : null
+const r2Client = new S3Client({
+  region: "auto",
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+})
 
 export async function POST(request: Request) {
   try {
@@ -23,13 +20,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "File required" }, { status: 400 })
     }
 
-    if (!r2Client) {
-      console.log("[v0] R2 not configured, using Vercel Blob")
-      const { put } = await import("@vercel/blob")
-      const blob = await put(`${folder}/${file.name}`, file, {
-        access: "public",
-      })
-      return NextResponse.json({ url: blob.url })
+    if (!process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY) {
+      console.error("[v0] R2 credentials not configured")
+      return NextResponse.json({ error: "Storage not configured" }, { status: 500 })
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
@@ -44,7 +37,9 @@ export async function POST(request: Request) {
       }),
     )
 
-    const url = `https://${process.env.R2_BUCKET_NAME}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`
+    const url = process.env.R2_PUBLIC_URL
+      ? `${process.env.R2_PUBLIC_URL}/${key}`
+      : `https://${process.env.R2_BUCKET_NAME}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`
 
     return NextResponse.json({ url })
   } catch (error) {

@@ -25,37 +25,53 @@ export async function createBooking(formData: FormData) {
     return { success: false, error: "Failed to generate job ID: No data returned" }
   }
 
+  const companyName = formData.get("company_name") as string
   const clientName = formData.get("client_name") as string
   const clientContact = formData.get("client_contact") as string
   const clientEmail = formData.get("client_email") as string
+  const clientAddress = formData.get("client_address") as string
+  const destinationContactName = formData.get("destination_contact_name") as string
+  const destinationContactPhone = formData.get("destination_contact_phone") as string
   const route = formData.get("route") as string
   const proposedBudget = Number.parseFloat(formData.get("proposed_client_budget") as string)
 
+  const pickupLat = formData.get("pickup_lat") ? Number.parseFloat(formData.get("pickup_lat") as string) : null
+  const pickupLng = formData.get("pickup_lng") ? Number.parseFloat(formData.get("pickup_lng") as string) : null
+  const deliveryLat = formData.get("delivery_lat") ? Number.parseFloat(formData.get("delivery_lat") as string) : null
+  const deliveryLng = formData.get("delivery_lng") ? Number.parseFloat(formData.get("delivery_lng") as string) : null
+  const pickupAddress = formData.get("pickup_address") as string
+  const deliveryAddress = formData.get("delivery_address") as string
+
   let clientId: string | null = null
 
-  // Check if client already exists
-  const { data: existingClient } = await supabase.from("clients").select("id").eq("phone", clientContact).single()
+  const { data: existingClient } = await supabase
+    .from("clients")
+    .select("id")
+    .or(`phone.eq.${clientContact}${companyName ? `,company_name.eq.${companyName}` : ""}`)
+    .single()
 
   if (existingClient) {
     clientId = existingClient.id
-    // Update existing client with new info if provided
     await supabase
       .from("clients")
       .update({
         name: clientName,
+        company_name: companyName || clientName, // Use client name if no company
         email: clientEmail,
+        address: clientAddress,
         contact_name: clientName,
         updated_at: new Date().toISOString(),
       })
       .eq("id", clientId)
   } else {
-    // Create new client
     const { data: newClient } = await supabase
       .from("clients")
       .insert({
         name: clientName,
+        company_name: companyName || clientName, // Use client name if no company
         phone: clientContact,
         email: clientEmail,
+        address: clientAddress,
         contact_name: clientName,
         created_at: new Date().toISOString(),
       })
@@ -70,9 +86,19 @@ export async function createBooking(formData: FormData) {
   const booking = {
     job_id: jobIdData,
     client_name: clientName,
+    company_name: companyName || clientName, // Use client name if no company
+    client_address: clientAddress, // Add address
     client_contact: clientContact,
     client_id: clientId,
+    destination_contact_name: destinationContactName, // Add destination contact
+    destination_contact_phone: destinationContactPhone, // Add destination phone
     route,
+    pickup_address: pickupAddress, // Store pickup address
+    delivery_address: deliveryAddress, // Store delivery address
+    pickup_lat: pickupLat, // Store coordinates for map display
+    pickup_lng: pickupLng,
+    delivery_lat: deliveryLat,
+    delivery_lng: deliveryLng,
     number_of_loads: Number.parseInt(formData.get("number_of_loads") as string),
     proposed_client_budget: proposedBudget,
     timeline: formData.get("timeline") as string,
@@ -93,12 +119,12 @@ export async function createBooking(formData: FormData) {
       booking_id: insertedData[0].id,
       action_type: "Created",
       action_by: user.id,
-      notes: `New booking created for ${clientName}`,
+      notes: `New booking created for ${companyName || clientName}`,
     })
 
     await notifyAdminsForBookingApproval({
       jobId: jobIdData,
-      clientName,
+      clientName: companyName || clientName,
       route,
       budget: proposedBudget,
       createdBy: user.id,
@@ -366,10 +392,7 @@ export async function reportTripHold(bookingId: string, holdReason: string, note
     return { success: false, error: "Not authenticated" }
   }
 
-  const { error: statusError } = await supabase
-    .from("bookings")
-    .update({ status: "On Hold" })
-    .eq("id", bookingId)
+  const { error: statusError } = await supabase.from("bookings").update({ status: "On Hold" }).eq("id", bookingId)
 
   if (statusError) {
     return { success: false, error: statusError.message }
@@ -405,7 +428,7 @@ export async function logTripExpenses(bookingId: string, expenses: any[]) {
   const expensesData = expenses.map((expense) => ({
     booking_id: bookingId,
     cost_type: expense.cost_type,
-    amount: parseFloat(expense.amount),
+    amount: Number.parseFloat(expense.amount),
     description: expense.description,
     receipt_url: expense.receipt_url || null,
     created_by: user.id,
@@ -418,7 +441,7 @@ export async function logTripExpenses(bookingId: string, expenses: any[]) {
   }
 
   // Add timeline event
-  const totalAmount = expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0)
+  const totalAmount = expenses.reduce((sum, e) => sum + Number.parseFloat(e.amount), 0)
   await supabase.from("job_timeline").insert({
     booking_id: bookingId,
     action_type: "Status Updated",
@@ -442,10 +465,10 @@ export async function saveDriverFeedback(formData: FormData) {
   }
 
   const bookingId = formData.get("booking_id") as string
-  const driverRating = parseInt(formData.get("driver_rating") as string)
-  const punctualityRating = parseInt(formData.get("punctuality_rating") as string)
-  const vehicleConditionRating = parseInt(formData.get("vehicle_condition_rating") as string)
-  const communicationRating = parseInt(formData.get("communication_rating") as string)
+  const driverRating = Number.parseInt(formData.get("driver_rating") as string)
+  const punctualityRating = Number.parseInt(formData.get("punctuality_rating") as string)
+  const vehicleConditionRating = Number.parseInt(formData.get("vehicle_condition_rating") as string)
+  const communicationRating = Number.parseInt(formData.get("communication_rating") as string)
   const feedback = formData.get("feedback") as string
 
   // Update booking with ratings
@@ -477,5 +500,49 @@ export async function saveDriverFeedback(formData: FormData) {
   revalidatePath("/dashboard/bookings")
   revalidatePath("/dashboard/vehicle-management/feedbacks")
 
+  return { success: true }
+}
+
+export async function updateBooking(bookingId: string, formData: FormData) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  const updateData: any = {
+    company_name: formData.get("company_name") as string,
+    client_name: formData.get("client_name") as string,
+    client_contact: formData.get("client_contact") as string,
+    client_address: formData.get("client_address") as string,
+    destination_contact_name: formData.get("destination_contact_name") as string,
+    destination_contact_phone: formData.get("destination_contact_phone") as string,
+    route: formData.get("route") as string,
+    number_of_loads: Number.parseInt(formData.get("number_of_loads") as string),
+    proposed_client_budget: Number.parseFloat(formData.get("proposed_client_budget") as string),
+    timeline: formData.get("timeline") as string,
+    request_details: formData.get("request_details") as string,
+    updated_at: new Date().toISOString(),
+  }
+
+  const { error } = await supabase.from("bookings").update(updateData).eq("id", bookingId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  // Add timeline event
+  await supabase.from("job_timeline").insert({
+    booking_id: bookingId,
+    action_type: "Updated",
+    action_by: user.id,
+    notes: "Booking details updated",
+  })
+
+  revalidatePath("/dashboard/bookings")
   return { success: true }
 }

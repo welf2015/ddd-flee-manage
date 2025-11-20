@@ -1,6 +1,6 @@
 "use client"
 
-import { Bell } from 'lucide-react'
+import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -14,43 +14,47 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { createClient } from "@/lib/supabase/client"
 import useSWR from "swr"
-import { useRouter } from 'next/navigation'
-import { formatDistanceToNow } from "date-fns"
+import { useRouter } from "next/navigation"
+import { formatRelativeTime } from "@/lib/utils"
 
 export function NotificationBell() {
   const router = useRouter()
 
-  const { data: notifications = [] } = useSWR("notifications", async () => {
-    try {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      
-      if (!user) return []
+  const { data: notifications = [] } = useSWR(
+    "notifications",
+    async () => {
+      try {
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
 
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(10)
+        if (!user) return []
 
-      if (error) {
-        console.error("[v0] Error fetching notifications:", error)
+        const { data, error } = await supabase
+          .from("notifications")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(10)
+
+        if (error) {
+          console.error("[v0] Error fetching notifications:", error)
+          return []
+        }
+
+        return data || []
+      } catch (error) {
+        console.error("[v0] Notification fetch failed:", error)
         return []
       }
-
-      return data || []
-    } catch (error) {
-      console.error("[v0] Notification fetch failed:", error)
-      return []
-    }
-  }, { 
-    refreshInterval: 5000,
-    shouldRetryOnError: false,
-    revalidateOnFocus: false
-  })
+    },
+    {
+      refreshInterval: 5000,
+      shouldRetryOnError: false,
+      revalidateOnFocus: false,
+    },
+  )
 
   const unreadCount = notifications.filter((n: any) => !n.read).length
 
@@ -65,7 +69,7 @@ export function NotificationBell() {
 
   const handleNotificationClick = (notification: any) => {
     handleMarkAsRead(notification.id)
-    
+
     // Navigate based on notification type
     if (notification.type === "booking") {
       router.push(`/dashboard/bookings`)
@@ -106,20 +110,14 @@ export function NotificationBell() {
                   <div className="flex-1">
                     <p className="font-medium text-sm">{notification.title}</p>
                     <p className="text-xs text-muted-foreground mt-1">{notification.message}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">{formatRelativeTime(notification.created_at)}</p>
                   </div>
-                  {!notification.read && (
-                    <div className="h-2 w-2 rounded-full bg-accent flex-shrink-0 mt-1" />
-                  )}
+                  {!notification.read && <div className="h-2 w-2 rounded-full bg-accent flex-shrink-0 mt-1" />}
                 </div>
               </DropdownMenuItem>
             ))
           ) : (
-            <div className="py-6 text-center text-sm text-muted-foreground">
-              No notifications
-            </div>
+            <div className="py-6 text-center text-sm text-muted-foreground">No notifications</div>
           )}
         </ScrollArea>
       </DropdownMenuContent>
