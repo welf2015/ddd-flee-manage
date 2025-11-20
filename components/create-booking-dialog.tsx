@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, X, MapPin } from "lucide-react"
+import { Plus, X, MapPin, Loader2 } from "lucide-react"
 import { useState, useRef, useEffect, useCallback } from "react"
 import { createBooking } from "@/app/actions/bookings"
 import { useRouter } from "next/navigation"
@@ -49,6 +49,7 @@ export function CreateBookingDialog() {
   // Mapbox state
   const [suggestions, setSuggestions] = useState<any[]>([])
   const [mapboxLoaded, setMapboxLoaded] = useState(false)
+  const [mapError, setMapError] = useState<string | null>(null)
   const [activeInput, setActiveInput] = useState<{ index: number; field: "from" | "to" } | null>(null)
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
@@ -274,24 +275,48 @@ export function CreateBookingDialog() {
 
         if (!mapboxgl) {
           console.error("Mapbox GL JS not loaded")
+          setMapError("Map library not loaded")
           return
         }
 
         mapboxgl.accessToken = MAPBOX_TOKEN
 
-        if (!map.current) {
-          map.current = new mapboxgl.Map({
-            container: mapContainer.current!,
-            style: "mapbox://styles/mapbox/streets-v12",
-            center: [3.3792, 6.5244], // Default to Lagos, Nigeria (or generic center)
-            zoom: 10,
-          })
+        if (!mapboxgl.workerUrl) {
+          const workerUrl = "https://api.mapbox.com/mapbox-gl-js/v3.16.0/mapbox-gl-csp-worker.js"
+          try {
+            const response = await fetch(workerUrl)
+            if (!response.ok) throw new Error("Failed to fetch worker")
+            const workerScript = await response.text()
+            const blob = new Blob([workerScript], { type: "application/javascript" })
+            mapboxgl.workerUrl = window.URL.createObjectURL(blob)
+          } catch (error) {
+            console.error("Error loading Mapbox worker:", error)
+            mapboxgl.workerUrl = workerUrl
+          }
         }
 
-        // Update markers and route
+        if (!map.current) {
+          try {
+            map.current = new mapboxgl.Map({
+              container: mapContainer.current!,
+              style: "mapbox://styles/mapbox/streets-v12",
+              center: [3.3792, 6.5244], // Default to Lagos, Nigeria
+              zoom: 10,
+            })
+
+            map.current.on("error", (e) => {
+              console.error("Mapbox error:", e)
+              setMapError(`Map error: ${e.error.message}`)
+            })
+          } catch (err: any) {
+            console.error("Error creating map instance:", err)
+            setMapError(err.message)
+            return
+          }
+        }
+
         const currentMap = map.current
 
-        // Clear existing markers
         markers.current.forEach((marker) => marker.remove())
         markers.current = []
 
@@ -315,12 +340,10 @@ export function CreateBookingDialog() {
         })
 
         if (coordinates.length > 0) {
-          // Fit bounds
           const bounds = new mapboxgl.LngLatBounds()
           coordinates.forEach((coord) => bounds.extend(coord as [number, number]))
           currentMap.fitBounds(bounds, { padding: 50 })
 
-          // Draw line
           if (currentMap.getSource("route")) {
             ;(currentMap.getSource("route") as mapboxgl.GeoJSONSource).setData({
               type: "Feature",
@@ -331,7 +354,6 @@ export function CreateBookingDialog() {
               },
             })
           } else {
-            // Check if style is loaded before adding source
             if (currentMap.isStyleLoaded()) {
               addRouteLayer(currentMap, coordinates)
             } else {
@@ -339,8 +361,9 @@ export function CreateBookingDialog() {
             }
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error initializing map:", error)
+        setMapError(error.message)
       }
     }
 
@@ -379,7 +402,11 @@ export function CreateBookingDialog() {
   return (
     <>
       <link href="https://api.mapbox.com/mapbox-gl-js/v3.16.0/mapbox-gl.css" rel="stylesheet" />
-      <Script src="https://api.mapbox.com/mapbox-gl-js/v3.16.0/mapbox-gl.js" onLoad={() => setMapboxLoaded(true)} />
+      <Script
+        src="https://api.mapbox.com/mapbox-gl-js/v3.16.0/mapbox-gl.js"
+        onLoad={() => setMapboxLoaded(true)}
+        onError={() => setMapError("Failed to load Mapbox script")}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
@@ -620,6 +647,26 @@ export function CreateBookingDialog() {
               </div>
 
               <input type="hidden" name="status" value="Open" />
+
+              <div className="mt-4 h-64 w-full rounded-md border overflow-hidden relative bg-muted">
+                {!mapboxLoaded && !mapError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Loading map...</span>
+                    </div>
+                  </div>
+                )}
+                {mapError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-destructive/10 z-10 p-4 text-center">
+                    <div className="text-sm text-destructive">
+                      <p className="font-semibold">Map failed to load</p>
+                      <p className="text-xs mt-1">{mapError}</p>
+                    </div>
+                  </div>
+                )}
+                <div ref={mapContainer} className="w-full h-full" />
+              </div>
             </div>
 
             <DialogFooter>
@@ -631,9 +678,6 @@ export function CreateBookingDialog() {
               </Button>
             </DialogFooter>
           </form>
-          <div className="mt-4 h-64 w-full rounded-md border overflow-hidden relative">
-            <div ref={mapContainer} className="w-full h-full" />
-          </div>
         </DialogContent>
       </Dialog>
     </>

@@ -27,10 +27,7 @@ export async function toggleChecklistItem(progressId: string, isCompleted: boole
     updateData.completed_by = null
   }
 
-  const { error } = await supabase
-    .from("vehicle_onboarding_progress")
-    .update(updateData)
-    .eq("id", progressId)
+  const { error } = await supabase.from("vehicle_onboarding_progress").update(updateData).eq("id", progressId)
 
   if (error) {
     return { success: false, error: error.message }
@@ -136,11 +133,7 @@ export async function createOnboardingFromProcurement(procurementId: string) {
   }
 
   // Get procurement details
-  const { data: procurement } = await supabase
-    .from("procurements")
-    .select("*")
-    .eq("id", procurementId)
-    .single()
+  const { data: procurement } = await supabase.from("procurements").select("*").eq("id", procurementId).single()
 
   if (!procurement) {
     return { success: false, error: "Procurement not found" }
@@ -163,10 +156,7 @@ export async function createOnboardingFromProcurement(procurementId: string) {
   }
 
   // Get all checklist items
-  const { data: checklistItems } = await supabase
-    .from("onboarding_checklist_items")
-    .select("id")
-    .order("order_index")
+  const { data: checklistItems } = await supabase.from("onboarding_checklist_items").select("id").order("order_index")
 
   // Create progress entries for all checklist items
   if (checklistItems) {
@@ -189,6 +179,66 @@ export async function createOnboardingFromProcurement(procurementId: string) {
     .eq("id", procurementId)
 
   revalidatePath("/dashboard/procurement")
+  revalidatePath("/dashboard/vehicle-management/onboarding")
+  return { success: true, data: onboarding }
+}
+
+export async function createManualOnboarding(formData: FormData) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  const vehicle_number = formData.get("vehicle_number") as string
+  const vehicle_type = formData.get("vehicle_type") as string
+  const make = formData.get("make") as string
+  const model = formData.get("model") as string
+  const year = Number.parseInt(formData.get("year") as string)
+  const notes = formData.get("notes") as string
+
+  if (!vehicle_number || !vehicle_type || !make || !model || !year) {
+    return { success: false, error: "Missing required fields" }
+  }
+
+  // Create onboarding record
+  const { data: onboarding, error: onboardingError } = await supabase
+    .from("vehicle_onboarding")
+    .insert({
+      vehicle_number,
+      vehicle_type,
+      make,
+      model,
+      year,
+      notes,
+      assigned_to: user.id,
+      status: "In Progress",
+    })
+    .select()
+    .single()
+
+  if (onboardingError) {
+    return { success: false, error: onboardingError.message }
+  }
+
+  // Get all checklist items
+  const { data: checklistItems } = await supabase.from("onboarding_checklist_items").select("id").order("order_index")
+
+  // Create progress entries for all checklist items
+  if (checklistItems) {
+    const progressEntries = checklistItems.map((item) => ({
+      onboarding_id: onboarding.id,
+      checklist_item_id: item.id,
+      is_completed: false,
+    }))
+
+    await supabase.from("vehicle_onboarding_progress").insert(progressEntries)
+  }
+
   revalidatePath("/dashboard/vehicle-management/onboarding")
   return { success: true, data: onboarding }
 }
