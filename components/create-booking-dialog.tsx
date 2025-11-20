@@ -24,7 +24,7 @@ import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import useSWR from "swr"
 import type mapboxgl from "mapbox-gl"
-import "mapbox-gl/dist/mapbox-gl.css"
+import Script from "next/script"
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiZGFtaWxvbGFqYW1lcyIsImEiOiJjbWk3bzRuZXUwMmx6MndyMWduZmcwNG9pIn0.lTWQddjYoQjt3w-CUEc81w"
 
@@ -48,6 +48,7 @@ export function CreateBookingDialog() {
 
   // Mapbox state
   const [suggestions, setSuggestions] = useState<any[]>([])
+  const [mapboxLoaded, setMapboxLoaded] = useState(false)
   const [activeInput, setActiveInput] = useState<{ index: number; field: "from" | "to" } | null>(null)
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
@@ -265,13 +266,17 @@ export function CreateBookingDialog() {
   }
 
   useEffect(() => {
-    if (!open || !mapContainer.current) return
+    if (!open || !mapContainer.current || !mapboxLoaded) return
 
     const initializeMap = async () => {
       try {
-        const mapboxgl = (await import("mapbox-gl")).default
-        // @ts-ignore
-        mapboxgl.workerUrl = "https://unpkg.com/mapbox-gl@3.16.0/dist/mapbox-gl-csp-worker.js"
+        const mapboxgl = window.mapboxgl
+
+        if (!mapboxgl) {
+          console.error("Mapbox GL JS not loaded")
+          return
+        }
+
         mapboxgl.accessToken = MAPBOX_TOKEN
 
         if (!map.current) {
@@ -326,32 +331,12 @@ export function CreateBookingDialog() {
               },
             })
           } else {
-            currentMap.on("load", () => {
-              currentMap.addSource("route", {
-                type: "geojson",
-                data: {
-                  type: "Feature",
-                  properties: {},
-                  geometry: {
-                    type: "LineString",
-                    coordinates: coordinates,
-                  },
-                },
-              })
-              currentMap.addLayer({
-                id: "route",
-                type: "line",
-                source: "route",
-                layout: {
-                  "line-join": "round",
-                  "line-cap": "round",
-                },
-                paint: {
-                  "line-color": "#3b82f6",
-                  "line-width": 4,
-                },
-              })
-            })
+            // Check if style is loaded before adding source
+            if (currentMap.isStyleLoaded()) {
+              addRouteLayer(currentMap, coordinates)
+            } else {
+              currentMap.on("load", () => addRouteLayer(currentMap, coordinates))
+            }
           }
         }
       } catch (error) {
@@ -359,12 +344,42 @@ export function CreateBookingDialog() {
       }
     }
 
+    const addRouteLayer = (map: mapboxgl.Map, coordinates: [number, number][]) => {
+      if (map.getSource("route")) return
+
+      map.addSource("route", {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          properties: {},
+          geometry: {
+            type: "LineString",
+            coordinates: coordinates,
+          },
+        },
+      })
+      map.addLayer({
+        id: "route",
+        type: "line",
+        source: "route",
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+        },
+        paint: {
+          "line-color": "#3b82f6",
+          "line-width": 4,
+        },
+      })
+    }
+
     initializeMap()
-  }, [open, destinations])
+  }, [open, destinations, mapboxLoaded])
 
   return (
     <>
-      <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+      <link href="https://api.mapbox.com/mapbox-gl-js/v3.16.0/mapbox-gl.css" rel="stylesheet" />
+      <Script src="https://api.mapbox.com/mapbox-gl-js/v3.16.0/mapbox-gl.js" onLoad={() => setMapboxLoaded(true)} />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
