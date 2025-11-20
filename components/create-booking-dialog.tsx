@@ -23,7 +23,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import useSWR from "swr"
-import mapboxgl from "mapbox-gl"
+import type mapboxgl from "mapbox-gl"
 import "mapbox-gl/dist/mapbox-gl.css"
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiZGFtaWxvbGFqYW1lcyIsImEiOiJjbWk3bzRuZXUwMmx6MndyMWduZmcwNG9pIn0.lTWQddjYoQjt3w-CUEc81w"
@@ -267,87 +267,99 @@ export function CreateBookingDialog() {
   useEffect(() => {
     if (!open || !mapContainer.current) return
 
-    if (!map.current) {
-      mapboxgl.accessToken = MAPBOX_TOKEN
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: "mapbox://styles/mapbox/streets-v12",
-        center: [3.3792, 6.5244], // Default to Lagos, Nigeria (or generic center)
-        zoom: 10,
-      })
-    }
+    const initializeMap = async () => {
+      try {
+        const mapboxgl = (await import("mapbox-gl")).default
+        // @ts-ignore
+        mapboxgl.workerUrl = "https://unpkg.com/mapbox-gl@3.16.0/dist/mapbox-gl-csp-worker.js"
+        mapboxgl.accessToken = MAPBOX_TOKEN
 
-    // Update markers and route
-    const currentMap = map.current
+        if (!map.current) {
+          map.current = new mapboxgl.Map({
+            container: mapContainer.current!,
+            style: "mapbox://styles/mapbox/streets-v12",
+            center: [3.3792, 6.5244], // Default to Lagos, Nigeria (or generic center)
+            zoom: 10,
+          })
+        }
 
-    // Clear existing markers
-    markers.current.forEach((marker) => marker.remove())
-    markers.current = []
+        // Update markers and route
+        const currentMap = map.current
 
-    const coordinates: [number, number][] = []
+        // Clear existing markers
+        markers.current.forEach((marker) => marker.remove())
+        markers.current = []
 
-    destinations.forEach((dest) => {
-      if (dest.fromLng && dest.fromLat) {
-        const el = document.createElement("div")
-        el.className = "w-6 h-6 bg-green-500 rounded-full border-2 border-white shadow-lg"
-        const marker = new mapboxgl.Marker(el).setLngLat([dest.fromLng, dest.fromLat]).addTo(currentMap)
-        markers.current.push(marker)
-        coordinates.push([dest.fromLng, dest.fromLat])
-      }
-      if (dest.toLng && dest.toLat) {
-        const el = document.createElement("div")
-        el.className = "w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg"
-        const marker = new mapboxgl.Marker(el).setLngLat([dest.toLng, dest.toLat]).addTo(currentMap)
-        markers.current.push(marker)
-        coordinates.push([dest.toLng, dest.toLat])
-      }
-    })
+        const coordinates: [number, number][] = []
 
-    if (coordinates.length > 0) {
-      // Fit bounds
-      const bounds = new mapboxgl.LngLatBounds()
-      coordinates.forEach((coord) => bounds.extend(coord as [number, number]))
-      currentMap.fitBounds(bounds, { padding: 50 })
-
-      // Draw line
-      if (currentMap.getSource("route")) {
-        ;(currentMap.getSource("route") as mapboxgl.GeoJSONSource).setData({
-          type: "Feature",
-          properties: {},
-          geometry: {
-            type: "LineString",
-            coordinates: coordinates,
-          },
+        destinations.forEach((dest) => {
+          if (dest.fromLng && dest.fromLat) {
+            const el = document.createElement("div")
+            el.className = "w-6 h-6 bg-green-500 rounded-full border-2 border-white shadow-lg"
+            const marker = new mapboxgl.Marker(el).setLngLat([dest.fromLng, dest.fromLat]).addTo(currentMap)
+            markers.current.push(marker)
+            coordinates.push([dest.fromLng, dest.fromLat])
+          }
+          if (dest.toLng && dest.toLat) {
+            const el = document.createElement("div")
+            el.className = "w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg"
+            const marker = new mapboxgl.Marker(el).setLngLat([dest.toLng, dest.toLat]).addTo(currentMap)
+            markers.current.push(marker)
+            coordinates.push([dest.toLng, dest.toLat])
+          }
         })
-      } else {
-        currentMap.on("load", () => {
-          currentMap.addSource("route", {
-            type: "geojson",
-            data: {
+
+        if (coordinates.length > 0) {
+          // Fit bounds
+          const bounds = new mapboxgl.LngLatBounds()
+          coordinates.forEach((coord) => bounds.extend(coord as [number, number]))
+          currentMap.fitBounds(bounds, { padding: 50 })
+
+          // Draw line
+          if (currentMap.getSource("route")) {
+            ;(currentMap.getSource("route") as mapboxgl.GeoJSONSource).setData({
               type: "Feature",
               properties: {},
               geometry: {
                 type: "LineString",
                 coordinates: coordinates,
               },
-            },
-          })
-          currentMap.addLayer({
-            id: "route",
-            type: "line",
-            source: "route",
-            layout: {
-              "line-join": "round",
-              "line-cap": "round",
-            },
-            paint: {
-              "line-color": "#3b82f6",
-              "line-width": 4,
-            },
-          })
-        })
+            })
+          } else {
+            currentMap.on("load", () => {
+              currentMap.addSource("route", {
+                type: "geojson",
+                data: {
+                  type: "Feature",
+                  properties: {},
+                  geometry: {
+                    type: "LineString",
+                    coordinates: coordinates,
+                  },
+                },
+              })
+              currentMap.addLayer({
+                id: "route",
+                type: "line",
+                source: "route",
+                layout: {
+                  "line-join": "round",
+                  "line-cap": "round",
+                },
+                paint: {
+                  "line-color": "#3b82f6",
+                  "line-width": 4,
+                },
+              })
+            })
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing map:", error)
       }
     }
+
+    initializeMap()
   }, [open, destinations])
 
   return (
