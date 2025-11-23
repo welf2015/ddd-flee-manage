@@ -5,6 +5,7 @@ import { Truck, ClipboardCheck, AlertTriangle, Users, Building2, Package, Fuel }
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
 import { formatCurrency } from "@/lib/utils"
+import { FuelMeter } from "@/app/dashboard/expenses/fuel-meter"
 
 const fetcher = async () => {
   const supabase = createClient()
@@ -61,7 +62,6 @@ const fetcher = async () => {
     totalInventory: inventoryRes.count || 0,
     totalFuelSpent,
     totalFuelDeposited,
-    fuelProgress,
   }
 }
 
