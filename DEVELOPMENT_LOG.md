@@ -412,6 +412,53 @@ All environment variables are stored in `.env.local` (not committed to git).
 2. **Paid Stage**: Shipping documents (Bill of Lading, Packing List, Commercial Invoice) uploaded via worker
 3. **Clearing Stage**: Clearing documents (Customs Duty Receipt, Release Order, TDO) uploaded via worker
 4. **All Documents**: Displayed in Documents tab with View (open in new tab) and Download options
+
+---
+
+### Booking Payment Status & Documents Display
+**Date**: 2025-01-27
+
+#### Summary
+Added payment status tracking for completed bookings and fixed the Documents section to display uploaded waybill documents.
+
+#### Changes Made
+
+1. **Database Migration** (`scripts/36-add-booking-payment-status.sql`)
+   - Added `payment_status` column to `bookings` table
+   - Default value: `'Unpaid'`
+   - Constraint: `CHECK (payment_status IN ('Unpaid', 'Paid'))`
+   - Updated existing `Completed` bookings to have `'Unpaid'` status
+
+2. **Server Actions** (`app/actions/bookings.ts`)
+   - Updated `closeBooking` function to set `payment_status: "Unpaid"` when booking is marked as `Completed`
+   - Added new `markBookingAsPaid` function to update payment status to `"Paid"` and add timeline event
+
+3. **Booking Detail Sheet** (`components/booking-detail-sheet.tsx`)
+   - Added payment status badge next to status badge (shown only when status is `"Completed"`)
+   - Payment status displays as "Paid" (green) or "Payment Pending" (orange)
+   - Added "Mark as Paid" button (visible when status is `"Completed"` and payment_status is `"Unpaid"`, admin only)
+   - Fixed Documents tab to display waybill documents from `waybill_uploads` table
+   - Added View and Download buttons for each waybill document
+   - Replaced "Document management coming soon" message with actual document list
+
+4. **Booking Detail Dialog** (`components/booking-detail-dialog.tsx`)
+   - Applied same changes as booking detail sheet:
+     - Payment status badge display
+     - "Mark as Paid" button
+     - Documents section with waybill display
+
+#### Workflow
+1. When a job is closed/completed, `payment_status` is automatically set to `"Unpaid"`
+2. Payment status badge appears next to "Completed" status badge
+3. Admin can click "Mark as Paid" button to update payment status
+4. Timeline event is created when payment is marked as paid
+5. Documents tab shows all uploaded waybill documents with view/download options
+
+#### Files Modified
+- `scripts/36-add-booking-payment-status.sql` (NEW)
+- `app/actions/bookings.ts`
+- `components/booking-detail-sheet.tsx`
+- `components/booking-detail-dialog.tsx`
 5. **Received By**: When clearing is completed, "Received By (From Clearing Agent)" field captures who received the vehicle
 
 #### Worker.js Implementation

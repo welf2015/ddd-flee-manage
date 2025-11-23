@@ -20,6 +20,8 @@ import {
   FileText,
   ArrowRight,
   Check,
+  Eye,
+  Download,
 } from "lucide-react"
 import { AssignDriverDialog } from "./assign-driver-dialog"
 import { UpdateJobStatusDialog } from "./update-job-status-dialog"
@@ -202,6 +204,10 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const canApprove = ["Open", "Negotiation"].includes(displayBooking.status) && isAdmin
   const canNegotiate =
     (displayBooking.status === "Open" && isAdmin) || (isAdmin && displayBooking.status === "Negotiation")
+  const canMarkAsPaid =
+    displayBooking.status === "Completed" &&
+    displayBooking.payment_status === "Unpaid" &&
+    isAdmin
 
   const handleApproveBooking = async () => {
     setUpdatingStatus(true)
@@ -216,6 +222,23 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
     } else {
       const { toast } = await import("sonner")
       toast.error(result.error || "Failed to approve booking")
+    }
+    setUpdatingStatus(false)
+  }
+
+  const handleMarkAsPaid = async () => {
+    setUpdatingStatus(true)
+    const { markBookingAsPaid } = await import("@/app/actions/bookings")
+    const result = await markBookingAsPaid(booking.id)
+
+    if (result.success) {
+      await mutateBooking()
+      onUpdate()
+      const { toast } = await import("sonner")
+      toast.success("Payment marked as paid")
+    } else {
+      const { toast } = await import("sonner")
+      toast.error(result.error || "Failed to mark payment as paid")
     }
     setUpdatingStatus(false)
   }
@@ -239,9 +262,23 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-              <Badge variant="outline" className={`w-fit ${getStatusColor(displayBooking.status)}`}>
-                {displayBooking.status}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className={`w-fit ${getStatusColor(displayBooking.status)}`}>
+                  {displayBooking.status}
+                </Badge>
+                {displayBooking.status === "Completed" && (
+                  <Badge
+                    variant="outline"
+                    className={`w-fit ${
+                      displayBooking.payment_status === "Paid"
+                        ? "bg-green-500/10 text-green-500 border-green-500/20"
+                        : "bg-orange-500/10 text-orange-500 border-orange-500/20"
+                    }`}
+                  >
+                    {displayBooking.payment_status === "Paid" ? "Paid" : "Payment Pending"}
+                  </Badge>
+                )}
+              </div>
             </SheetHeader>
 
             {/* Action Buttons */}
@@ -311,6 +348,17 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                     Log Expenses
                   </Button>
                 </>
+              )}
+              {canMarkAsPaid && (
+                <Button
+                  onClick={handleMarkAsPaid}
+                  disabled={updatingStatus}
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-sm"
+                >
+                  <Wallet className="h-3 w-3 mr-1" />
+                  Mark as Paid
+                </Button>
               )}
             </div>
 
@@ -713,7 +761,46 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                         <CardTitle className="text-lg">Documents</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-muted-foreground">Document management coming soon</p>
+                        {waybills && waybills.length > 0 ? (
+                          <div className="space-y-3">
+                            {waybills.map((waybill: any) => (
+                              <div
+                                key={waybill.id}
+                                className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                              >
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                  <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">
+                                      {waybill.file_name || "Waybill Document"}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Uploaded {new Date(waybill.uploaded_at).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {waybill.file_url && (
+                                    <>
+                                      <Button variant="ghost" size="sm" asChild className="flex-shrink-0">
+                                        <a href={waybill.file_url} target="_blank" rel="noopener noreferrer">
+                                          <Eye className="h-4 w-4" />
+                                        </a>
+                                      </Button>
+                                      <Button variant="ghost" size="sm" asChild className="flex-shrink-0">
+                                        <a href={waybill.file_url} target="_blank" rel="noopener noreferrer" download>
+                                          <Download className="h-4 w-4" />
+                                        </a>
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No documents uploaded yet</p>
+                        )}
                       </CardContent>
                     </Card>
                   </TabsContent>

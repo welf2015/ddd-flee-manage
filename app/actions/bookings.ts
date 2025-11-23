@@ -256,11 +256,12 @@ export async function closeBooking(
     return { success: false, error: "Not authenticated" }
   }
 
-  // Update booking to Completed status
+  // Update booking to Completed status with Unpaid payment status
   const { error: bookingError } = await supabase
     .from("bookings")
     .update({
       status: "Completed",
+      payment_status: "Unpaid",
       completed_at: new Date().toISOString(),
       actual_cost: data.actualCost,
       additional_costs: data.additionalCosts,
@@ -312,6 +313,41 @@ export async function closeBooking(
 
   revalidatePath("/dashboard/bookings")
   revalidatePath("/dashboard/drivers")
+  return { success: true }
+}
+
+export async function markBookingAsPaid(bookingId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  const { error } = await supabase
+    .from("bookings")
+    .update({
+      payment_status: "Paid",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", bookingId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  // Add timeline event
+  await supabase.from("job_timeline").insert({
+    booking_id: bookingId,
+    action_type: "Payment Marked as Paid",
+    action_by: user.id,
+    notes: "Payment has been received for this booking",
+  })
+
+  revalidatePath("/dashboard/bookings")
   return { success: true }
 }
 
