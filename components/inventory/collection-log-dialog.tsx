@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-import useSWR from "swr"
+import useSWR, { mutate } from "swr"
 
 type CollectionLogDialogProps = {
   open: boolean
@@ -112,6 +112,8 @@ export function CollectionLogDialog({ open, onOpenChange, onSuccess }: Collectio
       }
 
       toast.success("Collection log created successfully")
+      // Refresh collection logs
+      mutate("inventory-collections")
       onSuccess()
       handleReset()
       onOpenChange(false)
