@@ -93,10 +93,32 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
   const handleNegotiate = async () => {
     if (!negotiationAmount) return
     setIsSubmitting(true)
-    await negotiateProcurement(procurementId, Number.parseFloat(negotiationAmount))
-    setNegotiationAmount("")
-    setNegotiationNote("")
-    mutate()
+    
+    const negotiatedPrice = Number.parseFloat(negotiationAmount)
+    
+    // Optimistic update
+    if (procurement) {
+      mutate(
+        {
+          ...procurement,
+          status: "Negotiation",
+          negotiated_price: negotiatedPrice,
+        },
+        false
+      )
+    }
+    
+    const result = await negotiateProcurement(procurementId, negotiatedPrice)
+    
+    if (result.success) {
+      setNegotiationAmount("")
+      setNegotiationNote("")
+      // Revalidate to get fresh data
+      await mutate()
+    } else {
+      // Revert optimistic update on error
+      await mutate()
+    }
     setIsSubmitting(false)
   }
 
@@ -105,9 +127,27 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
       ? Number.parseFloat(negotiationAmount)
       : procurement.negotiated_price || procurement.initial_quote
     setIsSubmitting(true)
+    
+    // Optimistic update
+    if (procurement) {
+      mutate(
+        {
+          ...procurement,
+          status: "Deal Closed",
+          final_price: dealPrice,
+        },
+        false
+      )
+    }
+    
     const result = await closeProcurementDeal(procurementId, dealPrice)
+    
     if (result.success) {
-      mutate()
+      // Revalidate to get fresh data
+      await mutate()
+    } else {
+      // Revert optimistic update on error
+      await mutate()
     }
     setIsSubmitting(false)
   }
@@ -199,16 +239,34 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
         }
       }
 
+      // Optimistic update
+      if (procurement) {
+        mutate(
+          {
+            ...procurement,
+            status: "Paid",
+          },
+          false
+        )
+      }
+      
       // Mark as paid
-      await markProcurementAsPaid(procurementId)
-      setInvoiceFile(null)
-      setMtcFile(null)
-      setProformaFile(null)
-      setCocFile(null)
-      setFormMFile(null)
-      setSoncapFile(null)
-      setNaddcFile(null)
-      mutate()
+      const result = await markProcurementAsPaid(procurementId)
+      
+      if (result.success) {
+        setInvoiceFile(null)
+        setMtcFile(null)
+        setProformaFile(null)
+        setCocFile(null)
+        setFormMFile(null)
+        setSoncapFile(null)
+        setNaddcFile(null)
+        // Revalidate to get fresh data
+        await mutate()
+      } else {
+        // Revert optimistic update on error
+        await mutate()
+      }
     } catch (error) {
       console.error("Upload error:", error)
     } finally {
@@ -220,38 +278,118 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
   const handleAddShipping = async () => {
     if (!waybill || !shippingDuration) return
     setIsSubmitting(true)
-    await addShippingInfo(procurementId, {
+    
+    // Optimistic update
+    if (procurement) {
+      mutate(
+        {
+          ...procurement,
+          status: "In Transit",
+          waybill_number: waybill,
+          shipping_tracking_no: waybill,
+          estimated_delivery_months: Number.parseInt(shippingDuration),
+        },
+        false
+      )
+    }
+    
+    const result = await addShippingInfo(procurementId, {
       waybill_number: waybill,
       tracking_info: waybill,
       estimated_delivery_months: Number.parseInt(shippingDuration),
       shipping_date: new Date().toISOString().split("T")[0],
     })
-    setWaybill("")
-    setShippingDuration("")
-    mutate()
+    
+    if (result.success) {
+      setWaybill("")
+      setShippingDuration("")
+      // Revalidate to get fresh data
+      await mutate()
+    } else {
+      // Revert optimistic update on error
+      await mutate()
+    }
     setIsSubmitting(false)
   }
 
   const handleMarkArrived = async () => {
     setIsSubmitting(true)
-    await markAsArrived(procurementId)
-    mutate()
+    
+    // Optimistic update
+    if (procurement) {
+      mutate(
+        {
+          ...procurement,
+          status: "Arrived",
+        },
+        false
+      )
+    }
+    
+    const result = await markAsArrived(procurementId)
+    
+    if (result.success) {
+      // Revalidate to get fresh data
+      await mutate()
+    } else {
+      // Revert optimistic update on error
+      await mutate()
+    }
     setIsSubmitting(false)
   }
 
   const handleAssignAgent = async () => {
     if (!selectedAgent) return
     setIsSubmitting(true)
-    await assignClearingAgent(procurementId, selectedAgent)
-    setSelectedAgent("")
-    mutate()
+    
+    // Optimistic update
+    if (procurement) {
+      mutate(
+        {
+          ...procurement,
+          status: "Clearing",
+          clearing_agent_id: selectedAgent,
+        },
+        false
+      )
+    }
+    
+    const result = await assignClearingAgent(procurementId, selectedAgent)
+    
+    if (result.success) {
+      setSelectedAgent("")
+      // Revalidate to get fresh data
+      await mutate()
+    } else {
+      // Revert optimistic update on error
+      await mutate()
+    }
     setIsSubmitting(false)
   }
 
   const handleMoveToOnboarding = async () => {
     setIsSubmitting(true)
-    await moveToOnboarding(procurementId)
-    mutate()
+    
+    // Optimistic update
+    if (procurement) {
+      mutate(
+        {
+          ...procurement,
+          status: "Onboarding",
+        },
+        false
+      )
+    }
+    
+    const result = await moveToOnboarding(procurementId)
+    
+    if (result.success) {
+      // Revalidate to get fresh data
+      await mutate()
+    } else {
+      // Revert optimistic update on error
+      await mutate()
+    }
     setIsSubmitting(false)
   }
 
