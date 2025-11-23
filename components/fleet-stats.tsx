@@ -14,7 +14,8 @@ const fetcher = async () => {
   const now = new Date()
   const dayOfWeek = now.getDay()
   const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) // Adjust to Monday
-  const weekStart = new Date(now.setDate(diff))
+  const weekStart = new Date(now)
+  weekStart.setDate(diff)
   weekStart.setHours(0, 0, 0, 0)
   const weekStartISO = weekStart.toISOString()
 
