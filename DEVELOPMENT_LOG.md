@@ -470,6 +470,125 @@ Added payment status tracking for completed bookings and fixed the Documents sec
 
 ---
 
+### Prepaid Expense Management System
+**Date**: 2025-01-27
+
+#### Summary
+Created a comprehensive prepaid expense management system for tracking fuel, government ticketing, and driver allowances. The system supports prepaid accounts with top-ups, automatic expense logging, and real-time balance tracking (including negative balances).
+
+#### Key Features
+
+1. **Prepaid Account System**
+   - Three expense types: Fuel (Total Energies), Ticketing (Nigerian Ports Authority), Allowance (Driver Allowance Pool)
+   - Account balance tracking with support for negative balances (overdraft)
+   - Top-up system where users enter total amount paid (clears negative balances)
+   - Real-time balance updates via database triggers
+
+2. **Expense Management UI** (`/dashboard/expenses`)
+   - Summary cards showing balances for each expense type
+   - Weekly expense tracking (weekly accounting period)
+   - Three tabs: Fuel, Ticketing, Allowance
+   - Transaction history and top-up history
+   - Fuel meter visualization with car-style gauge showing spending percentage
+
+3. **Enhanced Driver Assignment**
+   - Assign Driver dialog now includes expense fields:
+     - Fuel: Amount + Liters (manual entry)
+     - Ticketing: Amount
+     - Allowance: Amount
+   - Shows account balances (can display negative amounts)
+   - Automatically logs expenses and creates fuel log entries when driver is assigned
+
+4. **Automatic Fuel Logging**
+   - When fuel expense is added during driver assignment, fuel log is automatically created
+   - Links fuel log to expense transaction
+   - No manual fuel logging needed for trip-based expenses
+
+#### Database Schema
+
+**New Tables**:
+- `expense_vendors` - Vendor information (Total Energies, Nigerian Ports Authority, etc.)
+- `prepaid_accounts` - Prepaid account balances and totals
+- `account_topups` - Top-up/deposit history
+- `expense_transactions` - All expense debits linked to bookings/drivers/vehicles
+
+**Updated Tables**:
+- `fuel_logs` - Added `expense_transaction_id` to link to expense transactions
+- `bookings` - Added `fuel_amount`, `ticketing_amount`, `allowance_amount`, `fuel_account_id`, `ticketing_account_id`
+
+**Database Triggers**:
+- Auto-update account balance on top-up
+- Auto-deduct account balance on transaction
+- Auto-create fuel log entry when fuel expense transaction is created
+
+#### Workflow
+
+1. **Adding Top-ups**:
+   - Navigate to Expenses → Select Tab → Click "Add Top-up"
+   - Enter total amount paid (not additional amount)
+   - System: `new_balance = current_balance + topup_amount`
+   - Example: If account is -₦500k and you pay ₦1M, enter ₦1M → new balance = ₦500k
+
+2. **Assigning Driver with Expenses**:
+   - Open booking → Click "Assign Driver"
+   - Select driver
+   - Fill expense fields (Fuel amount + liters, Ticketing amount, Allowance amount)
+   - System shows account balances (can be negative)
+   - Click "Assign Driver & Log Expenses"
+   - System automatically:
+     - Assigns driver to booking
+     - Creates expense transactions
+     - Deducts from prepaid accounts (can go negative)
+     - Creates fuel log entry (for fuel expenses)
+     - Links fuel log to expense transaction
+
+3. **Fuel Meter Visualization**:
+   - Shows "Total Spent ₦540,000 All time" at top
+   - Car-style fuel gauge with percentage (0-100%)
+   - Segmented bars showing spending level (Low/Medium/High)
+   - Color-coded: Green (low) → Yellow → Orange → Red (high)
+
+#### Files Created
+- `scripts/37-create-expense-management-system.sql` - Database migration
+- `app/actions/expenses.ts` - Expense management server actions
+- `app/dashboard/expenses/page.tsx` - Expenses page
+- `app/dashboard/expenses/expenses-client.tsx` - Main expenses client component
+- `app/dashboard/expenses/fuel-tab.tsx` - Fuel tab with meter visualization
+- `app/dashboard/expenses/fuel-meter.tsx` - Fuel meter visualization component
+- `app/dashboard/expenses/ticketing-tab.tsx` - Ticketing tab
+- `app/dashboard/expenses/allowance-tab.tsx` - Allowance tab
+- `app/dashboard/expenses/add-topup-dialog.tsx` - Top-up dialog
+
+#### Files Modified
+- `app/actions/bookings.ts` - Added `assignDriverWithExpenses()` function
+- `components/assign-driver-dialog.tsx` - Enhanced with expense fields
+
+#### Key Implementation Details
+
+1. **Negative Balance Support**:
+   - Accounts can go negative (prepaid system allows overdraft)
+   - Negative balances displayed in red with "(Overdrawn)" label
+   - No blocking - assignment allowed even with negative balance
+
+2. **Fuel Vendor**:
+   - Total Energies only (for trucks/booking system)
+   - Qoray Charging is for EV manual logs only (not in booking system)
+
+3. **Fuel Liters**:
+   - Manual entry required (user enters liters when entering amount)
+   - Not auto-calculated from amount
+
+4. **Weekly Accounting**:
+   - "Total Expenses This Week" shows weekly period expenses
+   - Weekly accounting period used instead of monthly
+
+5. **Auto Fuel Logging**:
+   - Trigger automatically creates fuel_log entry when fuel expense transaction is created
+   - Links fuel log to expense transaction via `expense_transaction_id`
+   - Replaces manual fuel logging for trip-based expenses
+
+---
+
 ## Collaboration Guidelines
 
 ### Before Starting Work

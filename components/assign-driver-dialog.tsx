@@ -6,11 +6,15 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Truck, User, Calendar, AlertCircle } from "lucide-react"
+import { Truck, User, Calendar, AlertCircle, Fuel, Ticket, Wallet } from "lucide-react"
 import { useState, useEffect } from "react"
-import { assignDriverToBooking } from "@/app/actions/bookings"
+import { assignDriverWithExpenses } from "@/app/actions/bookings"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
+import { Input } from "@/components/ui/input"
+import { Separator } from "@/components/ui/separator"
+import { getPrepaidAccounts } from "@/app/actions/expenses"
+import { formatCurrency } from "@/lib/utils"
 
 type AssignDriverDialogProps = {
   open: boolean
@@ -24,12 +28,49 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
   const [selectedDriver, setSelectedDriver] = useState("")
   const [driverDetails, setDriverDetails] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  
+  // Expense fields
+  const [fuelAmount, setFuelAmount] = useState("")
+  const [fuelLiters, setFuelLiters] = useState("")
+  const [ticketingAmount, setTicketingAmount] = useState("")
+  const [allowanceAmount, setAllowanceAmount] = useState("")
+  
+  // Account balances
+  const [fuelAccount, setFuelAccount] = useState<any>(null)
+  const [ticketingAccount, setTicketingAccount] = useState<any>(null)
+  const [allowanceAccount, setAllowanceAccount] = useState<any>(null)
 
   useEffect(() => {
     if (open) {
       fetchDrivers()
+      fetchAccounts()
+      // Reset expense fields when dialog opens
+      setFuelAmount("")
+      setFuelLiters("")
+      setTicketingAmount("")
+      setAllowanceAmount("")
     }
   }, [open])
+
+  const fetchAccounts = async () => {
+    try {
+      const { data: fuelAccounts } = await getPrepaidAccounts("Fuel")
+      const { data: ticketingAccounts } = await getPrepaidAccounts("Ticketing")
+      const { data: allowanceAccounts } = await getPrepaidAccounts("Allowance")
+
+      if (fuelAccounts && fuelAccounts.length > 0) {
+        setFuelAccount(fuelAccounts[0])
+      }
+      if (ticketingAccounts && ticketingAccounts.length > 0) {
+        setTicketingAccount(ticketingAccounts[0])
+      }
+      if (allowanceAccounts && allowanceAccounts.length > 0) {
+        setAllowanceAccount(allowanceAccounts[0])
+      }
+    } catch (error) {
+      console.error("Failed to fetch accounts:", error)
+    }
+  }
 
   useEffect(() => {
     if (selectedDriver) {
@@ -62,11 +103,30 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
     }
 
     setLoading(true)
-    const result = await assignDriverToBooking(bookingId, selectedDriver)
+
+    // Prepare expenses object
+    const expenses: any = {}
+    
+    if (fuelAmount && fuelAccount) {
+      expenses.fuelAmount = Number.parseFloat(fuelAmount)
+      expenses.fuelLiters = fuelLiters ? Number.parseFloat(fuelLiters) : undefined
+      expenses.fuelAccountId = fuelAccount.id
+    }
+    
+    if (ticketingAmount && ticketingAccount) {
+      expenses.ticketingAmount = Number.parseFloat(ticketingAmount)
+      expenses.ticketingAccountId = ticketingAccount.id
+    }
+    
+    if (allowanceAmount && allowanceAccount) {
+      expenses.allowanceAmount = Number.parseFloat(allowanceAmount)
+    }
+
+    const result = await assignDriverWithExpenses(bookingId, selectedDriver, Object.keys(expenses).length > 0 ? expenses : undefined)
     setLoading(false)
 
     if (result.success) {
-      toast.success("Driver assigned successfully")
+      toast.success("Driver assigned and expenses logged successfully")
       onSuccess()
     } else {
       toast.error(result.error || "Failed to assign driver")
@@ -79,7 +139,7 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-background/95 backdrop-blur-xl border-border/50">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-xl border-border/50">
         <DialogHeader>
           <DialogTitle>Assign Driver to Job</DialogTitle>
           <DialogDescription>Select an available driver to assign to this booking</DialogDescription>
@@ -197,6 +257,143 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
             </Card>
           )}
 
+          <Separator />
+
+          {/* Trip Expenses Section */}
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Trip Expenses</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Enter expense amounts for this trip. Expenses will be automatically logged and deducted from prepaid accounts.
+              </p>
+            </div>
+
+            {/* Fuel Required */}
+            <Card className="border-blue-500/20 bg-blue-500/5">
+              <CardContent className="pt-6 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Fuel className="h-5 w-5 text-blue-500" />
+                  <Label className="text-base font-semibold">Fuel Required</Label>
+                </div>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="fuelAmount">Amount (NGN)</Label>
+                      <Input
+                        id="fuelAmount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={fuelAmount}
+                        onChange={(e) => setFuelAmount(e.target.value)}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="fuelLiters">Liters</Label>
+                      <Input
+                        id="fuelLiters"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={fuelLiters}
+                        onChange={(e) => setFuelLiters(e.target.value)}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                  {fuelAccount && (
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
+                      <p
+                        className={`text-sm font-medium ${
+                          fuelAccount.current_balance < 0 ? "text-red-500" : "text-green-500"
+                        }`}
+                      >
+                        {formatCurrency(fuelAccount.current_balance, "NGN")}
+                        {fuelAccount.current_balance < 0 && " (Overdrawn)"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Government Ticketing */}
+            <Card className="border-purple-500/20 bg-purple-500/5">
+              <CardContent className="pt-6 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Ticket className="h-5 w-5 text-purple-500" />
+                  <Label className="text-base font-semibold">Government Ticketing</Label>
+                </div>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="ticketingAmount">Amount (NGN)</Label>
+                    <Input
+                      id="ticketingAmount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={ticketingAmount}
+                      onChange={(e) => setTicketingAmount(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  {ticketingAccount && (
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
+                      <p
+                        className={`text-sm font-medium ${
+                          ticketingAccount.current_balance < 0 ? "text-red-500" : "text-green-500"
+                        }`}
+                      >
+                        {formatCurrency(ticketingAccount.current_balance, "NGN")}
+                        {ticketingAccount.current_balance < 0 && " (Overdrawn)"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Driver Allowance */}
+            <Card className="border-orange-500/20 bg-orange-500/5">
+              <CardContent className="pt-6 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Wallet className="h-5 w-5 text-orange-500" />
+                  <Label className="text-base font-semibold">Driver Allowance</Label>
+                </div>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="allowanceAmount">Amount (NGN)</Label>
+                    <Input
+                      id="allowanceAmount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={allowanceAmount}
+                      onChange={(e) => setAllowanceAmount(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  {allowanceAccount && (
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
+                      <p
+                        className={`text-sm font-medium ${
+                          allowanceAccount.current_balance < 0 ? "text-red-500" : "text-green-500"
+                        }`}
+                      >
+                        {formatCurrency(allowanceAccount.current_balance, "NGN")}
+                        {allowanceAccount.current_balance < 0 && " (Overdrawn)"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <div className="flex gap-2 pt-4">
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
               Cancel
@@ -206,7 +403,7 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
               disabled={!selectedDriver || loading || (driverDetails && !isVehicleAvailable(driverDetails.vehicles))}
               className="flex-1 bg-green-600 hover:bg-green-700"
             >
-              {loading ? "Assigning..." : "Assign Driver"}
+              {loading ? "Assigning..." : "Assign Driver & Log Expenses"}
             </Button>
           </div>
         </div>
