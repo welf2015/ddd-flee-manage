@@ -31,8 +31,8 @@ type CollectionLogDialogProps = {
 }
 
 export function CollectionLogDialog({ open, onOpenChange, onSuccess }: CollectionLogDialogProps) {
-  const [collectorName, setCollectorName] = useState("")
-  const [itemName, setItemName] = useState("")
+  const [driverId, setDriverId] = useState("")
+  const [itemId, setItemId] = useState("")
   const [itemDescription, setItemDescription] = useState("")
   const [quantity, setQuantity] = useState("1")
   const [approvedBy, setApprovedBy] = useState<string>("")
@@ -60,6 +60,30 @@ export function CollectionLogDialog({ open, onOpenChange, onSuccess }: Collectio
     { revalidateOnMount: true }
   )
 
+  // Fetch drivers for collector dropdown
+  const { data: drivers = [] } = useSWR(
+    open ? "drivers-list-collection" : null,
+    async () => {
+      const { data } = await supabase
+        .from("drivers")
+        .select("id, full_name, phone")
+        .order("full_name", { ascending: true })
+      return data || []
+    }
+  )
+
+  // Fetch inventory parts for item dropdown
+  const { data: inventoryParts = [] } = useSWR(
+    open ? "inventory-parts-list-collection" : null,
+    async () => {
+      const { data } = await supabase
+        .from("inventory_parts")
+        .select("id, name, description, part_number")
+        .order("name", { ascending: true })
+      return data || []
+    }
+  )
+
   // Fetch profiles for approved by dropdown
   const { data: profiles = [] } = useSWR(
     "profiles-list",
@@ -71,6 +95,18 @@ export function CollectionLogDialog({ open, onOpenChange, onSuccess }: Collectio
       return data || []
     }
   )
+
+  // Auto-populate item description when item is selected
+  useEffect(() => {
+    if (itemId) {
+      const selectedItem = inventoryParts.find((part: any) => part.id === itemId)
+      if (selectedItem) {
+        setItemDescription(selectedItem.description || "")
+      }
+    } else {
+      setItemDescription("")
+    }
+  }, [itemId, inventoryParts])
 
   useEffect(() => {
     if (currentUser && !approvedBy) {
@@ -92,12 +128,24 @@ export function CollectionLogDialog({ open, onOpenChange, onSuccess }: Collectio
         return
       }
 
+      const selectedDriver = drivers.find((d: any) => d.id === driverId)
+      const selectedItem = inventoryParts.find((p: any) => p.id === itemId)
       const approvedByProfile = profiles.find((p) => p.id === approvedBy)
 
+      if (!selectedDriver) {
+        toast.error("Please select a driver")
+        return
+      }
+
+      if (!selectedItem) {
+        toast.error("Please select an item")
+        return
+      }
+
       const { error } = await supabase.from("inventory_collections").insert({
-        collector_name: collectorName.trim(),
-        item_name: itemName.trim(),
-        item_description: itemDescription.trim() || null,
+        collector_name: selectedDriver.full_name,
+        item_name: selectedItem.name,
+        item_description: itemDescription.trim() || selectedItem.description || null,
         quantity: parseInt(quantity) || 1,
         approved_by: approvedBy || null,
         approved_by_name: approvedByProfile?.full_name || null,
@@ -126,8 +174,8 @@ export function CollectionLogDialog({ open, onOpenChange, onSuccess }: Collectio
   }
 
   const handleReset = () => {
-    setCollectorName("")
-    setItemName("")
+    setDriverId("")
+    setItemId("")
     setItemDescription("")
     setQuantity("1")
     setApprovedBy(currentUser?.id || "")
@@ -151,25 +199,35 @@ export function CollectionLogDialog({ open, onOpenChange, onSuccess }: Collectio
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="collector-name">Collector Name *</Label>
-              <Input
-                id="collector-name"
-                placeholder="Enter collector's name"
-                value={collectorName}
-                onChange={(e) => setCollectorName(e.target.value)}
-                required
-              />
+              <Label htmlFor="driver">Driver (Collector) *</Label>
+              <Select value={driverId} onValueChange={setDriverId} required>
+                <SelectTrigger id="driver">
+                  <SelectValue placeholder="Select driver" />
+                </SelectTrigger>
+                <SelectContent>
+                  {drivers.map((driver: any) => (
+                    <SelectItem key={driver.id} value={driver.id}>
+                      {driver.full_name} {driver.phone ? `(${driver.phone})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="item-name">Item Name *</Label>
-              <Input
-                id="item-name"
-                placeholder="Enter item name"
-                value={itemName}
-                onChange={(e) => setItemName(e.target.value)}
-                required
-              />
+              <Label htmlFor="item">Item Name *</Label>
+              <Select value={itemId} onValueChange={setItemId} required>
+                <SelectTrigger id="item">
+                  <SelectValue placeholder="Select item from inventory" />
+                </SelectTrigger>
+                <SelectContent>
+                  {inventoryParts.map((part: any) => (
+                    <SelectItem key={part.id} value={part.id}>
+                      {part.name} {part.part_number ? `(${part.part_number})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
