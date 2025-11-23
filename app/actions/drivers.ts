@@ -118,3 +118,28 @@ export async function rateDriver(
   revalidatePath("/dashboard/drivers")
   return { success: true }
 }
+
+export async function updateDriverVehicle(driverId: string, vehicleId: string | null) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  const { error } = await supabase
+    .from("drivers")
+    .update({ assigned_vehicle_id: vehicleId })
+    .eq("id", driverId)
+
+  if (error) {
+    console.error("Error updating driver vehicle:", error)
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath("/dashboard/drivers")
+  return { success: true }
+}

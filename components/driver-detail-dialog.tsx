@@ -5,9 +5,14 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 import { User, Phone, Award as IdCard, Calendar, Truck, Star, Briefcase } from "lucide-react"
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { updateDriverVehicle } from "@/app/actions/drivers"
+import { useToast } from "@/hooks/use-toast"
 
 type DriverDetailDialogProps = {
   driver: any
@@ -19,15 +24,31 @@ export function DriverDetailDialog({ driver, open, onOpenChange }: DriverDetailD
   const [ratings, setRatings] = useState<any[]>([])
   const [jobHistory, setJobHistory] = useState<any[]>([])
   const [averageRating, setAverageRating] = useState(0)
+  const [vehicles, setVehicles] = useState<any[]>([])
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>(driver?.vehicles?.id || "")
+  const [isUpdating, setIsUpdating] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     if (open && driver) {
       fetchDriverData()
+      setSelectedVehicleId(driver?.vehicles?.id || "")
     }
   }, [open, driver])
 
   const fetchDriverData = async () => {
     const supabase = createClient()
+
+    // Fetch available vehicles
+    const { data: vehiclesData } = await supabase
+      .from("vehicles")
+      .select("id, vehicle_number, make, model, vehicle_type, status")
+      .eq("status", "Active")
+      .order("vehicle_number")
+
+    if (vehiclesData) {
+      setVehicles(vehiclesData)
+    }
 
     // Fetch ratings
     const { data: ratingsData } = await supabase
@@ -53,6 +74,38 @@ export function DriverDetailDialog({ driver, open, onOpenChange }: DriverDetailD
     if (jobsData) {
       setJobHistory(jobsData)
     }
+  }
+
+  const handleVehicleAssignment = async () => {
+    setIsUpdating(true)
+    const vehicleId = selectedVehicleId === "none" || selectedVehicleId === "" ? null : selectedVehicleId
+    const result = await updateDriverVehicle(driver.id, vehicleId)
+    
+    if (result.success) {
+      toast({
+        title: "Vehicle assigned",
+        description: vehicleId ? "Vehicle has been assigned to driver" : "Vehicle assignment removed",
+      })
+      // Refresh driver data
+      const supabase = createClient()
+      const { data: updatedDriver } = await supabase
+        .from("drivers")
+        .select("*, vehicles:assigned_vehicle_id(*)")
+        .eq("id", driver.id)
+        .single()
+      
+      if (updatedDriver) {
+        driver.vehicles = updatedDriver.vehicles
+        setSelectedVehicleId(updatedDriver.vehicles?.id || "")
+      }
+    } else {
+      toast({
+        title: "Error",
+        description: result.error || "Failed to assign vehicle",
+        variant: "destructive",
+      })
+    }
+    setIsUpdating(false)
   }
 
   const getStatusColor = (status: string) => {
@@ -122,21 +175,47 @@ export function DriverDetailDialog({ driver, open, onOpenChange }: DriverDetailD
                     </div>
                   </div>
                 </div>
-                {driver.vehicles && (
-                  <>
-                    <Separator />
-                    <div className="flex items-center gap-3">
-                      <Truck className="h-5 w-5 text-accent" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Assigned Vehicle</p>
-                        <p className="font-semibold">{driver.vehicles.vehicle_number}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {driver.vehicles.make} {driver.vehicles.model} ({driver.vehicles.vehicle_type})
-                        </p>
+                <Separator />
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Truck className="h-5 w-5 text-accent" />
+                    <div className="flex-1">
+                      <Label htmlFor="vehicle-assignment" className="text-sm text-muted-foreground">
+                        Assigned Vehicle
+                      </Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Select
+                          value={selectedVehicleId || "none"}
+                          onValueChange={setSelectedVehicleId}
+                        >
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Select a vehicle" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None (Unassigned)</SelectItem>
+                            {vehicles.map((vehicle) => (
+                              <SelectItem key={vehicle.id} value={vehicle.id}>
+                                {vehicle.vehicle_number} - {vehicle.make} {vehicle.model} ({vehicle.vehicle_type})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          onClick={handleVehicleAssignment}
+                          disabled={isUpdating || selectedVehicleId === (driver?.vehicles?.id || "")}
+                          size="sm"
+                        >
+                          {isUpdating ? "Updating..." : "Assign"}
+                        </Button>
                       </div>
+                      {driver.vehicles && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Current: {driver.vehicles.vehicle_number}
+                        </p>
+                      )}
                     </div>
-                  </>
-                )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
