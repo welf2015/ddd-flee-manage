@@ -54,15 +54,8 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
 
   const fetchAccounts = async () => {
     try {
-      console.log("🔍 [Assign Driver] fetchAccounts called")
       // Fetch all accounts first
       const { data: allAccounts, error } = await getPrepaidAccounts()
-      
-      console.log("🔍 [Assign Driver] getPrepaidAccounts response:", {
-        data: allAccounts,
-        error: error,
-        data_length: allAccounts?.length,
-      })
       
       if (error) {
         console.error("❌ [Assign Driver] Error fetching accounts:", error)
@@ -118,9 +111,6 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
         return sorted[0]
       }
 
-      console.log("🔍 [Assign Driver] Starting account fetch...")
-      console.log("🔍 [Assign Driver] Total accounts fetched:", allAccounts.length)
-      console.log("🔍 [Assign Driver] All accounts raw data:", JSON.stringify(allAccounts, null, 2))
       
       if (fuelOnly.length > 0) {
         // Select the account with actual data (not the empty duplicate)
@@ -135,19 +125,7 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
         const parsedBalance = parseFloat(rawBalance || 0)
         const fuelAcc = { ...selectedFuelAccount, current_balance: parsedBalance }
         
-        console.log("⛽ [Fuel Account] Raw data:", {
-          id: fuelAcc.id,
-          name: fuelAcc.account_name,
-          raw_current_balance: rawBalance,
-          raw_type: typeof rawBalance,
-          parsed_current_balance: parsedBalance,
-          total_deposited: fuelAcc.total_deposited,
-          total_spent: fuelAcc.total_spent,
-          vendor: fuelAcc.vendor,
-          full_object: fuelAcc,
-        })
-        
-        console.log("⛽ [Fuel Account] Setting state with balance:", parsedBalance)
+        console.log("⛽ [Fuel Account] Selected:", fuelAcc.account_name, "Balance:", parsedBalance)
         setFuelAccount(fuelAcc)
       } else {
         console.warn("⚠️ [Fuel Account] No fuel account found!")
@@ -175,18 +153,7 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
         const parsedBalance = parseFloat(rawBalance || 0)
         const ticketingAcc = { ...selectedTicketingAccount, current_balance: parsedBalance }
         
-        console.log("🎫 [Ticketing Account] Raw data:", {
-          id: ticketingAcc.id,
-          name: ticketingAcc.account_name,
-          raw_current_balance: rawBalance,
-          raw_type: typeof rawBalance,
-          parsed_current_balance: parsedBalance,
-          total_deposited: ticketingAcc.total_deposited,
-          total_spent: ticketingAcc.total_spent,
-          full_object: ticketingAcc,
-        })
-        
-        console.log("🎫 [Ticketing Account] Setting state with balance:", parsedBalance)
+        console.log("🎫 [Ticketing Account] Selected:", ticketingAcc.account_name, "Balance:", parsedBalance)
         setTicketingAccount(ticketingAcc)
       } else {
         console.warn("⚠️ [Ticketing Account] No ticketing account found!")
@@ -205,35 +172,12 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
         const parsedBalance = parseFloat(rawBalance || 0)
         const allowanceAcc = { ...selectedAllowanceAccount, current_balance: parsedBalance }
         
-        console.log("💰 [Allowance Account] Raw data:", {
-          id: allowanceAcc.id,
-          name: allowanceAcc.account_name,
-          raw_current_balance: rawBalance,
-          raw_type: typeof rawBalance,
-          parsed_current_balance: parsedBalance,
-          total_deposited: allowanceAcc.total_deposited,
-          total_spent: allowanceAcc.total_spent,
-          full_object: allowanceAcc,
-        })
-        
-        console.log("💰 [Allowance Account] Setting state with balance:", parsedBalance)
+        console.log("💰 [Allowance Account] Selected:", allowanceAcc.account_name, "Balance:", parsedBalance)
         setAllowanceAccount(allowanceAcc)
       } else {
         console.warn("⚠️ [Allowance Account] No allowance account found!")
       }
       
-      // Debug: Log all accounts to see what we're getting
-      console.log("📊 [All Accounts] Summary:", allAccounts.map((a: any) => ({
-        id: a.id,
-        name: a.account_name,
-        current_balance: a.current_balance,
-        balance_type: typeof a.current_balance,
-        balance_value: a.current_balance,
-        parsed_balance: parseFloat(a.current_balance || 0),
-        total_deposited: a.total_deposited,
-        total_spent: a.total_spent,
-        vendor_type: a.vendor?.vendor_type,
-      })))
     } catch (error) {
       console.error("Failed to fetch accounts:", error)
       toast.error("Failed to load expense accounts")
@@ -488,16 +432,7 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                           (fuelAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
                         }`}
                       >
-                        {(() => {
-                          const balance = fuelAccount.current_balance || 0
-                          console.log("💵 [Fuel Balance Display] Rendering balance:", {
-                            raw: fuelAccount.current_balance,
-                            parsed: balance,
-                            formatted: formatCurrency(balance, "NGN"),
-                            account_name: fuelAccount.account_name,
-                          })
-                          return formatCurrency(balance, "NGN")
-                        })()}
+                        {formatCurrency(fuelAccount.current_balance || 0, "NGN")}
                         {(fuelAccount.current_balance || 0) < 0 && " (Overdrawn)"}
                       </p>
                     </div>
@@ -538,16 +473,7 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                           (ticketingAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
                         }`}
                       >
-                        {(() => {
-                          const balance = ticketingAccount.current_balance || 0
-                          console.log("💵 [Ticketing Balance Display] Rendering balance:", {
-                            raw: ticketingAccount.current_balance,
-                            parsed: balance,
-                            formatted: formatCurrency(balance, "NGN"),
-                            account_name: ticketingAccount.account_name,
-                          })
-                          return formatCurrency(balance, "NGN")
-                        })()}
+                        {formatCurrency(ticketingAccount.current_balance || 0, "NGN")}
                         {(ticketingAccount.current_balance || 0) < 0 && " (Overdrawn)"}
                       </p>
                     </div>
@@ -588,16 +514,7 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                           (allowanceAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
                         }`}
                       >
-                        {(() => {
-                          const balance = allowanceAccount.current_balance || 0
-                          console.log("💵 [Allowance Balance Display] Rendering balance:", {
-                            raw: allowanceAccount.current_balance,
-                            parsed: balance,
-                            formatted: formatCurrency(balance, "NGN"),
-                            account_name: allowanceAccount.account_name,
-                          })
-                          return formatCurrency(balance, "NGN")
-                        })()}
+                        {formatCurrency(allowanceAccount.current_balance || 0, "NGN")}
                         {(allowanceAccount.current_balance || 0) < 0 && " (Overdrawn)"}
                       </p>
                     </div>
