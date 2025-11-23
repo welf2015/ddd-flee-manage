@@ -582,3 +582,116 @@ export async function updateBooking(bookingId: string, formData: FormData) {
   revalidatePath("/dashboard/bookings")
   return { success: true }
 }
+
+export async function assignDriverWithExpenses(
+  bookingId: string,
+  driverId: string,
+  expenses?: {
+    fuelAmount?: number
+    fuelLiters?: number
+    fuelAccountId?: string
+    ticketingAmount?: number
+    ticketingAccountId?: string
+    allowanceAmount?: number
+  },
+) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  // Get driver's assigned vehicle
+  const { data: driver, error: driverError } = await supabase
+    .from("drivers")
+    .select("assigned_vehicle_id")
+    .eq("id", driverId)
+    .single()
+
+  if (driverError || !driver) {
+    return { success: false, error: "Driver not found" }
+  }
+
+  // Update booking with driver and vehicle, set status to Assigned
+  const updateData: any = {
+    assigned_driver_id: driverId,
+    assigned_vehicle_id: driver.assigned_vehicle_id,
+    status: "Assigned",
+  }
+
+  if (expenses) {
+    if (expenses.fuelAmount && expenses.fuelAccountId) {
+      updateData.fuel_amount = expenses.fuelAmount
+      updateData.fuel_account_id = expenses.fuelAccountId
+    }
+    if (expenses.ticketingAmount && expenses.ticketingAccountId) {
+      updateData.ticketing_amount = expenses.ticketingAmount
+      updateData.ticketing_account_id = expenses.ticketingAccountId
+    }
+    if (expenses.allowanceAmount) {
+      updateData.allowance_amount = expenses.allowanceAmount
+    }
+  }
+
+  const { error } = await supabase.from("bookings").update(updateData).eq("id", bookingId)
+
+  if (error) {
+    console.error("Error assigning driver:", error)
+    return { success: false, error: error.message }
+  }
+
+  // Create expense transactions if provided
+  if (expenses) {
+    const { createExpenseTransaction } = await import("./expenses")
+
+    // Fuel transaction
+    if (expenses.fuelAmount && expenses.fuelAccountId) {
+      await createExpenseTransaction(expenses.fuelAccountId, {
+        bookingId,
+        driverId,
+        vehicleId: driver.assigned_vehicle_id,
+        expenseType: "Fuel",
+        amount: expenses.fuelAmount,
+        quantity: expenses.fuelLiters,
+        unit: "Liters",
+        notes: `Fuel for trip ${bookingId}`,
+      })
+    }
+
+    // Ticketing transaction
+    if (expenses.ticketingAmount && expenses.ticketingAccountId) {
+      await createExpenseTransaction(expenses.ticketingAccountId, {
+        bookingId,
+        driverId,
+        vehicleId: driver.assigned_vehicle_id,
+        expenseType: "Ticketing",
+        amount: expenses.ticketingAmount,
+        notes: `Government ticketing for trip ${bookingId}`,
+      })
+    }
+
+    // Allowance transaction - need to get allowance account
+    if (expenses.allowanceAmount) {
+      const { getPrepaidAccounts } = await import("./expenses")
+      const { data: allowanceAccounts } = await getPrepaidAccounts("Allowance")
+      if (allowanceAccounts && allowanceAccounts.length > 0) {
+        await createExpenseTransaction(allowanceAccounts[0].id, {
+          bookingId,
+          driverId,
+          vehicleId: driver.assigned_vehicle_id,
+          expenseType: "Allowance",
+          amount: expenses.allowanceAmount,
+          notes: `Driver allowance for trip ${bookingId}`,
+        })
+      }
+    }
+  }
+
+  revalidatePath("/dashboard/bookings")
+  revalidatePath("/dashboard/expenses")
+  return { success: true }
+}
