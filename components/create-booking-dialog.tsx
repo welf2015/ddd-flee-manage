@@ -194,6 +194,7 @@ export function CreateBookingDialog() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    const form = e.currentTarget
     setLoading(true)
 
     const updatedDestinations = await Promise.all(
@@ -224,7 +225,6 @@ export function CreateBookingDialog() {
 
     setDestinations(updatedDestinations)
 
-    const form = e.currentTarget
     const formData = new FormData(form)
 
     const route = updatedDestinations.map((d) => `${d.from} → ${d.to}`).join(", ")

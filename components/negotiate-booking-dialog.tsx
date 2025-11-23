@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
-import { DollarSign, User, Clock } from 'lucide-react'
+import { Wallet, User, Clock } from "lucide-react"
 
 type NegotiateBookingDialogProps = {
   open: boolean
@@ -36,7 +36,9 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
   }, [open, booking])
 
   const fetchUserRole = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (user) {
       const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
       setUserRole(profile?.role || "")
@@ -85,10 +87,7 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
         if (error) throw error
 
         if (profile?.role !== "MD" && profile?.role !== "ED") {
-          const { data: admins } = await supabase
-            .from("profiles")
-            .select("id")
-            .in("role", ["MD", "ED"])
+          const { data: admins } = await supabase.from("profiles").select("id").in("role", ["MD", "ED"])
 
           if (admins) {
             const notifications = admins.map((admin) => ({
@@ -133,7 +132,11 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
 
       await supabase
         .from("bookings")
-        .update({ status: "Negotiation", negotiation_status: "Pending", current_negotiation_amount: Number.parseFloat(amount) })
+        .update({
+          status: "Negotiation",
+          negotiation_status: "Pending",
+          current_negotiation_amount: Number.parseFloat(amount),
+        })
         .eq("id", booking.id)
 
       toast.success(isCounter ? "Counter proposal sent" : "Negotiation started")
@@ -153,7 +156,7 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
     try {
       const { updateBookingStatus } = await import("@/app/actions/bookings")
       const result = await updateBookingStatus(booking.id, "Approved")
-      
+
       if (result.success) {
         toast.success("Booking approved successfully")
         onSuccess()
@@ -221,7 +224,7 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
                           </Badge>
                         </div>
                         <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-green-500" />
+                          <Wallet className="h-4 w-4 text-green-500" />
                           <span className="font-semibold">₦{Number(thread.proposed_amount).toLocaleString()}</span>
                         </div>
                         {thread.comments && <p className="text-sm text-muted-foreground">{thread.comments}</p>}
@@ -254,7 +257,7 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
                           </Badge>
                         </div>
                         <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-green-500" />
+                          <Wallet className="h-4 w-4 text-green-500" />
                           <span className="font-semibold">₦{Number(thread.counter_amount).toLocaleString()}</span>
                         </div>
                         {thread.counter_comments && (
@@ -276,7 +279,7 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
                             {loading ? "Approving..." : "Approve & Close Deal"}
                           </Button>
                         )}
-                        
+
                         {/* Close Deal Button */}
                         {thread.status !== "Accepted" && !isAdmin && (
                           <div className="flex gap-2 mt-2">
@@ -301,11 +304,7 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
           </div>
 
           {!threads.some((t) => t.status === "Accepted") && isAdmin && threads.length > 0 && (
-            <Button
-              onClick={handleApprove}
-              disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700"
-            >
+            <Button onClick={handleApprove} disabled={loading} className="w-full bg-green-600 hover:bg-green-700">
               {loading ? "Approving..." : "Approve Current Negotiation & Close"}
             </Button>
           )}
@@ -319,7 +318,10 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
                     ? "Send Client's Counter Offer"
                     : threads.length > 0 && threads[0]?.counter_amount && threads[0]?.status !== "Accepted" && isAdmin
                       ? "Send Counter Offer"
-                      : threads.length > 0 && threads[0]?.counter_amount && threads[0]?.status !== "Accepted" && !isAdmin
+                      : threads.length > 0 &&
+                          threads[0]?.counter_amount &&
+                          threads[0]?.status !== "Accepted" &&
+                          !isAdmin
                         ? "Send Client's Response"
                         : "Start Negotiation"}
                 </CardTitle>

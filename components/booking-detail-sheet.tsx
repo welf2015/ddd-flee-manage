@@ -7,7 +7,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Truck, User, AlertCircle, CheckCircle2, Upload, X, MapPin, Clock, DollarSign, FileText, ArrowRight } from 'lucide-react'
+import {
+  Truck,
+  User,
+  AlertCircle,
+  CheckCircle2,
+  Upload,
+  X,
+  MapPin,
+  Clock,
+  Wallet,
+  FileText,
+  ArrowRight,
+  Check,
+} from "lucide-react"
 import { AssignDriverDialog } from "./assign-driver-dialog"
 import { UpdateJobStatusDialog } from "./update-job-status-dialog"
 import { CloseJobDialog } from "./close-job-dialog"
@@ -20,6 +33,8 @@ import { useState } from "react"
 import { Label } from "@/components/ui/label"
 import useSWR from "swr"
 import cn from "classnames"
+
+const MAPBOX_TOKEN = "pk.eyJ1IjoiZGFtaWxvbGFqYW1lcyIsImEiOiJjbWk3bzRuZXUwMmx6MndyMWduZmcwNG9pIn0.lTWQddjYoQjt3w-CUEc81w"
 
 type BookingDetailSheetProps = {
   booking: any
@@ -140,16 +155,38 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
 
   const canAssignDriver = displayBooking.status === "Approved" && !displayBooking.assigned_driver_id
   const canUpdateStatus =
-    displayBooking.assigned_driver_id && ["Assigned", "In Progress", "In Transit", "On Hold"].includes(displayBooking.status)
+    displayBooking.assigned_driver_id &&
+    ["Assigned", "In Progress", "In Transit", "On Hold"].includes(displayBooking.status)
   const canCloseJob = displayBooking.status === "In Transit"
   const canRateDriver = displayBooking.status === "Closed" && displayBooking.assigned_driver_id
   const canApprove = ["Open", "Negotiation"].includes(displayBooking.status) && isAdmin
-  const canNegotiate = (displayBooking.status === "Open" && isAdmin) || (isAdmin && displayBooking.status === "Negotiation")
+  const canNegotiate =
+    (displayBooking.status === "Open" && isAdmin) || (isAdmin && displayBooking.status === "Negotiation")
+
+  const handleApproveBooking = async () => {
+    setUpdatingStatus(true)
+    const { updateBookingStatus } = await import("@/app/actions/bookings")
+    const result = await updateBookingStatus(booking.id, "Approved")
+
+    if (result.success) {
+      await mutateBooking()
+      onUpdate()
+      const { toast } = await import("sonner")
+      toast.success("Booking approved successfully")
+    } else {
+      const { toast } = await import("sonner")
+      toast.error(result.error || "Failed to approve booking")
+    }
+    setUpdatingStatus(false)
+  }
 
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:w-full md:w-1/2 lg:w-1/2 xl:w-1/2 p-0 bg-background overflow-y-auto">
+        <SheetContent
+          side="right"
+          className="w-full sm:w-full md:w-1/2 lg:w-1/2 xl:w-1/2 p-0 bg-background overflow-y-auto"
+        >
           <div className="h-full flex flex-col">
             {/* Header */}
             <SheetHeader className="px-6 py-4 border-b sticky top-0 bg-background z-10 space-y-0">
@@ -174,9 +211,22 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                 isAdmin,
                 canNegotiate,
                 canApprove,
-                canAssignDriver
+                canAssignDriver,
               })}
-              
+
+              {canApprove && (
+                <Button
+                  onClick={handleApproveBooking}
+                  variant="default"
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  disabled={updatingStatus}
+                >
+                  <Check className="h-3 w-3 mr-1" />
+                  Approve
+                </Button>
+              )}
+
               {canNegotiate && (
                 <Button
                   onClick={() => setShowNegotiate(true)}
@@ -227,10 +277,12 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
             {/* Content */}
             <ScrollArea className="flex-1">
               <Tabs defaultValue="details" className="w-full">
-                <TabsList className={cn(
-                  "grid w-full rounded-none border-b bg-muted/50 px-6",
-                  ["Completed", "Closed"].includes(displayBooking.status) ? "grid-cols-5" : "grid-cols-4"
-                )}>
+                <TabsList
+                  className={cn(
+                    "grid w-full rounded-none border-b bg-muted/50 px-6",
+                    ["Completed", "Closed"].includes(displayBooking.status) ? "grid-cols-5" : "grid-cols-4",
+                  )}
+                >
                   <TabsTrigger value="details" className="rounded-none">
                     Details
                   </TabsTrigger>
@@ -315,9 +367,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                 <span className="text-xs text-muted-foreground mt-1">From</span>
                               </div>
                               <div className="flex-1">
-                                <p className="font-medium">
-                                  {displayBooking.route.split("→")[0]?.trim() || "Origin"}
-                                </p>
+                                <p className="font-medium">{displayBooking.route.split("→")[0]?.trim() || "Origin"}</p>
                               </div>
                             </div>
                             <ArrowRight className="h-6 w-6 text-muted-foreground flex-shrink-0" />
@@ -335,14 +385,25 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                           </div>
 
                           {/* Embedded Map */}
-                          <div className="w-full h-64 rounded-lg overflow-hidden border bg-muted/30 flex items-center justify-center">
-                            <div className="text-center text-muted-foreground space-y-2">
-                              <MapPin className="h-12 w-12 mx-auto opacity-50" />
-                              <p className="text-sm">Interactive map coming soon</p>
-                              <p className="text-xs">
-                                Route: {displayBooking.route.split("→")[0]?.trim()} →{" "}
-                                {displayBooking.route.split("→")[1]?.trim()}
-                              </p>
+                          <div className="w-full h-64 rounded-lg overflow-hidden border bg-muted/30 flex items-center justify-center relative">
+                            {displayBooking.pickup_lat &&
+                            displayBooking.pickup_lng &&
+                            displayBooking.delivery_lat &&
+                            displayBooking.delivery_lng ? (
+                              <img
+                                src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s-a+22c55e(${displayBooking.pickup_lng},${displayBooking.pickup_lat}),pin-s-b+ef4444(${displayBooking.delivery_lng},${displayBooking.delivery_lat}),path-5+22c55e-0.6(${displayBooking.pickup_lng},${displayBooking.pickup_lat}|${displayBooking.delivery_lng},${displayBooking.delivery_lat})/auto/600x300?padding=40&access_token=${MAPBOX_TOKEN}`}
+                                alt="Route Map"
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="text-center text-muted-foreground space-y-2">
+                                <MapPin className="h-12 w-12 mx-auto opacity-50" />
+                                <p className="text-sm">Map preview unavailable</p>
+                                <p className="text-xs text-muted-foreground/70">Coordinates missing for this booking</p>
+                              </div>
+                            )}
+                            <div className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-sm text-[10px] px-1.5 py-0.5 rounded text-muted-foreground">
+                              © Mapbox
                             </div>
                           </div>
                         </CardContent>
@@ -381,7 +442,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                           <div>
                             <Label className="text-sm font-medium text-muted-foreground">Proposed Budget</Label>
                             <div className="flex items-center gap-2 mt-1">
-                              <DollarSign className="h-4 w-4 text-green-500" />
+                              <Wallet className="h-4 w-4 text-green-500" />
                               <span className="font-semibold text-lg text-green-600">
                                 {formatCurrency(displayBooking.proposed_client_budget)}
                               </span>
@@ -639,7 +700,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                         "h-6 w-6",
                                         star <= (displayBooking.driver_rating || 0)
                                           ? "fill-yellow-400 text-yellow-400"
-                                          : "fill-gray-200 text-gray-200"
+                                          : "fill-gray-200 text-gray-200",
                                       )}
                                       xmlns="http://www.w3.org/2000/svg"
                                       viewBox="0 0 24 24"
@@ -647,9 +708,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                                     </svg>
                                   ))}
-                                  <span className="ml-2 text-sm font-semibold">
-                                    {displayBooking.driver_rating}/5
-                                  </span>
+                                  <span className="ml-2 text-sm font-semibold">{displayBooking.driver_rating}/5</span>
                                 </div>
                               </div>
 
@@ -666,7 +725,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                           "h-5 w-5",
                                           star <= (displayBooking.punctuality_rating || 0)
                                             ? "fill-yellow-400 text-yellow-400"
-                                            : "fill-gray-200 text-gray-200"
+                                            : "fill-gray-200 text-gray-200",
                                         )}
                                         xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24"
@@ -674,9 +733,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                                       </svg>
                                     ))}
-                                    <span className="ml-2 text-sm">
-                                      {displayBooking.punctuality_rating || 0}/5
-                                    </span>
+                                    <span className="ml-2 text-sm">{displayBooking.punctuality_rating || 0}/5</span>
                                   </div>
                                 </div>
 
@@ -690,7 +747,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                           "h-5 w-5",
                                           star <= (displayBooking.vehicle_condition_rating || 0)
                                             ? "fill-yellow-400 text-yellow-400"
-                                            : "fill-gray-200 text-gray-200"
+                                            : "fill-gray-200 text-gray-200",
                                         )}
                                         xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24"
@@ -714,7 +771,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                           "h-5 w-5",
                                           star <= (displayBooking.communication_rating || 0)
                                             ? "fill-yellow-400 text-yellow-400"
-                                            : "fill-gray-200 text-gray-200"
+                                            : "fill-gray-200 text-gray-200",
                                         )}
                                         xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24"
@@ -722,9 +779,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                                       </svg>
                                     ))}
-                                    <span className="ml-2 text-sm">
-                                      {displayBooking.communication_rating || 0}/5
-                                    </span>
+                                    <span className="ml-2 text-sm">{displayBooking.communication_rating || 0}/5</span>
                                   </div>
                                 </div>
                               </div>
@@ -733,7 +788,9 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                 <>
                                   <Separator />
                                   <div className="space-y-2">
-                                    <Label className="text-sm font-medium">Additional Comments</Label>
+                                    <Label className="text-sm font-medium text-muted-foreground">
+                                      Additional Comments
+                                    </Label>
                                     <div className="bg-muted/50 p-4 rounded-lg">
                                       <p className="text-sm leading-relaxed">{displayBooking.driver_feedback}</p>
                                     </div>
@@ -742,7 +799,10 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                               )}
 
                               <div className="text-xs text-muted-foreground mt-4">
-                                <p>This feedback is attached to the driver's profile and contributes to their overall rating.</p>
+                                <p>
+                                  This feedback is attached to the driver's profile and contributes to their overall
+                                  rating.
+                                </p>
                               </div>
 
                               <Button onClick={() => setShowRateDriver(true)} variant="outline" className="w-full">
@@ -752,7 +812,8 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                           ) : (
                             <div className="text-center py-8">
                               <p className="text-muted-foreground mb-4">
-                                Call the customer to collect feedback about the driver's performance, then submit the ratings below.
+                                Call the customer to collect feedback about the driver's performance, then submit the
+                                ratings below.
                               </p>
                               <Button onClick={() => setShowRateDriver(true)} className="bg-accent hover:bg-accent/90">
                                 Submit Driver Feedback
