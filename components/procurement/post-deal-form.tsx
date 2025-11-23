@@ -150,64 +150,7 @@ export function PostDealForm({ procurementId, currentStatus, onComplete }: PostD
       <form onSubmit={handleSubmitShipping} className="space-y-4 w-full">
         <Card>
           <CardContent className="pt-6 space-y-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              Shipping & Tracking Information
-            </h3>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Shipping Tracking No. *</Label>
-                <Input
-                  value={formData.shippingTrackingNo}
-                  onChange={(e) => setFormData({ ...formData, shippingTrackingNo: e.target.value })}
-                  placeholder="Enter tracking number"
-                  required
-                />
-              </div>
-              <div>
-                <Label>Waybill Number *</Label>
-                <Input
-                  value={formData.waybillNumber}
-                  onChange={(e) => setFormData({ ...formData, waybillNumber: e.target.value })}
-                  placeholder="Waybill/Bill of Lading"
-                  required
-                />
-              </div>
-              <div>
-                <Label>Shipping Date *</Label>
-                <Input
-                  type="date"
-                  value={formData.shippingDate}
-                  onChange={(e) => setFormData({ ...formData, shippingDate: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label>Estimated Delivery (Months) *</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="12"
-                  value={formData.estimatedMonths}
-                  onChange={(e) => setFormData({ ...formData, estimatedMonths: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="cifLagos"
-                checked={formData.cifLagosTerms}
-                onCheckedChange={(checked) => setFormData({ ...formData, cifLagosTerms: checked as boolean })}
-              />
-              <label htmlFor="cifLagos" className="text-sm cursor-pointer">
-                Vehicle shipped under CIF Lagos terms
-              </label>
-            </div>
-
-            <div className="space-y-4 border-t pt-4">
+            <div className="space-y-4">
               <Label className="text-sm font-medium">Upload Required Documents (Before Payment)</Label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {/* Bill of Lading */}
@@ -330,6 +273,65 @@ export function PostDealForm({ procurementId, currentStatus, onComplete }: PostD
                     }
                   />
                 </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Shipping & Tracking Information
+              </h3>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Shipping Tracking No. *</Label>
+                  <Input
+                    value={formData.shippingTrackingNo}
+                    onChange={(e) => setFormData({ ...formData, shippingTrackingNo: e.target.value })}
+                    placeholder="Enter tracking number"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Waybill Number *</Label>
+                  <Input
+                    value={formData.waybillNumber}
+                    onChange={(e) => setFormData({ ...formData, waybillNumber: e.target.value })}
+                    placeholder="Waybill/Bill of Lading"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Shipping Date *</Label>
+                  <Input
+                    type="date"
+                    value={formData.shippingDate}
+                    onChange={(e) => setFormData({ ...formData, shippingDate: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Estimated Delivery (Months) *</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="12"
+                    value={formData.estimatedMonths}
+                    onChange={(e) => setFormData({ ...formData, estimatedMonths: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="cifLagos"
+                  checked={formData.cifLagosTerms}
+                  onCheckedChange={(checked) => setFormData({ ...formData, cifLagosTerms: checked as boolean })}
+                />
+                <label htmlFor="cifLagos" className="text-sm cursor-pointer">
+                  Vehicle shipped under CIF Lagos terms
+                </label>
               </div>
             </div>
           </CardContent>

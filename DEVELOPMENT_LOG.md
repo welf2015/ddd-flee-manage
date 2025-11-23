@@ -317,6 +317,26 @@ All environment variables are stored in `.env.local` (not committed to git).
 - ⚠️ All database changes must go through migration scripts
 - ⚠️ Test RLS policies when adding new features
 
+### 2024-11-23 - Procurement Form Section Reordering
+
+#### Changes Made
+- ✅ Fixed section order in `PostDealForm` component for "Deal Closed" status
+  - **Before**: "Shipping & Tracking Information" appeared first, then "Upload Required Documents (Before Payment)"
+  - **After**: "Upload Required Documents (Before Payment)" now appears first, followed by "Shipping & Tracking Information"
+  - This matches the actual workflow where documents must be uploaded before shipping information
+
+#### Files Modified
+- `components/procurement/post-deal-form.tsx`
+  - Reordered sections in the "Deal Closed" status form
+  - Moved document upload section above shipping information section
+  - Maintained all existing functionality and validation
+
+#### Technical Details
+- Changed the visual order of sections within the same form component
+- No changes to data structure or API calls
+- All form validation and submission logic remains unchanged
+- Visual separation maintained with border-top divider
+
 ---
 
 ## Collaboration Guidelines
@@ -375,6 +395,6 @@ If you encounter any issues or have questions:
 
 ---
 
-**Last Updated:** 2024-11-23  
+**Last Updated:** 2024-11-23 (Procurement Form Fix)  
 **Maintained By:** Development Team
 
