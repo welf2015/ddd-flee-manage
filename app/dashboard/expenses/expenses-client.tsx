@@ -12,6 +12,7 @@ import { FuelTab } from "./fuel-tab"
 import { TicketingTab } from "./ticketing-tab"
 import { AllowanceTab } from "./allowance-tab"
 import { AddTopupDialog } from "./add-topup-dialog"
+import { FuelMeter } from "./fuel-meter"
 import { getWeeklyExpenses, getPrepaidAccounts } from "@/app/actions/expenses"
 
 type ExpensesClientProps = {
