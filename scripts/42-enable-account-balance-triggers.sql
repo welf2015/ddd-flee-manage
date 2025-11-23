@@ -1,11 +1,21 @@
 -- Enable the account balance triggers
 -- These triggers were created but disabled, causing balances not to update
 
--- Enable trigger for top-ups
-ALTER TABLE account_topups ENABLE TRIGGER trigger_update_account_balance_on_topup;
+-- Drop and recreate triggers to ensure they're enabled
+DROP TRIGGER IF EXISTS trigger_update_account_balance_on_topup ON account_topups;
+DROP TRIGGER IF EXISTS trigger_deduct_account_balance_on_transaction ON expense_transactions;
 
--- Enable trigger for transactions
-ALTER TABLE expense_transactions ENABLE TRIGGER trigger_deduct_account_balance_on_transaction;
+-- Recreate trigger for top-ups (will be enabled by default)
+CREATE TRIGGER trigger_update_account_balance_on_topup
+  AFTER INSERT ON account_topups
+  FOR EACH ROW
+  EXECUTE FUNCTION update_account_balance_on_topup();
+
+-- Recreate trigger for transactions (will be enabled by default)
+CREATE TRIGGER trigger_deduct_account_balance_on_transaction
+  AFTER INSERT ON expense_transactions
+  FOR EACH ROW
+  EXECUTE FUNCTION deduct_account_balance_on_transaction();
 
 -- Verify triggers are now enabled
 SELECT 
