@@ -38,6 +38,7 @@ export function PostDealForm({ procurementId, currentStatus, onComplete }: PostD
     billOfLadingUrl: "",
     packingListUrl: "",
     commercialInvoiceUrl: "",
+    receiptUrl: "",
     customDutyReceiptUrl: "",
     releaseOrderUrl: "",
     tdoUrl: "",
@@ -270,6 +271,46 @@ export function PostDealForm({ procurementId, currentStatus, onComplete }: PostD
                     onChange={(e) =>
                       e.target.files?.[0] &&
                       handleFileUpload(e.target.files[0], "commercialInvoiceUrl", "Commercial Invoice")
+                    }
+                  />
+                </div>
+
+                {/* Receipt */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Receipt *</Label>
+                  {formData.receiptUrl ? (
+                    <div className="flex items-center gap-2 p-2 border rounded bg-green-50">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <span className="text-xs text-green-600">Uploaded</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setFormData({ ...formData, receiptUrl: "" })}
+                        className="ml-auto h-6 w-6 p-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full bg-transparent"
+                      disabled={uploading}
+                      onClick={() => document.getElementById("receipt-upload")?.click()}
+                    >
+                      <Upload className="h-3 w-3 mr-2" />
+                      Upload
+                    </Button>
+                  )}
+                  <input
+                    type="file"
+                    id="receipt-upload"
+                    className="hidden"
+                    onChange={(e) =>
+                      e.target.files?.[0] && handleFileUpload(e.target.files[0], "receiptUrl", "Receipt")
                     }
                   />
                 </div>

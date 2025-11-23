@@ -372,12 +372,40 @@ All environment variables are stored in `.env.local` (not committed to git).
   - **Document Storage**: All documents are saved to `procurement_documents` table and displayed in Documents tab
   - **Worker Configuration**: Upload uses Cloudflare R2 Worker with proper CORS and authentication
 
+- ✅ Reorganized procurement document uploads by stage
+  - **Deal Closed Stage**: Now includes 7 documents
+    - Manufacturer's Test Certificate (MTC)
+    - Proforma Invoice *
+    - Certificate of Conformity (COC)
+    - Form M (NEW)
+    - SONCAP (NEW)
+    - NADDC (NEW)
+    - Invoice
+    - **Removed**: Receipt (moved to Paid stage), Final Invoice (renamed to Invoice)
+  - **Paid Stage**: Now includes 4 documents
+    - Bill of Lading *
+    - Packing List *
+    - Commercial Invoice (Final) *
+    - Receipt * (moved from Deal Closed)
+  - **Database**: No migration needed - `document_type` is TEXT field, new types can be used directly
+
 #### Files Modified (Upload & Document Display Fix)
 - `components/procurement/procurement-detail-sheet.tsx`
   - Fixed upload method to use PUT with Bearer token (matches worker.js)
   - Added View button for documents (opens in new tab)
   - Fixed function call signatures (negotiateProcurement, addShippingInfo)
   - Documents displayed in Documents tab with View and Download options
+
+#### Files Modified (Document Reorganization)
+- `components/procurement/procurement-detail-sheet.tsx`
+  - Added state variables for Form M, SONCAP, NADDC
+  - Removed Receipt from Deal Closed stage
+  - Updated Deal Closed stage to show 7 documents (MTC, Proforma, COC, Form M, SONCAP, NADDC, Invoice)
+  - Updated upload handler to include new document types
+  - Removed Receipt from Payment Pending section
+- `components/procurement/post-deal-form.tsx`
+  - Added Receipt upload field to Paid stage
+  - Receipt now appears alongside Bill of Lading, Packing List, Commercial Invoice
 
 #### Upload Workflow Confirmation
 1. **Deal Closed Stage**: Documents uploaded via worker → saved to `procurement_documents` table

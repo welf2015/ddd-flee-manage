@@ -37,10 +37,12 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
   const [negotiationAmount, setNegotiationAmount] = useState("")
   const [negotiationNote, setNegotiationNote] = useState("")
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null)
-  const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [mtcFile, setMtcFile] = useState<File | null>(null)
   const [proformaFile, setProformaFile] = useState<File | null>(null)
   const [cocFile, setCocFile] = useState<File | null>(null)
+  const [formMFile, setFormMFile] = useState<File | null>(null)
+  const [soncapFile, setSoncapFile] = useState<File | null>(null)
+  const [naddcFile, setNaddcFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [waybill, setWaybill] = useState("")
   const [shippingDuration, setShippingDuration] = useState("")
@@ -169,6 +171,27 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
         }
       }
 
+      if (formMFile) {
+        const url = await uploadFileToWorker(formMFile, `procurement-documents/${procurementId}`)
+        if (url) {
+          await uploadProcurementDocument(procurementId, formMFile.name, url, "Form M")
+        }
+      }
+
+      if (soncapFile) {
+        const url = await uploadFileToWorker(soncapFile, `procurement-documents/${procurementId}`)
+        if (url) {
+          await uploadProcurementDocument(procurementId, soncapFile.name, url, "SONCAP")
+        }
+      }
+
+      if (naddcFile) {
+        const url = await uploadFileToWorker(naddcFile, `procurement-documents/${procurementId}`)
+        if (url) {
+          await uploadProcurementDocument(procurementId, naddcFile.name, url, "NADDC")
+        }
+      }
+
       if (invoiceFile) {
         const url = await uploadFileToWorker(invoiceFile, `procurement-documents/${procurementId}`)
         if (url) {
@@ -176,20 +199,15 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
         }
       }
 
-      if (receiptFile) {
-        const url = await uploadFileToWorker(receiptFile, `procurement-documents/${procurementId}`)
-        if (url) {
-          await uploadProcurementDocument(procurementId, receiptFile.name, url, "Receipt")
-        }
-      }
-
       // Mark as paid
       await markProcurementAsPaid(procurementId)
       setInvoiceFile(null)
-      setReceiptFile(null)
       setMtcFile(null)
       setProformaFile(null)
       setCocFile(null)
+      setFormMFile(null)
+      setSoncapFile(null)
+      setNaddcFile(null)
       mutate()
     } catch (error) {
       console.error("Upload error:", error)
@@ -433,9 +451,93 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
                     )}
                   </div>
 
+                  {/* Form M Upload */}
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Form M</Label>
+                    {formMFile ? (
+                      <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm flex-1 truncate">{formMFile.name}</span>
+                        <Button variant="ghost" size="sm" onClick={() => setFormMFile(null)} className="h-6 w-6 p-0">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Form M</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) setFormMFile(file)
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* SONCAP Upload */}
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">SONCAP</Label>
+                    {soncapFile ? (
+                      <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm flex-1 truncate">{soncapFile.name}</span>
+                        <Button variant="ghost" size="sm" onClick={() => setSoncapFile(null)} className="h-6 w-6 p-0">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">SONCAP</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) setSoncapFile(file)
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* NADDC Upload */}
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">NADDC</Label>
+                    {naddcFile ? (
+                      <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm flex-1 truncate">{naddcFile.name}</span>
+                        <Button variant="ghost" size="sm" onClick={() => setNaddcFile(null)} className="h-6 w-6 p-0">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">NADDC</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) setNaddcFile(file)
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
                   {/* Invoice Upload */}
                   <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Final Invoice</Label>
+                    <Label className="text-xs text-muted-foreground">Invoice</Label>
                     {invoiceFile ? (
                       <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
                         <FileText className="h-4 w-4 text-muted-foreground" />
@@ -447,7 +549,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
                     ) : (
                       <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
                         <Upload className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Choose invoice file</span>
+                        <span className="text-sm text-muted-foreground">Invoice</span>
                         <input
                           type="file"
                           className="hidden"
@@ -455,34 +557,6 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
                           onChange={(e) => {
                             const file = e.target.files?.[0]
                             if (file) setInvoiceFile(file)
-                          }}
-                        />
-                      </label>
-                    )}
-                  </div>
-
-                  {/* Receipt Upload */}
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Receipt</Label>
-                    {receiptFile ? (
-                      <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm flex-1 truncate">{receiptFile.name}</span>
-                        <Button variant="ghost" size="sm" onClick={() => setReceiptFile(null)} className="h-6 w-6 p-0">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
-                        <Upload className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Choose receipt file</span>
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) setReceiptFile(file)
                           }}
                         />
                       </label>
@@ -584,61 +658,6 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
                     )}
                   </div>
 
-                  {/* Invoice Upload */}
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Final Invoice</Label>
-                    {invoiceFile ? (
-                      <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm flex-1 truncate">{invoiceFile.name}</span>
-                        <Button variant="ghost" size="sm" onClick={() => setInvoiceFile(null)} className="h-6 w-6 p-0">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
-                        <Upload className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Choose invoice file</span>
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) setInvoiceFile(file)
-                          }}
-                        />
-                      </label>
-                    )}
-                  </div>
-
-                  {/* Receipt Upload */}
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Receipt</Label>
-                    {receiptFile ? (
-                      <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm flex-1 truncate">{receiptFile.name}</span>
-                        <Button variant="ghost" size="sm" onClick={() => setReceiptFile(null)} className="h-6 w-6 p-0">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
-                        <Upload className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Choose receipt file</span>
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) setReceiptFile(file)
-                          }}
-                        />
-                      </label>
-                    )}
-                  </div>
                 </div>
                 <Button
                   onClick={handleMarkPaid}
