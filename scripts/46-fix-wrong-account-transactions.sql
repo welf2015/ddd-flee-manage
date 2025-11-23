@@ -13,19 +13,19 @@ DECLARE
   v_transaction_amount DECIMAL(12, 2);
 BEGIN
   -- Get correct account IDs
-  SELECT id INTO v_fuel_account_id
+  SELECT pa.id INTO v_fuel_account_id
   FROM prepaid_accounts pa
   JOIN expense_vendors ev ON pa.vendor_id = ev.id
   WHERE ev.vendor_type = 'Fuel'
   LIMIT 1;
   
-  SELECT id INTO v_ticketing_account_id
+  SELECT pa.id INTO v_ticketing_account_id
   FROM prepaid_accounts pa
   JOIN expense_vendors ev ON pa.vendor_id = ev.id
   WHERE ev.vendor_type = 'Ticketing'
   LIMIT 1;
   
-  SELECT id INTO v_allowance_account_id
+  SELECT pa.id INTO v_allowance_account_id
   FROM prepaid_accounts pa
   JOIN expense_vendors ev ON pa.vendor_id = ev.id
   WHERE ev.vendor_type = 'Allowance'
@@ -99,19 +99,19 @@ DECLARE
   v_correct_account_id UUID;
 BEGIN
   -- Get correct account IDs
-  SELECT id INTO v_fuel_account_id
+  SELECT pa.id INTO v_fuel_account_id
   FROM prepaid_accounts pa
   JOIN expense_vendors ev ON pa.vendor_id = ev.id
   WHERE ev.vendor_type = 'Fuel'
   LIMIT 1;
   
-  SELECT id INTO v_ticketing_account_id
+  SELECT pa.id INTO v_ticketing_account_id
   FROM prepaid_accounts pa
   JOIN expense_vendors ev ON pa.vendor_id = ev.id
   WHERE ev.vendor_type = 'Ticketing'
   LIMIT 1;
   
-  SELECT id INTO v_allowance_account_id
+  SELECT pa.id INTO v_allowance_account_id
   FROM prepaid_accounts pa
   JOIN expense_vendors ev ON pa.vendor_id = ev.id
   WHERE ev.vendor_type = 'Allowance'
