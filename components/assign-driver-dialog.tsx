@@ -54,26 +54,57 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
 
   const fetchAccounts = async () => {
     try {
-      const { data: fuelAccounts } = await getPrepaidAccounts("Fuel")
-      const { data: ticketingAccounts } = await getPrepaidAccounts("Ticketing")
-      const { data: allowanceAccounts } = await getPrepaidAccounts("Allowance")
+      // Fetch all accounts first
+      const { data: allAccounts, error } = await getPrepaidAccounts()
+      
+      if (error) {
+        console.error("Error fetching accounts:", error)
+        toast.error("Failed to load expense accounts. Please ensure default accounts are created.")
+        return
+      }
 
-      // Filter to ensure we get the correct account type
-      const fuelOnly = fuelAccounts?.filter((a: any) => a.vendor?.vendor_type === "Fuel") || []
-      const ticketingOnly = ticketingAccounts?.filter((a: any) => a.vendor?.vendor_type === "Ticketing") || []
-      const allowanceOnly = allowanceAccounts?.filter((a: any) => a.vendor?.vendor_type === "Allowance") || []
+      if (!allAccounts || allAccounts.length === 0) {
+        console.warn("No prepaid accounts found. Please run migration scripts to create default accounts.")
+        toast.error("No expense accounts found. Please contact administrator.")
+        return
+      }
+
+      // Filter by vendor type - check both nested vendor object and direct vendor_type
+      const fuelOnly = allAccounts?.filter((a: any) => {
+        const vendorType = a.vendor?.vendor_type || a.vendor_type
+        return vendorType === "Fuel"
+      }) || []
+      
+      const ticketingOnly = allAccounts?.filter((a: any) => {
+        const vendorType = a.vendor?.vendor_type || a.vendor_type
+        return vendorType === "Ticketing"
+      }) || []
+      
+      const allowanceOnly = allAccounts?.filter((a: any) => {
+        const vendorType = a.vendor?.vendor_type || a.vendor_type
+        return vendorType === "Allowance"
+      }) || []
 
       if (fuelOnly.length > 0) {
         setFuelAccount(fuelOnly[0])
+      } else {
+        console.warn("No fuel account found. Available accounts:", allAccounts.map((a: any) => ({
+          id: a.id,
+          name: a.account_name,
+          vendor: a.vendor,
+        })))
       }
+      
       if (ticketingOnly.length > 0) {
         setTicketingAccount(ticketingOnly[0])
       }
+      
       if (allowanceOnly.length > 0) {
         setAllowanceAccount(allowanceOnly[0])
       }
     } catch (error) {
       console.error("Failed to fetch accounts:", error)
+      toast.error("Failed to load expense accounts")
     }
   }
 
