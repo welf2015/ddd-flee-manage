@@ -113,6 +113,7 @@ export async function createExpenseTransaction(
       amount: data.amount,
       quantity: data.quantity,
       unit: data.unit,
+      transaction_date: new Date().toISOString(),
       notes: data.notes,
       created_by: user.id,
     })
@@ -120,8 +121,16 @@ export async function createExpenseTransaction(
     .single()
 
   if (error) {
+    console.error("Error creating expense transaction:", error)
     return { success: false, error: error.message }
   }
+
+  if (!transaction) {
+    console.error("Transaction was not created")
+    return { success: false, error: "Transaction was not created" }
+  }
+
+  console.log("Expense transaction created successfully:", transaction.id)
 
   // Update booking with expense amounts if bookingId exists
   if (data.bookingId) {

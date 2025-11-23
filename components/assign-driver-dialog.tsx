@@ -307,7 +307,7 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                       />
                     </div>
                   </div>
-                  {fuelAccount && (
+                  {fuelAccount ? (
                     <div className="pt-2 border-t">
                       <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
                       <p
@@ -318,6 +318,10 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                         {formatCurrency(fuelAccount.current_balance, "NGN")}
                         {fuelAccount.current_balance < 0 && " (Overdrawn)"}
                       </p>
+                    </div>
+                  ) : (
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-muted-foreground">No fuel account found</p>
                     </div>
                   )}
                 </div>
@@ -344,7 +348,7 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                       placeholder="0.00"
                     />
                   </div>
-                  {ticketingAccount && (
+                  {ticketingAccount ? (
                     <div className="pt-2 border-t">
                       <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
                       <p
@@ -355,6 +359,10 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                         {formatCurrency(ticketingAccount.current_balance, "NGN")}
                         {ticketingAccount.current_balance < 0 && " (Overdrawn)"}
                       </p>
+                    </div>
+                  ) : (
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-muted-foreground">No ticketing account found</p>
                     </div>
                   )}
                 </div>
@@ -381,7 +389,7 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                       placeholder="0.00"
                     />
                   </div>
-                  {allowanceAccount && (
+                  {allowanceAccount ? (
                     <div className="pt-2 border-t">
                       <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
                       <p
@@ -392,6 +400,10 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                         {formatCurrency(allowanceAccount.current_balance, "NGN")}
                         {allowanceAccount.current_balance < 0 && " (Overdrawn)"}
                       </p>
+                    </div>
+                  ) : (
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-muted-foreground">No allowance account found</p>
                     </div>
                   )}
                 </div>
