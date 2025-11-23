@@ -10,9 +10,11 @@ import { formatCurrency, formatRelativeTime } from "@/lib/utils"
 type TicketingTabProps = {
   onAddTopup: (accountId?: string) => void
   initialAccounts?: any[]
+  initialTransactions?: any[]
+  initialTopups?: any[]
 }
 
-export function TicketingTab({ onAddTopup, initialAccounts = [] }: TicketingTabProps) {
+export function TicketingTab({ onAddTopup, initialAccounts = [], initialTransactions = [], initialTopups = [] }: TicketingTabProps) {
   const initialTicketingAccounts = initialAccounts.filter((a: any) => a.vendor?.vendor_type === "Ticketing")
   const { data: accounts = initialTicketingAccounts } = useSWR(
     "ticketing-accounts",
@@ -29,18 +31,19 @@ export function TicketingTab({ onAddTopup, initialAccounts = [] }: TicketingTabP
 
   const mainAccount = accounts[0]
 
-  const { data: transactions = [] } = useSWR(
+  const { data: transactions = initialTransactions } = useSWR(
     mainAccount ? "ticketing-transactions" : null,
     async () => {
       const { data } = await getExpenseTransactions({ expenseType: "Ticketing" })
       return data || []
     },
     {
+      fallbackData: initialTransactions,
       revalidateOnMount: false,
     },
   )
 
-  const { data: topups = [] } = useSWR(
+  const { data: topups = initialTopups } = useSWR(
     mainAccount ? `ticketing-topups-${mainAccount.id}` : null,
     async () => {
       if (!mainAccount) return []
@@ -48,6 +51,7 @@ export function TicketingTab({ onAddTopup, initialAccounts = [] }: TicketingTabP
       return data || []
     },
     {
+      fallbackData: initialTopups,
       revalidateOnMount: false,
     },
   )
@@ -70,39 +74,6 @@ export function TicketingTab({ onAddTopup, initialAccounts = [] }: TicketingTabP
 
   return (
     <div className="space-y-4">
-      {/* Account Card at Top */}
-      {mainAccount && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{mainAccount.account_name}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Current Balance</p>
-                <p
-                  className={`text-2xl font-bold ${
-                    mainAccount.current_balance < 0 ? "text-red-500" : "text-green-500"
-                  }`}
-                >
-                  {formatCurrency(mainAccount.current_balance, "NGN")}
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Total Deposited</p>
-                  <p className="font-medium">{formatCurrency(mainAccount.total_deposited, "NGN")}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Total Spent</p>
-                  <p className="font-medium">{formatCurrency(mainAccount.total_spent, "NGN")}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Unified Transactions Table */}
       <Card>
         <CardHeader>

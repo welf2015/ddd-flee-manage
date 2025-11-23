@@ -17,9 +17,23 @@ import { getWeeklyExpenses, getPrepaidAccounts } from "@/app/actions/expenses"
 
 type ExpensesClientProps = {
   initialAccounts?: any[]
+  initialFuelTransactions?: any[]
+  initialTicketingTransactions?: any[]
+  initialAllowanceTransactions?: any[]
+  initialFuelTopups?: any[]
+  initialTicketingTopups?: any[]
+  initialAllowanceTopups?: any[]
 }
 
-export function ExpensesClient({ initialAccounts = [] }: ExpensesClientProps) {
+export function ExpensesClient({ 
+  initialAccounts = [],
+  initialFuelTransactions = [],
+  initialTicketingTransactions = [],
+  initialAllowanceTransactions = [],
+  initialFuelTopups = [],
+  initialTicketingTopups = [],
+  initialAllowanceTopups = [],
+}: ExpensesClientProps) {
   const [showTopupDialog, setShowTopupDialog] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("fuel")
@@ -72,11 +86,15 @@ export function ExpensesClient({ initialAccounts = [] }: ExpensesClientProps) {
 
   return (
     <>
-      <div className="mb-6 flex flex-col gap-4">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">Expense Management</h1>
           <p className="text-sm text-muted-foreground">Manage prepaid accounts for fuel, ticketing, and allowances</p>
         </div>
+        <Button onClick={() => handleAddTopup()} className="bg-accent hover:bg-accent/90">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Top-up
+        </Button>
       </div>
 
       {/* Summary Cards - Dynamic based on active tab */}
@@ -140,33 +158,30 @@ export function ExpensesClient({ initialAccounts = [] }: ExpensesClientProps) {
         </TabsList>
 
         <TabsContent value="fuel" className="space-y-4 mt-4">
-          <div className="flex justify-end items-center">
-            <Button onClick={() => handleAddTopup()} className="bg-accent hover:bg-accent/90">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Top-up
-            </Button>
-          </div>
-          <FuelTab onAddTopup={handleAddTopup} initialAccounts={accounts} />
+          <FuelTab 
+            onAddTopup={handleAddTopup} 
+            initialAccounts={accounts}
+            initialTransactions={initialFuelTransactions}
+            initialTopups={initialFuelTopups}
+          />
         </TabsContent>
 
         <TabsContent value="ticketing" className="space-y-4 mt-4">
-          <div className="flex justify-end items-center">
-            <Button onClick={() => handleAddTopup()} className="bg-accent hover:bg-accent/90">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Top-up
-            </Button>
-          </div>
-          <TicketingTab onAddTopup={handleAddTopup} initialAccounts={accounts} />
+          <TicketingTab 
+            onAddTopup={handleAddTopup} 
+            initialAccounts={accounts}
+            initialTransactions={initialTicketingTransactions}
+            initialTopups={initialTicketingTopups}
+          />
         </TabsContent>
 
         <TabsContent value="allowance" className="space-y-4 mt-4">
-          <div className="flex justify-end items-center">
-            <Button onClick={() => handleAddTopup()} className="bg-accent hover:bg-accent/90">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Top-up
-            </Button>
-          </div>
-          <AllowanceTab onAddTopup={handleAddTopup} initialAccounts={accounts} />
+          <AllowanceTab 
+            onAddTopup={handleAddTopup} 
+            initialAccounts={accounts}
+            initialTransactions={initialAllowanceTransactions}
+            initialTopups={initialAllowanceTopups}
+          />
         </TabsContent>
       </Tabs>
 

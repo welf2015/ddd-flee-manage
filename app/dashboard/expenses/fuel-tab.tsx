@@ -11,9 +11,11 @@ import { FuelMeter } from "./fuel-meter"
 type FuelTabProps = {
   onAddTopup: (accountId?: string) => void
   initialAccounts?: any[]
+  initialTransactions?: any[]
+  initialTopups?: any[]
 }
 
-export function FuelTab({ onAddTopup, initialAccounts = [] }: FuelTabProps) {
+export function FuelTab({ onAddTopup, initialAccounts = [], initialTransactions = [], initialTopups = [] }: FuelTabProps) {
   // Get fuel accounts - filter initial accounts if provided
   const initialFuelAccounts = initialAccounts.filter((a: any) => a.vendor?.vendor_type === "Fuel")
   const { data: fuelAccounts = initialFuelAccounts } = useSWR(
@@ -36,20 +38,21 @@ export function FuelTab({ onAddTopup, initialAccounts = [] }: FuelTabProps) {
   // Get total fuel spent from account (more reliable than calculating from transactions)
   const totalFuelSpent = mainAccount ? Number(mainAccount.total_spent || 0) : 0
 
-  // Get fuel transactions - only fetch when mainAccount exists
-  const { data: transactions = [] } = useSWR(
+  // Get fuel transactions - use initial data from server
+  const { data: transactions = initialTransactions } = useSWR(
     mainAccount ? "fuel-transactions" : null,
     async () => {
       const { data } = await getExpenseTransactions({ expenseType: "Fuel" })
       return data || []
     },
     {
+      fallbackData: initialTransactions,
       revalidateOnMount: false,
     },
   )
 
-  // Get topups for fuel accounts - only fetch when mainAccount exists
-  const { data: topups = [] } = useSWR(
+  // Get topups for fuel accounts - use initial data from server
+  const { data: topups = initialTopups } = useSWR(
     mainAccount ? `fuel-topups-${mainAccount.id}` : null,
     async () => {
       if (!mainAccount) return []
@@ -58,6 +61,7 @@ export function FuelTab({ onAddTopup, initialAccounts = [] }: FuelTabProps) {
       return result.data || []
     },
     {
+      fallbackData: initialTopups,
       revalidateOnMount: false,
     },
   )
