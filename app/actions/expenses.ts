@@ -215,16 +215,22 @@ export async function getTopups(accountId?: string) {
   return { data: data || [], error }
 }
 
-export async function getWeeklyExpenses() {
+export async function getWeeklyExpenses(expenseType?: string) {
   const supabase = await createClient()
   const now = new Date()
   const weekStart = new Date(now.setDate(now.getDate() - now.getDay()))
   weekStart.setHours(0, 0, 0, 0)
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("expense_transactions")
     .select("amount, expense_type")
     .gte("transaction_date", weekStart.toISOString())
+
+  if (expenseType) {
+    query = query.eq("expense_type", expenseType)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     return { data: 0, error }

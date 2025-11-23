@@ -17,6 +17,7 @@ import { getWeeklyExpenses, getPrepaidAccounts } from "@/app/actions/expenses"
 export function ExpensesClient() {
   const [showTopupDialog, setShowTopupDialog] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState("fuel")
   const supabase = createClient()
 
   // Get all prepaid accounts
@@ -25,9 +26,22 @@ export function ExpensesClient() {
     return data || []
   })
 
-  // Get weekly expenses
-  const { data: weeklyExpenses = 0 } = useSWR("weekly-expenses", async () => {
-    const { data } = await getWeeklyExpenses()
+  // Get weekly expenses by type
+  const { data: weeklyFuelExpenses = 0 } = useSWR("weekly-fuel-expenses", async () => {
+    const { getWeeklyExpenses } = await import("@/app/actions/expenses")
+    const { data } = await getWeeklyExpenses("Fuel")
+    return data || 0
+  })
+
+  const { data: weeklyTicketingExpenses = 0 } = useSWR("weekly-ticketing-expenses", async () => {
+    const { getWeeklyExpenses } = await import("@/app/actions/expenses")
+    const { data } = await getWeeklyExpenses("Ticketing")
+    return data || 0
+  })
+
+  const { data: weeklyAllowanceExpenses = 0 } = useSWR("weekly-allowance-expenses", async () => {
+    const { getWeeklyExpenses } = await import("@/app/actions/expenses")
+    const { data } = await getWeeklyExpenses("Allowance")
     return data || 0
   })
 
@@ -44,6 +58,10 @@ export function ExpensesClient() {
     .filter((a: any) => a.vendor?.vendor_type === "Allowance")
     .reduce((sum: number, a: any) => sum + Number(a.current_balance || 0), 0)
 
+  // Get active tab data
+  const activeBalance = activeTab === "fuel" ? fuelBalance : activeTab === "ticketing" ? ticketingBalance : allowanceBalance
+  const activeWeeklyExpenses = activeTab === "fuel" ? weeklyFuelExpenses : activeTab === "ticketing" ? weeklyTicketingExpenses : weeklyAllowanceExpenses
+
   const handleAddTopup = (accountId?: string) => {
     setSelectedAccount(accountId || null)
     setShowTopupDialog(true)
@@ -58,46 +76,20 @@ export function ExpensesClient() {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards - Dynamic based on active tab */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Fuel Balance</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {activeTab === "fuel" ? "Fuel" : activeTab === "ticketing" ? "Ticketing" : "Allowance"} Balance
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(fuelBalance, "NGN")}
+              {formatCurrency(activeBalance, "NGN")}
             </div>
             <p className="text-xs text-muted-foreground">
-              {fuelBalance < 0 ? "Overdrawn" : "Available"}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ticketing Balance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(ticketingBalance, "NGN")}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {ticketingBalance < 0 ? "Overdrawn" : "Available"}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Allowance Balance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(allowanceBalance, "NGN")}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {allowanceBalance < 0 ? "Overdrawn" : "Available"}
+              {activeBalance < 0 ? "Overdrawn" : "Available"}
             </p>
           </CardContent>
         </Card>
@@ -108,7 +100,7 @@ export function ExpensesClient() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(weeklyExpenses, "NGN")}
+              {formatCurrency(activeWeeklyExpenses, "NGN")}
             </div>
             <p className="text-xs text-muted-foreground">Weekly accounting period</p>
           </CardContent>
@@ -116,7 +108,7 @@ export function ExpensesClient() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="fuel" className="w-full">
+      <Tabs defaultValue="fuel" className="w-full" onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="fuel">Fuel</TabsTrigger>
           <TabsTrigger value="ticketing">Ticketing</TabsTrigger>
