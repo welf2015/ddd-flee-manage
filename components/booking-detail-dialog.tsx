@@ -101,14 +101,29 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
   const handleStatusChange = async (newStatus: string) => {
     setUpdatingStatus(true)
     const { updateBookingStatus } = await import("@/app/actions/bookings")
+    
+    // Optimistic update
+    if (currentBooking) {
+      mutateBooking(
+        {
+          ...currentBooking,
+          status: newStatus,
+        },
+        false
+      )
+    }
+    
     const result = await updateBookingStatus(booking.id, newStatus)
 
     if (result.success) {
+      // Revalidate to get fresh data
       await mutateBooking()
       onUpdate()
       const { toast } = await import("sonner")
       toast.success(`Status updated to ${newStatus}`)
     } else {
+      // Revert optimistic update on error
+      await mutateBooking()
       const { toast } = await import("sonner")
       toast.error(result.error || "Failed to update status")
     }
@@ -118,14 +133,29 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
   const handleMarkAsPaid = async () => {
     setUpdatingStatus(true)
     const { markBookingAsPaid } = await import("@/app/actions/bookings")
+    
+    // Optimistic update
+    if (currentBooking) {
+      mutateBooking(
+        {
+          ...currentBooking,
+          payment_status: "Paid",
+        },
+        false
+      )
+    }
+    
     const result = await markBookingAsPaid(booking.id)
 
     if (result.success) {
+      // Revalidate to get fresh data
       await mutateBooking()
       onUpdate()
       const { toast } = await import("sonner")
       toast.success("Payment marked as paid")
     } else {
+      // Revert optimistic update on error
+      await mutateBooking()
       const { toast } = await import("sonner")
       toast.error(result.error || "Failed to mark payment as paid")
     }
