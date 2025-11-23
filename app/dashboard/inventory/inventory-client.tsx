@@ -123,16 +123,10 @@ export function InventoryClient() {
                   <CardTitle>Spare Parts Inventory List</CardTitle>
                   <CardDescription>Manage vehicle parts and supplies</CardDescription>
                 </div>
-                <div className="flex gap-2">
-                  <Button onClick={() => setShowCollectionLog(true)} variant="outline">
-                    <ClipboardList className="h-4 w-4 mr-2" />
-                    Log Collection
-                  </Button>
-                  <Button onClick={() => setShowAddPart(true)} className="bg-accent hover:bg-accent/90">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Part
-                  </Button>
-                </div>
+                <Button onClick={() => setShowAddPart(true)} className="bg-accent hover:bg-accent/90">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Inventory
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -164,7 +158,7 @@ export function InventoryClient() {
                     {filteredParts.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                          No parts found. Click "Add Part" to get started.
+                          No parts found. Click "Add Inventory" to get started.
                         </TableCell>
                       </TableRow>
                     ) : (
