@@ -7,8 +7,6 @@ import { getPrepaidAccounts, getExpenseTransactions, getTotalFuelSpent } from "@
 import useSWR from "swr"
 import { formatCurrency, formatRelativeTime } from "@/lib/utils"
 import { FuelMeter } from "./fuel-meter"
-import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
 
 type FuelTabProps = {
   onAddTopup: (accountId?: string) => void
