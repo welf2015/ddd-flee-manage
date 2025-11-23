@@ -90,6 +90,10 @@ ALTER TABLE account_topups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expense_transactions ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for expense_vendors
+DROP POLICY IF EXISTS "Allow authenticated users to read expense vendors" ON expense_vendors;
+DROP POLICY IF EXISTS "Allow authenticated users to insert expense vendors" ON expense_vendors;
+DROP POLICY IF EXISTS "Allow authenticated users to update expense vendors" ON expense_vendors;
+
 CREATE POLICY "Allow authenticated users to read expense vendors" ON expense_vendors
   FOR SELECT TO authenticated USING (true);
 
@@ -100,6 +104,10 @@ CREATE POLICY "Allow authenticated users to update expense vendors" ON expense_v
   FOR UPDATE TO authenticated USING (true);
 
 -- RLS Policies for prepaid_accounts
+DROP POLICY IF EXISTS "Allow authenticated users to read prepaid accounts" ON prepaid_accounts;
+DROP POLICY IF EXISTS "Allow authenticated users to insert prepaid accounts" ON prepaid_accounts;
+DROP POLICY IF EXISTS "Allow authenticated users to update prepaid accounts" ON prepaid_accounts;
+
 CREATE POLICY "Allow authenticated users to read prepaid accounts" ON prepaid_accounts
   FOR SELECT TO authenticated USING (true);
 
@@ -110,6 +118,9 @@ CREATE POLICY "Allow authenticated users to update prepaid accounts" ON prepaid_
   FOR UPDATE TO authenticated USING (true);
 
 -- RLS Policies for account_topups
+DROP POLICY IF EXISTS "Allow authenticated users to read account topups" ON account_topups;
+DROP POLICY IF EXISTS "Allow authenticated users to insert account topups" ON account_topups;
+
 CREATE POLICY "Allow authenticated users to read account topups" ON account_topups
   FOR SELECT TO authenticated USING (true);
 
@@ -117,6 +128,9 @@ CREATE POLICY "Allow authenticated users to insert account topups" ON account_to
   FOR INSERT TO authenticated WITH CHECK (true);
 
 -- RLS Policies for expense_transactions
+DROP POLICY IF EXISTS "Allow authenticated users to read expense transactions" ON expense_transactions;
+DROP POLICY IF EXISTS "Allow authenticated users to insert expense transactions" ON expense_transactions;
+
 CREATE POLICY "Allow authenticated users to read expense transactions" ON expense_transactions
   FOR SELECT TO authenticated USING (true);
 
@@ -138,6 +152,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to update account balance on top-up
+DROP TRIGGER IF EXISTS trigger_update_account_balance_on_topup ON account_topups;
 CREATE TRIGGER trigger_update_account_balance_on_topup
   AFTER INSERT ON account_topups
   FOR EACH ROW
@@ -158,6 +173,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to deduct account balance on transaction
+DROP TRIGGER IF EXISTS trigger_deduct_account_balance_on_transaction ON expense_transactions;
 CREATE TRIGGER trigger_deduct_account_balance_on_transaction
   AFTER INSERT ON expense_transactions
   FOR EACH ROW
@@ -224,6 +240,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to auto-create fuel log on fuel transaction
+DROP TRIGGER IF EXISTS trigger_auto_create_fuel_log ON expense_transactions;
 CREATE TRIGGER trigger_auto_create_fuel_log
   AFTER INSERT ON expense_transactions
   FOR EACH ROW
