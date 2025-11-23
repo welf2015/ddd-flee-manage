@@ -254,35 +254,40 @@ INSERT INTO expense_vendors (vendor_name, vendor_type, is_active) VALUES
   ('Driver Allowance Pool', 'Allowance', true)
 ON CONFLICT DO NOTHING;
 
--- Create default prepaid accounts for each vendor
+-- Create default prepaid accounts for each vendor (only if they don't exist)
 DO $$
 DECLARE
   v_fuel_vendor_id UUID;
   v_ticketing_vendor_id UUID;
   v_allowance_vendor_id UUID;
+  v_fuel_account_exists BOOLEAN;
+  v_ticketing_account_exists BOOLEAN;
+  v_allowance_account_exists BOOLEAN;
 BEGIN
   -- Get vendor IDs
   SELECT id INTO v_fuel_vendor_id FROM expense_vendors WHERE vendor_name = 'Total Energies' LIMIT 1;
   SELECT id INTO v_ticketing_vendor_id FROM expense_vendors WHERE vendor_name = 'Nigerian Ports Authority' LIMIT 1;
   SELECT id INTO v_allowance_vendor_id FROM expense_vendors WHERE vendor_name = 'Driver Allowance Pool' LIMIT 1;
   
-  -- Create default accounts if they don't exist
-  IF v_fuel_vendor_id IS NOT NULL THEN
+  -- Check if accounts already exist
+  SELECT EXISTS(SELECT 1 FROM prepaid_accounts WHERE vendor_id = v_fuel_vendor_id) INTO v_fuel_account_exists;
+  SELECT EXISTS(SELECT 1 FROM prepaid_accounts WHERE vendor_id = v_ticketing_vendor_id) INTO v_ticketing_account_exists;
+  SELECT EXISTS(SELECT 1 FROM prepaid_accounts WHERE vendor_id = v_allowance_vendor_id) INTO v_allowance_account_exists;
+  
+  -- Create default accounts only if they don't exist
+  IF v_fuel_vendor_id IS NOT NULL AND NOT v_fuel_account_exists THEN
     INSERT INTO prepaid_accounts (vendor_id, account_name, current_balance, is_active)
-    VALUES (v_fuel_vendor_id, 'Total Energies - Main Account', 0, true)
-    ON CONFLICT DO NOTHING;
+    VALUES (v_fuel_vendor_id, 'Total Energies - Main Account', 0, true);
   END IF;
   
-  IF v_ticketing_vendor_id IS NOT NULL THEN
+  IF v_ticketing_vendor_id IS NOT NULL AND NOT v_ticketing_account_exists THEN
     INSERT INTO prepaid_accounts (vendor_id, account_name, current_balance, is_active)
-    VALUES (v_ticketing_vendor_id, 'Nigerian Ports Authority - Main Account', 0, true)
-    ON CONFLICT DO NOTHING;
+    VALUES (v_ticketing_vendor_id, 'Nigerian Ports Authority - Main Account', 0, true);
   END IF;
   
-  IF v_allowance_vendor_id IS NOT NULL THEN
+  IF v_allowance_vendor_id IS NOT NULL AND NOT v_allowance_account_exists THEN
     INSERT INTO prepaid_accounts (vendor_id, account_name, current_balance, is_active)
-    VALUES (v_allowance_vendor_id, 'Driver Allowance Pool - Main Account', 0, true)
-    ON CONFLICT DO NOTHING;
+    VALUES (v_allowance_vendor_id, 'Driver Allowance Pool - Main Account', 0, true);
   END IF;
 END $$;
 

@@ -26,7 +26,11 @@ export function AddTopupDialog({ open, onOpenChange, accountId }: AddTopupDialog
 
   const { data: accounts = [] } = useSWR(open ? "all-accounts" : null, async () => {
     const { data } = await getPrepaidAccounts()
-    return data || []
+    // Remove duplicates by account id
+    const uniqueAccounts = (data || []).filter((account: any, index: number, self: any[]) =>
+      index === self.findIndex((a: any) => a.id === account.id)
+    )
+    return uniqueAccounts
   })
 
   useEffect(() => {
@@ -75,14 +79,18 @@ export function AddTopupDialog({ open, onOpenChange, accountId }: AddTopupDialog
       await mutate("ticketing-accounts")
       await mutate("allowance-accounts")
       await mutate("fuel-topups")
+      await mutate("fuel-topups-" + selectedAccount)
+      await mutate("ticketing-topups-" + selectedAccount)
+      await mutate("allowance-topups-" + selectedAccount)
       await mutate("total-fuel-spent")
       await mutate("weekly-expenses")
       await mutate("all-accounts")
-      // Also invalidate specific account caches
-      if (selectedAccount) {
-        await mutate(`ticketing-topups-${selectedAccount}`)
-        await mutate(`allowance-topups-${selectedAccount}`)
-      }
+      await mutate("fuel-accounts")
+      await mutate("ticketing-accounts")
+      await mutate("allowance-accounts")
+      await mutate("fuel-transactions")
+      await mutate("ticketing-transactions")
+      await mutate("allowance-transactions")
       onOpenChange(false)
     } else {
       toast.error(result.error || "Failed to add top-up")

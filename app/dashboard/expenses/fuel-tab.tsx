@@ -14,31 +14,34 @@ type FuelTabProps = {
 
 export function FuelTab({ onAddTopup }: FuelTabProps) {
   // Get fuel accounts
-  const { data: fuelAccounts = [] } = useSWR("fuel-accounts", async () => {
+  const { data: fuelAccounts = [], mutate: mutateFuelAccounts } = useSWR("fuel-accounts", async () => {
     const { data } = await getPrepaidAccounts("Fuel")
-    return data || []
+    // Filter to ensure only Fuel type accounts
+    return (data || []).filter((a: any) => a.vendor?.vendor_type === "Fuel")
   })
 
   // Get total fuel spent
-  const { data: totalFuelSpent = 0 } = useSWR("total-fuel-spent", async () => {
+  const { data: totalFuelSpent = 0, mutate: mutateFuelSpent } = useSWR("total-fuel-spent", async () => {
     const { data } = await getTotalFuelSpent()
     return data || 0
   })
 
   // Get fuel transactions
-  const { data: transactions = [] } = useSWR("fuel-transactions", async () => {
+  const { data: transactions = [], mutate: mutateTransactions } = useSWR("fuel-transactions", async () => {
     const { data } = await getExpenseTransactions({ expenseType: "Fuel" })
     return data || []
   })
 
   // Get topups for fuel accounts
-  const { data: topups = [] } = useSWR("fuel-topups", async () => {
-    if (fuelAccounts.length === 0) return []
-    const accountIds = fuelAccounts.map((a: any) => a.id)
-    const { getTopups } = await import("@/app/actions/expenses")
-    const allTopups = await Promise.all(accountIds.map((id: string) => getTopups(id)))
-    return allTopups.flatMap((t: any) => t.data || [])
-  })
+  const { data: topups = [] } = useSWR(
+    mainAccount ? `fuel-topups-${mainAccount.id}` : null,
+    async () => {
+      if (!mainAccount) return []
+      const { getTopups } = await import("@/app/actions/expenses")
+      const { data } = await getTopups(mainAccount.id)
+      return data || []
+    },
+  )
 
   // Filter to get only Fuel type accounts (not Allowance)
   const fuelOnlyAccounts = fuelAccounts.filter((a: any) => a.vendor?.vendor_type === "Fuel")
