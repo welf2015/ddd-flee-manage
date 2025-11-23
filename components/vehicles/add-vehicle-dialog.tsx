@@ -91,9 +91,8 @@ export function AddVehicleDialog({ open, onClose, onSuccess }: AddVehicleDialogP
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Truck">Truck</SelectItem>
-                <SelectItem value="Van">Van</SelectItem>
-                <SelectItem value="Trailer">Trailer</SelectItem>
-                <SelectItem value="Flatbed">Flatbed</SelectItem>
+                <SelectItem value="Car">Car</SelectItem>
+                <SelectItem value="Bike">Bike</SelectItem>
               </SelectContent>
             </Select>
           </div>

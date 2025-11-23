@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FinancialOverview } from "@/components/sales/financial-overview"
@@ -12,7 +11,7 @@ import { CostBreakdown } from "@/components/sales/cost-breakdown"
 import { NegotiationMetrics } from "@/components/sales/negotiation-metrics"
 
 export function SalesInsightsClient() {
-  const [timeRange, setTimeRange] = useState("monthly")
+  const [timeRange, setTimeRange] = useState("weekly")
 
   return (
     <div className="space-y-6">

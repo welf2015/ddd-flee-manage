@@ -58,11 +58,15 @@ export function CreateProcurementForm({ open, onOpenChange }: CreateProcurementF
 
       const { workerUrl, authKey } = await configRes.json()
 
+      if (!workerUrl || !authKey) {
+        throw new Error("Worker URL or Auth Key not configured")
+      }
+
       for (let i = 0; i < e.target.files.length; i++) {
         const file = e.target.files[i]
         const formDataUpload = new FormData()
         formDataUpload.append("file", file)
-        formDataUpload.append("folder", "procurement-designs")
+        formDataUpload.append("folder", "procurement")
 
         const response = await fetch(workerUrl, {
           method: "POST",
@@ -72,7 +76,10 @@ export function CreateProcurementForm({ open, onOpenChange }: CreateProcurementF
           body: formDataUpload,
         })
 
-        if (!response.ok) throw new Error("Upload failed")
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`Upload failed: ${errorText}`)
+        }
 
         const { url } = await response.json()
         newPhotos.push(url)
@@ -85,7 +92,7 @@ export function CreateProcurementForm({ open, onOpenChange }: CreateProcurementF
       toast.success("Photos uploaded successfully")
     } catch (error) {
       console.error("Upload error:", error)
-      toast.error("Failed to upload photos")
+      toast.error(`Failed to upload photos: ${error instanceof Error ? error.message : "Unknown error"}`)
     } finally {
       setUploading(false)
     }
