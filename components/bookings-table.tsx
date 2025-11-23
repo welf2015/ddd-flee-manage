@@ -17,6 +17,7 @@ type Booking = {
   client_name: string
   proposed_client_budget: number | null
   status: string
+  payment_status?: string | null
   created_at: string
   created_by_profile: { full_name: string | null } | null
   assigned_driver_id: string | null
@@ -171,9 +172,23 @@ export function BookingsTable({ bookings, onUpdate }: BookingsTableProps) {
                     <TableCell>{booking.client_name}</TableCell>
                     <TableCell>{formatCurrency(booking.proposed_client_budget)}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={getStatusColor(booking.status)}>
-                        {booking.status}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={getStatusColor(booking.status)}>
+                          {booking.status}
+                        </Badge>
+                        {booking.status === "Completed" && booking.payment_status && (
+                          <Badge
+                            variant="outline"
+                            className={
+                              booking.payment_status === "Paid"
+                                ? "bg-green-500/10 text-green-500 border-green-500/20"
+                                : "bg-orange-500/10 text-orange-500 border-orange-500/20"
+                            }
+                          >
+                            {booking.payment_status === "Paid" ? "Paid" : "Payment Pending"}
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>{new Date(booking.created_at).toLocaleDateString()}</TableCell>
                     <TableCell className="text-muted-foreground">
