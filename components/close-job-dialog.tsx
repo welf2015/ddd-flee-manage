@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Upload } from 'lucide-react'
-import { useState } from "react"
+import { Upload, Loader2 } from "lucide-react"
+import { useState, useEffect } from "react"
 import { closeBooking } from "@/app/actions/bookings"
 import { toast } from "sonner"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -25,6 +25,26 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
   const [incidentReport, setIncidentReport] = useState("")
   const [hasIncident, setHasIncident] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [workerUrl, setWorkerUrl] = useState("")
+  const [authKey, setAuthKey] = useState("")
+
+  useEffect(() => {
+    if (open) {
+      const fetchConfig = async () => {
+        try {
+          const res = await fetch("/api/upload")
+          if (res.ok) {
+            const data = await res.json()
+            setWorkerUrl(data.workerUrl)
+            setAuthKey(data.authKey)
+          }
+        } catch (error) {
+          console.error("Failed to fetch upload config", error)
+        }
+      }
+      fetchConfig()
+    }
+  }, [open])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -39,22 +59,53 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
     }
 
     setLoading(true)
+    let uploadedWaybillUrl: string | null = null
 
-    // In a real app, you would upload the file to storage first
-    const result = await closeBooking(booking.id, {
-      waybillUrl: waybillFile ? "uploaded_waybill_url" : null,
-      incidentReport: hasIncident ? incidentReport : null,
-      additionalCosts: "",
-      actualCost: null,
-    })
+    try {
+      if (waybillFile) {
+        if (!workerUrl || !authKey) {
+          throw new Error("Upload service not available")
+        }
 
-    setLoading(false)
+        const formData = new FormData()
+        formData.append("file", waybillFile)
+        formData.append("folder", `waybills/${booking.id}`)
 
-    if (result.success) {
-      toast.success("Job closed successfully")
-      onSuccess()
-    } else {
-      toast.error(result.error || "Failed to close job")
+        const uploadRes = await fetch(workerUrl, {
+          method: "POST",
+          headers: {
+            "X-Auth-Key": authKey,
+          },
+          body: formData,
+        })
+
+        if (!uploadRes.ok) {
+          throw new Error("Failed to upload waybill")
+        }
+
+        const data = await uploadRes.json()
+        uploadedWaybillUrl = data.url
+      }
+
+      const result = await closeBooking(booking.id, {
+        waybillUrl: uploadedWaybillUrl,
+        incidentReport: hasIncident ? incidentReport : null,
+        additionalCosts: "",
+        actualCost: null,
+      })
+
+      if (result.success) {
+        toast.success("Job closed successfully")
+        onSuccess()
+        onOpenChange(false)
+      } else {
+        toast.error(result.error || "Failed to close job")
+      }
+    } catch (error: any) {
+      console.error("Close job error:", error)
+      toast.error(error.message || "An error occurred")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -73,11 +124,7 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
           </TabsList>
 
           <TabsContent value="expenses" className="space-y-4 max-h-[60vh] overflow-y-auto scrollbar-hide">
-            <TripExpenseDialog 
-              bookingId={booking.id} 
-              embedded={true}
-              onSuccess={() => {}}
-            />
+            <TripExpenseDialog bookingId={booking.id} embedded={true} onSuccess={() => {}} />
           </TabsContent>
 
           <TabsContent value="completion" className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 scrollbar-hide">
@@ -101,7 +148,6 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
                 </div>
               </div>
             )}
-
 
             <div className="flex items-center space-x-2">
               <Checkbox
@@ -136,7 +182,14 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
             Cancel
           </Button>
           <Button onClick={handleClose} disabled={loading} className="flex-1 bg-green-600 hover:bg-green-700">
-            {loading ? "Closing Job..." : "Complete & Close Job"}
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              "Complete & Close Job"
+            )}
           </Button>
         </div>
       </DialogContent>

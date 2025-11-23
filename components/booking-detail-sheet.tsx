@@ -114,12 +114,52 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   }
 
   const handleWaybillUpload = async (file: File) => {
-    const { data, error } = await supabase.storage.from("waybills").upload(`${booking.id}-${Date.now()}`, file)
-    if (error) {
+    try {
+      const response = await fetch(
+        `/api/upload?filename=${encodeURIComponent(file.name)}&folder=waybills/${booking.id}&contentType=${encodeURIComponent(file.type)}`,
+      )
+
+      if (!response.ok) throw new Error("Failed to get upload config")
+      const config = await response.json()
+
+      let publicUrl = ""
+      if (config.workerUrl) {
+        const workerUrl = new URL(config.workerUrl)
+        workerUrl.searchParams.set("filename", file.name)
+        workerUrl.searchParams.set("folder", `waybills/${booking.id}`)
+
+        const uploadResponse = await fetch(workerUrl.toString(), {
+          method: "PUT",
+          body: file,
+          headers: {
+            Authorization: `Bearer ${config.authKey}`,
+            "Content-Type": file.type,
+          },
+        })
+
+        if (!uploadResponse.ok) throw new Error("Worker upload failed")
+        const result = await uploadResponse.json()
+        publicUrl = result.url
+      }
+
+      // Save to Supabase table instead of Storage bucket
+      const { error } = await supabase.from("waybill_uploads").insert({
+        booking_id: booking.id,
+        file_name: file.name,
+        file_url: publicUrl,
+        file_type: file.type,
+        uploaded_by: (await supabase.auth.getUser()).data.user?.id,
+      })
+
+      if (error) throw error
+
+      await mutateBooking()
+      const { toast } = await import("sonner")
+      toast.success("Waybill uploaded successfully")
+    } catch (error) {
+      console.error("Upload error:", error)
       const { toast } = await import("sonner")
       toast.error("Waybill upload failed")
-    } else {
-      await mutateBooking()
     }
   }
 

@@ -14,9 +14,10 @@ import { CloseJobDialog } from "./close-job-dialog"
 import { RateDriverDialog } from "./rate-driver-dialog"
 import { NegotiateBookingDialog } from "./negotiate-booking-dialog"
 import { createClient } from "@/lib/supabase/client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Label } from "@/components/ui/label"
 import useSWR from "swr"
+import { uploadWaybill } from "@/app/actions/bookings" // Added import
 
 type BookingDetailDialogProps = {
   booking: any
@@ -32,7 +33,28 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
   const [showRateDriver, setShowRateDriver] = useState(false)
   const [showNegotiate, setShowNegotiate] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [isUploading, setIsUploading] = useState(false) // Added upload state
+  const [workerUrl, setWorkerUrl] = useState("") // Added worker config state
+  const [authKey, setAuthKey] = useState("") // Added worker config state
   const supabase = createClient()
+
+  useEffect(() => {
+    if (open) {
+      const fetchConfig = async () => {
+        try {
+          const res = await fetch("/api/upload")
+          if (res.ok) {
+            const data = await res.json()
+            setWorkerUrl(data.workerUrl)
+            setAuthKey(data.authKey)
+          }
+        } catch (error) {
+          console.error("Failed to fetch upload config", error)
+        }
+      }
+      fetchConfig()
+    }
+  }, [open])
 
   const { data: currentBooking, mutate: mutateBooking } = useSWR(
     open && booking?.id ? `booking-${booking.id}` : null,
@@ -94,12 +116,45 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
   }
 
   const handleWaybillUpload = async (file: File) => {
-    const { data, error } = await supabase.storage.from("waybills").upload(`${booking.id}-${Date.now()}`, file)
-    if (error) {
-      const { toast } = await import("sonner")
-      toast.error("Waybill upload failed")
-    } else {
-      await mutateBooking()
+    setIsUploading(true)
+    const { toast } = await import("sonner")
+
+    try {
+      if (!workerUrl || !authKey) {
+        throw new Error("Upload service not available")
+      }
+
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("folder", `waybills/${booking.id}`)
+
+      const uploadRes = await fetch(workerUrl, {
+        method: "POST",
+        headers: {
+          "X-Auth-Key": authKey,
+        },
+        body: formData,
+      })
+
+      if (!uploadRes.ok) {
+        throw new Error("Failed to upload waybill to storage")
+      }
+
+      const { url } = await uploadRes.json()
+
+      const result = await uploadWaybill(booking.id, url)
+
+      if (result.success) {
+        toast.success("Waybill uploaded successfully")
+        await mutateBooking()
+      } else {
+        throw new Error(result.error || "Failed to save waybill record")
+      }
+    } catch (error: any) {
+      console.error("Waybill upload error:", error)
+      toast.error(error.message || "Waybill upload failed")
+    } finally {
+      setIsUploading(false)
     }
   }
 
@@ -434,7 +489,7 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
                           <input
                             type="file"
                             id="waybill"
-                            accept=".pdf,.jpg,.png"
+                            accept=".pdf,.jpg,.jpeg,.png"
                             onChange={(e) => {
                               if (e.target.files?.[0]) {
                                 handleWaybillUpload(e.target.files[0])
@@ -444,23 +499,37 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
                           />
                           <label htmlFor="waybill" className="flex flex-col items-center gap-2 cursor-pointer">
                             <Upload className="h-6 w-6 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">Click to upload waybill</span>
+                            <span className="text-sm text-muted-foreground mt-2">
+                              {isUploading ? "Uploading..." : "Click to upload waybill"}
+                            </span>
                           </label>
                         </div>
                         {waybills.length > 0 && (
                           <div className="space-y-2">
                             <p className="text-xs font-medium">Uploaded waybills:</p>
-                            {waybills.map((w) => (
-                              <a
-                                key={w.id}
-                                href={w.file_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-accent hover:underline block"
-                              >
-                                {new Date(w.uploaded_at).toLocaleString()}
-                              </a>
-                            ))}
+                            <div className="space-y-2">
+                              {waybills.map((w: any) => (
+                                <div
+                                  key={w.id}
+                                  className="flex items-center justify-between p-2 border rounded-md text-sm"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="h-4 w-4 text-muted-foreground" />
+                                    <a
+                                      href={w.file_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-500 hover:underline"
+                                    >
+                                      View Document
+                                    </a>
+                                  </div>
+                                  <span className="text-muted-foreground text-xs">
+                                    {new Date(w.uploaded_at).toLocaleString()}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>

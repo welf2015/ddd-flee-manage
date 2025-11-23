@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,7 +18,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createDriver } from "@/app/actions/drivers"
 import { useToast } from "@/hooks/use-toast"
-import { Plus } from 'lucide-react'
+import { Plus } from "lucide-react"
 
 interface AddDriverDialogProps {
   vehicles: any[]
@@ -25,13 +27,62 @@ interface AddDriverDialogProps {
 export function AddDriverDialog({ vehicles }: AddDriverDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [photoUrl, setPhotoUrl] = useState("")
   const { toast } = useToast()
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const response = await fetch(
+        `/api/upload?filename=${encodeURIComponent(file.name)}&folder=drivers&contentType=${encodeURIComponent(file.type)}`,
+      )
+
+      if (!response.ok) throw new Error("Failed to get upload config")
+      const config = await response.json()
+
+      let publicUrl = ""
+      if (config.workerUrl) {
+        const workerUrl = new URL(config.workerUrl)
+        workerUrl.searchParams.set("filename", file.name)
+        workerUrl.searchParams.set("folder", "drivers")
+
+        const uploadResponse = await fetch(workerUrl.toString(), {
+          method: "PUT",
+          body: file,
+          headers: {
+            Authorization: `Bearer ${config.authKey}`,
+            "Content-Type": file.type,
+          },
+        })
+
+        if (!uploadResponse.ok) throw new Error("Worker upload failed")
+        const result = await uploadResponse.json()
+        publicUrl = result.url
+      }
+
+      setPhotoUrl(publicUrl)
+      toast({ title: "Success", description: "Driver photo uploaded" })
+    } catch (error) {
+      console.error("Upload error:", error)
+      toast({ title: "Error", description: "Failed to upload photo", variant: "destructive" })
+    } finally {
+      setUploading(false)
+    }
+  }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setLoading(true)
 
     const formData = new FormData(event.currentTarget)
+    if (photoUrl) {
+      formData.append("photo_url", photoUrl)
+    }
+
     const result = await createDriver(formData)
 
     setLoading(false)
@@ -71,7 +122,24 @@ export function AddDriverDialog({ vehicles }: AddDriverDialogProps) {
             <Label htmlFor="full_name">Full Name</Label>
             <Input id="full_name" name="full_name" required />
           </div>
-          
+
+          <div className="grid gap-2">
+            <Label>Driver Photo</Label>
+            <div className="flex items-center gap-4">
+              {photoUrl && (
+                <img
+                  src={photoUrl || "/placeholder.svg"}
+                  alt="Preview"
+                  className="h-16 w-16 rounded-full object-cover border"
+                />
+              )}
+              <div className="flex-1">
+                <Input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
+                {uploading && <p className="text-xs text-muted-foreground mt-1">Uploading...</p>}
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>

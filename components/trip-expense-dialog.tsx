@@ -71,29 +71,38 @@ export function TripExpenseDialog({
   const uploadReceipt = async (index: number, file: File) => {
     setUploading(true)
     try {
-      const configRes = await fetch("/api/upload")
-      if (!configRes.ok) {
+      const response = await fetch(
+        `/api/upload?filename=${encodeURIComponent(file.name)}&folder=receipts/${bookingId}&contentType=${encodeURIComponent(file.type)}`,
+      )
+
+      if (!response.ok) {
         throw new Error("Upload service not configured")
       }
 
-      const { workerUrl, authKey } = await configRes.json()
+      const config = await response.json()
 
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("folder", `receipts/${bookingId}`)
+      let publicUrl = ""
+      if (config.workerUrl) {
+        const workerUrl = new URL(config.workerUrl)
+        workerUrl.searchParams.set("filename", file.name)
+        workerUrl.searchParams.set("folder", `receipts/${bookingId}`)
 
-      const response = await fetch(workerUrl, {
-        method: "POST",
-        headers: {
-          "X-Auth-Key": authKey,
-        },
-        body: formData,
-      })
+        const uploadResponse = await fetch(workerUrl.toString(), {
+          method: "PUT",
+          body: file,
+          headers: {
+            Authorization: `Bearer ${config.authKey}`,
+            "Content-Type": file.type,
+          },
+        })
 
-      if (!response.ok) throw new Error("Upload failed")
+        if (!uploadResponse.ok) throw new Error("Upload failed")
 
-      const { url } = await response.json()
-      updateExpense(index, "receipt_url", url)
+        const result = await uploadResponse.json()
+        publicUrl = result.url
+      }
+
+      updateExpense(index, "receipt_url", publicUrl)
       toast.success("Receipt uploaded")
     } catch (error) {
       console.error("Upload error:", error)

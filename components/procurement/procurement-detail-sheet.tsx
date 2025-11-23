@@ -21,7 +21,7 @@ import {
   moveToOnboarding,
   uploadProcurementDocument,
 } from "@/app/actions/procurement"
-import { DollarSign, Package, Truck, User, FileText, Clock, CheckCircle2, Upload, X } from "lucide-react"
+import { DollarSign, Package, Truck, User, FileText, Clock, CheckCircle2, Upload, X, Download } from "lucide-react"
 import { formatRelativeTime, formatDateTime, formatCurrency } from "@/lib/utils"
 import { PostDealForm } from "@/components/procurement/post-deal-form" // Import PostDealForm
 
@@ -607,12 +607,13 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
           <Separator />
 
           <Tabs defaultValue="details" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
+              <TabsTrigger value="documents">Documents</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="details" className="space-y-4">
+            <TabsContent value="details" className="space-y-4 mt-4">
               {/* Vehicle Details */}
               <Card>
                 <CardContent className="pt-6">
@@ -739,7 +740,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
               )}
             </TabsContent>
 
-            <TabsContent value="timeline" className="space-y-3">
+            <TabsContent value="timeline" className="space-y-4 mt-4">
               {procurement.timeline
                 ?.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                 .map((event: any) => (
@@ -795,6 +796,39 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
                     </CardContent>
                   </Card>
                 ))}
+            </TabsContent>
+
+            <TabsContent value="documents" className="space-y-4 mt-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Procurement Documents
+                  </h3>
+
+                  {procurement.documents && procurement.documents.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {procurement.documents.map((doc: any) => (
+                        <div key={doc.id} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                          <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{doc.document_type}</p>
+                            <p className="text-xs text-muted-foreground truncate">{doc.document_name}</p>
+                            <p className="text-xs text-muted-foreground">{formatDateTime(doc.uploaded_at)}</p>
+                          </div>
+                          <Button variant="ghost" size="sm" asChild className="flex-shrink-0">
+                            <a href={doc.document_url} target="_blank" rel="noopener noreferrer" download>
+                              <Download className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-8">No documents uploaded yet</p>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>
