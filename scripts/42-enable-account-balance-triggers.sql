@@ -1,21 +1,51 @@
 -- Enable the account balance triggers
 -- These triggers were created but disabled, causing balances not to update
 
--- Drop and recreate triggers to ensure they're enabled
+-- First, ensure the trigger functions exist and are correct
+CREATE OR REPLACE FUNCTION update_account_balance_on_topup()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE prepaid_accounts
+  SET 
+    current_balance = current_balance + NEW.amount,
+    total_deposited = total_deposited + NEW.amount,
+    updated_at = NOW()
+  WHERE id = NEW.account_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION deduct_account_balance_on_transaction()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE prepaid_accounts
+  SET 
+    current_balance = current_balance - NEW.amount,
+    total_spent = total_spent + NEW.amount,
+    updated_at = NOW()
+  WHERE id = NEW.account_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Drop existing triggers
 DROP TRIGGER IF EXISTS trigger_update_account_balance_on_topup ON account_topups;
 DROP TRIGGER IF EXISTS trigger_deduct_account_balance_on_transaction ON expense_transactions;
 
--- Recreate trigger for top-ups (will be enabled by default)
+-- Recreate triggers with explicit ENABLE
 CREATE TRIGGER trigger_update_account_balance_on_topup
   AFTER INSERT ON account_topups
   FOR EACH ROW
   EXECUTE FUNCTION update_account_balance_on_topup();
 
--- Recreate trigger for transactions (will be enabled by default)
 CREATE TRIGGER trigger_deduct_account_balance_on_transaction
   AFTER INSERT ON expense_transactions
   FOR EACH ROW
   EXECUTE FUNCTION deduct_account_balance_on_transaction();
+
+-- Explicitly enable triggers (set to 'A' = Always)
+ALTER TABLE account_topups ENABLE ALWAYS TRIGGER trigger_update_account_balance_on_topup;
+ALTER TABLE expense_transactions ENABLE ALWAYS TRIGGER trigger_deduct_account_balance_on_transaction;
 
 -- Verify triggers are now enabled
 SELECT 
