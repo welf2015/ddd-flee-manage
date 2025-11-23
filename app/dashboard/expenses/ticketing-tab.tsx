@@ -9,14 +9,23 @@ import { formatCurrency, formatRelativeTime } from "@/lib/utils"
 
 type TicketingTabProps = {
   onAddTopup: (accountId?: string) => void
+  initialAccounts?: any[]
 }
 
-export function TicketingTab({ onAddTopup }: TicketingTabProps) {
-  const { data: accounts = [] } = useSWR("ticketing-accounts", async () => {
-    const { data } = await getPrepaidAccounts("Ticketing")
-    // Filter to ensure only Ticketing accounts
-    return (data || []).filter((a: any) => a.vendor?.vendor_type === "Ticketing")
-  })
+export function TicketingTab({ onAddTopup, initialAccounts = [] }: TicketingTabProps) {
+  const initialTicketingAccounts = initialAccounts.filter((a: any) => a.vendor?.vendor_type === "Ticketing")
+  const { data: accounts = initialTicketingAccounts } = useSWR(
+    "ticketing-accounts",
+    async () => {
+      const { data } = await getPrepaidAccounts("Ticketing")
+      // Filter to ensure only Ticketing accounts
+      return (data || []).filter((a: any) => a.vendor?.vendor_type === "Ticketing")
+    },
+    {
+      fallbackData: initialTicketingAccounts,
+      revalidateOnMount: true,
+    },
+  )
 
   const { data: transactions = [] } = useSWR("ticketing-transactions", async () => {
     const { data } = await getExpenseTransactions({ expenseType: "Ticketing" })

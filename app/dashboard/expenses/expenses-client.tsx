@@ -14,36 +14,39 @@ import { AllowanceTab } from "./allowance-tab"
 import { AddTopupDialog } from "./add-topup-dialog"
 import { getWeeklyExpenses, getPrepaidAccounts } from "@/app/actions/expenses"
 
-export function ExpensesClient() {
+type ExpensesClientProps = {
+  initialAccounts?: any[]
+}
+
+export function ExpensesClient({ initialAccounts = [] }: ExpensesClientProps) {
   const [showTopupDialog, setShowTopupDialog] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("fuel")
   const supabase = createClient()
 
-  // Get all prepaid accounts
-  const { data: accounts = [] } = useSWR("prepaid-accounts", async () => {
-    const { data } = await getPrepaidAccounts()
-    return data || []
-  })
+  // Get all prepaid accounts - use initial data from server, then revalidate
+  const { data: accounts = initialAccounts } = useSWR(
+    "prepaid-accounts",
+    async () => {
+      const { data } = await getPrepaidAccounts()
+      return data || []
+    },
+    {
+      fallbackData: initialAccounts,
+      revalidateOnMount: true,
+    },
+  )
 
-  // Get weekly expenses by type
-  const { data: weeklyFuelExpenses = 0 } = useSWR("weekly-fuel-expenses", async () => {
-    const { getWeeklyExpenses } = await import("@/app/actions/expenses")
-    const { data } = await getWeeklyExpenses("Fuel")
-    return data || 0
-  })
-
-  const { data: weeklyTicketingExpenses = 0 } = useSWR("weekly-ticketing-expenses", async () => {
-    const { getWeeklyExpenses } = await import("@/app/actions/expenses")
-    const { data } = await getWeeklyExpenses("Ticketing")
-    return data || 0
-  })
-
-  const { data: weeklyAllowanceExpenses = 0 } = useSWR("weekly-allowance-expenses", async () => {
-    const { getWeeklyExpenses } = await import("@/app/actions/expenses")
-    const { data } = await getWeeklyExpenses("Allowance")
-    return data || 0
-  })
+  // Get weekly expenses only for active tab (lazy load)
+  const { data: activeWeeklyExpenses = 0 } = useSWR(
+    `weekly-${activeTab}-expenses`,
+    async () => {
+      const { getWeeklyExpenses } = await import("@/app/actions/expenses")
+      const expenseType = activeTab === "fuel" ? "Fuel" : activeTab === "ticketing" ? "Ticketing" : "Allowance"
+      const { data } = await getWeeklyExpenses(expenseType)
+      return data || 0
+    },
+  )
 
   // Calculate balances by type
   const fuelBalance = accounts
@@ -60,7 +63,6 @@ export function ExpensesClient() {
 
   // Get active tab data
   const activeBalance = activeTab === "fuel" ? fuelBalance : activeTab === "ticketing" ? ticketingBalance : allowanceBalance
-  const activeWeeklyExpenses = activeTab === "fuel" ? weeklyFuelExpenses : activeTab === "ticketing" ? weeklyTicketingExpenses : weeklyAllowanceExpenses
 
   const handleAddTopup = (accountId?: string) => {
     setSelectedAccount(accountId || null)

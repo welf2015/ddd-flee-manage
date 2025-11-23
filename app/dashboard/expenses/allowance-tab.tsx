@@ -9,14 +9,23 @@ import { formatCurrency, formatRelativeTime } from "@/lib/utils"
 
 type AllowanceTabProps = {
   onAddTopup: (accountId?: string) => void
+  initialAccounts?: any[]
 }
 
-export function AllowanceTab({ onAddTopup }: AllowanceTabProps) {
-  const { data: accounts = [] } = useSWR("allowance-accounts", async () => {
-    const { data } = await getPrepaidAccounts("Allowance")
-    // Filter to ensure only Allowance accounts
-    return (data || []).filter((a: any) => a.vendor?.vendor_type === "Allowance")
-  })
+export function AllowanceTab({ onAddTopup, initialAccounts = [] }: AllowanceTabProps) {
+  const initialAllowanceAccounts = initialAccounts.filter((a: any) => a.vendor?.vendor_type === "Allowance")
+  const { data: accounts = initialAllowanceAccounts } = useSWR(
+    "allowance-accounts",
+    async () => {
+      const { data } = await getPrepaidAccounts("Allowance")
+      // Filter to ensure only Allowance accounts
+      return (data || []).filter((a: any) => a.vendor?.vendor_type === "Allowance")
+    },
+    {
+      fallbackData: initialAllowanceAccounts,
+      revalidateOnMount: true,
+    },
+  )
 
   const { data: transactions = [] } = useSWR("allowance-transactions", async () => {
     const { data } = await getExpenseTransactions({ expenseType: "Allowance" })

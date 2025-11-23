@@ -12,13 +12,26 @@ type FuelTabProps = {
   onAddTopup: (accountId?: string) => void
 }
 
-export function FuelTab({ onAddTopup }: FuelTabProps) {
-  // Get fuel accounts
-  const { data: fuelAccounts = [], mutate: mutateFuelAccounts } = useSWR("fuel-accounts", async () => {
-    const { data } = await getPrepaidAccounts("Fuel")
-    // Filter to ensure only Fuel type accounts
-    return (data || []).filter((a: any) => a.vendor?.vendor_type === "Fuel")
-  })
+type FuelTabProps = {
+  onAddTopup: (accountId?: string) => void
+  initialAccounts?: any[]
+}
+
+export function FuelTab({ onAddTopup, initialAccounts = [] }: FuelTabProps) {
+  // Get fuel accounts - filter initial accounts if provided
+  const initialFuelAccounts = initialAccounts.filter((a: any) => a.vendor?.vendor_type === "Fuel")
+  const { data: fuelAccounts = initialFuelAccounts, mutate: mutateFuelAccounts } = useSWR(
+    "fuel-accounts",
+    async () => {
+      const { data } = await getPrepaidAccounts("Fuel")
+      // Filter to ensure only Fuel type accounts
+      return (data || []).filter((a: any) => a.vendor?.vendor_type === "Fuel")
+    },
+    {
+      fallbackData: initialFuelAccounts,
+      revalidateOnMount: true,
+    },
+  )
 
   // Filter to get only Fuel type accounts (not Allowance)
   const fuelOnlyAccounts = fuelAccounts.filter((a: any) => a.vendor?.vendor_type === "Fuel")
@@ -39,8 +52,8 @@ export function FuelTab({ onAddTopup }: FuelTabProps) {
     async () => {
       if (!mainAccount) return []
       const { getTopups } = await import("@/app/actions/expenses")
-      const { data } = await getTopups(mainAccount.id)
-      return data || []
+      const result = await getTopups(mainAccount.id)
+      return result.data || []
     },
   )
 

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { ExpensesClient } from "./expenses-client"
+import { getPrepaidAccounts } from "@/app/actions/expenses"
 
 export const metadata = {
   title: "Expenses",
@@ -18,9 +19,19 @@ export default async function ExpensesPage() {
     redirect("/auth/login")
   }
 
+  // Pre-fetch accounts on server for faster initial load
+  const { data: initialAccounts = [] } = await getPrepaidAccounts()
+
+  const handleSignOut = async () => {
+    "use server"
+    const supabase = await createClient()
+    await supabase.auth.signOut()
+    redirect("/auth/login")
+  }
+
   return (
-    <DashboardLayout>
-      <ExpensesClient />
+    <DashboardLayout onSignOut={handleSignOut}>
+      <ExpensesClient initialAccounts={initialAccounts} />
     </DashboardLayout>
   )
 }
