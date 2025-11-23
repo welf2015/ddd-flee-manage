@@ -44,9 +44,6 @@ export function FuelTab({ onAddTopup }: FuelTabProps) {
     },
   )
 
-  // Get total fuel spent from account (more reliable than calculating from transactions)
-  const totalFuelSpent = mainAccount ? Number(mainAccount.total_spent || 0) : 0
-
   return (
     <div className="space-y-4">
       {/* Fuel Meter Section */}
