@@ -73,7 +73,7 @@ export function AddTopupDialog({ open, onOpenChange, accountId }: AddTopupDialog
 
     if (result.success) {
       toast.success("Top-up added successfully")
-      // Invalidate all related SWR caches
+      // Invalidate all related SWR caches - refresh accounts to get updated balances
       await mutate("prepaid-accounts")
       await mutate("fuel-accounts")
       await mutate("ticketing-accounts")
@@ -84,10 +84,9 @@ export function AddTopupDialog({ open, onOpenChange, accountId }: AddTopupDialog
       await mutate("allowance-topups-" + selectedAccount)
       await mutate("total-fuel-spent")
       await mutate("weekly-expenses")
-      await mutate("all-accounts")
-      await mutate("fuel-accounts")
-      await mutate("ticketing-accounts")
-      await mutate("allowance-accounts")
+      await mutate("weekly-fuel-expenses")
+      await mutate("weekly-ticketing-expenses")
+      await mutate("weekly-allowance-expenses")
       await mutate("fuel-transactions")
       await mutate("ticketing-transactions")
       await mutate("allowance-transactions")

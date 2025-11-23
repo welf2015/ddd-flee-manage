@@ -40,7 +40,7 @@ export function ExpensesClient({
   const supabase = createClient()
 
   // Get all prepaid accounts - use initial data from server, then revalidate
-  const { data: accounts = initialAccounts } = useSWR(
+  const { data: accounts = initialAccounts, mutate: mutateAccounts } = useSWR(
     "prepaid-accounts",
     async () => {
       const { data } = await getPrepaidAccounts()
@@ -49,6 +49,7 @@ export function ExpensesClient({
     {
       fallbackData: initialAccounts,
       revalidateOnMount: false, // Use initial data immediately
+      refreshInterval: 5000, // Refresh every 5 seconds to get updated balances
     },
   )
 
@@ -130,8 +131,9 @@ export function ExpensesClient({
         {/* Fuel Spending Progress - Only show for fuel tab */}
         {activeTab === "fuel" && (() => {
           const fuelAccount = accounts.find((a: any) => a.vendor?.vendor_type === "Fuel")
-          const totalFuelSpent = fuelAccount ? Number(fuelAccount.total_spent || 0) : 0
-          const totalDeposited = fuelAccount ? Number(fuelAccount.total_deposited || 0) : 0
+          // Ensure we're reading the correct fields (they might be strings from DB)
+          const totalFuelSpent = fuelAccount ? parseFloat(fuelAccount.total_spent || 0) : 0
+          const totalDeposited = fuelAccount ? parseFloat(fuelAccount.total_deposited || 0) : 0
           
           return (
             <Card>

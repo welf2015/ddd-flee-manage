@@ -13,13 +13,14 @@ export async function getPrepaidAccounts(vendorType?: string) {
   const supabase = await createClient()
   let query = supabase
     .from("prepaid_accounts")
-    .select("*, vendor:expense_vendors!prepaid_accounts_vendor_id_fkey(*)")
+    .select("id, account_name, current_balance, total_deposited, total_spent, is_active, created_at, updated_at, vendor_id, vendor:expense_vendors!prepaid_accounts_vendor_id_fkey(*)")
     .eq("is_active", true)
     .order("account_name")
 
   const { data, error } = await query
   
   if (error) {
+    console.error("Error fetching prepaid accounts:", error)
     return { data: [], error }
   }
 
