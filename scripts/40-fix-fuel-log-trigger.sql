@@ -9,7 +9,8 @@ DECLARE
   v_vendor_name TEXT;
 BEGIN
   -- Only process Fuel type transactions with vehicle_id
-  IF NEW.expense_type = 'Fuel' AND NEW.vehicle_id IS NOT NULL AND NEW.amount > 0 THEN
+  -- Create log if amount > 0 OR if quantity is provided (for accounting entries with 0 amount but actual fuel)
+  IF NEW.expense_type = 'Fuel' AND NEW.vehicle_id IS NOT NULL AND (NEW.amount > 0 OR NEW.quantity IS NOT NULL) THEN
     -- Get vehicle fuel type
     SELECT fuel_type INTO v_vehicle_fuel_type
     FROM vehicles
