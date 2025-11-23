@@ -88,11 +88,23 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
       if (fuelOnly.length > 0) {
         // Ensure current_balance is a number
         const fuelAcc = { ...fuelOnly[0], current_balance: parseFloat(fuelOnly[0].current_balance || 0) }
+        console.log("Fuel Account Data:", {
+          id: fuelAcc.id,
+          name: fuelAcc.account_name,
+          current_balance: fuelAcc.current_balance,
+          total_deposited: fuelAcc.total_deposited,
+          total_spent: fuelAcc.total_spent,
+          raw_balance: fuelOnly[0].current_balance,
+          vendor: fuelAcc.vendor,
+        })
         setFuelAccount(fuelAcc)
       } else {
         console.warn("No fuel account found. Available accounts:", allAccounts.map((a: any) => ({
           id: a.id,
           name: a.account_name,
+          current_balance: a.current_balance,
+          total_deposited: a.total_deposited,
+          total_spent: a.total_spent,
           vendor: a.vendor,
         })))
       }
@@ -100,14 +112,38 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
       if (ticketingOnly.length > 0) {
         // Ensure current_balance is a number
         const ticketingAcc = { ...ticketingOnly[0], current_balance: parseFloat(ticketingOnly[0].current_balance || 0) }
+        console.log("Ticketing Account Data:", {
+          id: ticketingAcc.id,
+          name: ticketingAcc.account_name,
+          current_balance: ticketingAcc.current_balance,
+          total_deposited: ticketingAcc.total_deposited,
+          total_spent: ticketingAcc.total_spent,
+        })
         setTicketingAccount(ticketingAcc)
       }
       
       if (allowanceOnly.length > 0) {
         // Ensure current_balance is a number
         const allowanceAcc = { ...allowanceOnly[0], current_balance: parseFloat(allowanceOnly[0].current_balance || 0) }
+        console.log("Allowance Account Data:", {
+          id: allowanceAcc.id,
+          name: allowanceAcc.account_name,
+          current_balance: allowanceAcc.current_balance,
+          total_deposited: allowanceAcc.total_deposited,
+          total_spent: allowanceAcc.total_spent,
+        })
         setAllowanceAccount(allowanceAcc)
       }
+      
+      // Debug: Log all accounts to see what we're getting
+      console.log("All Accounts Fetched:", allAccounts.map((a: any) => ({
+        id: a.id,
+        name: a.account_name,
+        current_balance: a.current_balance,
+        total_deposited: a.total_deposited,
+        total_spent: a.total_spent,
+        vendor_type: a.vendor?.vendor_type,
+      })))
     } catch (error) {
       console.error("Failed to fetch accounts:", error)
       toast.error("Failed to load expense accounts")
