@@ -9,24 +9,19 @@ import { formatCurrency } from "@/lib/utils"
 const fetcher = async () => {
   const supabase = createClient()
 
-  // Get fuel vendor ID first
-  const { data: fuelVendor } = await supabase
-    .from("expense_vendors")
-    .select("id")
-    .eq("vendor_type", "Fuel")
-    .single()
-
-  const [bookingsRes, vehiclesRes, driversRes, incidentsRes, clientsRes, inventoryRes, fuelRes] = await Promise.all([
+  const [bookingsRes, vehiclesRes, driversRes, incidentsRes, clientsRes, inventoryRes] = await Promise.all([
     supabase.from("bookings").select("status", { count: "exact", head: false }),
     supabase.from("vehicles").select("status", { count: "exact", head: false }),
     supabase.from("drivers").select("id", { count: "exact", head: true }),
     supabase.from("incidents").select("severity,status", { count: "exact", head: false }),
     supabase.from("clients").select("id", { count: "exact", head: true }),
     supabase.from("inventory_parts").select("current_stock,reorder_level", { count: "exact", head: false }),
-    fuelVendor 
-      ? supabase.from("prepaid_accounts").select("total_spent, total_deposited").eq("vendor_id", fuelVendor.id)
-      : Promise.resolve({ data: [], error: null }),
   ])
+
+  // Get fuel accounts using the same method as expenses page
+  const { getPrepaidAccounts } = await import("@/app/actions/expenses")
+  const { data: fuelAccounts } = await getPrepaidAccounts("Fuel")
+  const fuelAccount = fuelAccounts?.find((a: any) => a.vendor?.vendor_type === "Fuel") || fuelAccounts?.[0]
 
   // Calculate active bookings (not completed or closed)
   const activeBookings =
@@ -47,13 +42,9 @@ const fetcher = async () => {
   const lowStockItems =
     inventoryRes.data?.filter((item) => item.current_stock <= item.reorder_level).length || 0
 
-  // Calculate fuel spending
-  const fuelAccounts = fuelRes.data || []
-  const totalFuelSpent = fuelAccounts.reduce((sum: number, acc: any) => sum + Number(acc.total_spent || 0), 0)
-  const totalFuelDeposited = fuelAccounts.reduce((sum: number, acc: any) => sum + Number(acc.total_deposited || 0), 0)
-  const fuelProgress = totalFuelDeposited > 0 
-    ? Math.min((totalFuelSpent / totalFuelDeposited) * 100, 100) 
-    : 0
+  // Calculate fuel spending - use same logic as expenses page
+  const totalFuelSpent = fuelAccount ? parseFloat(fuelAccount.total_spent || 0) : 0
+  const totalFuelDeposited = fuelAccount ? parseFloat(fuelAccount.total_deposited || 0) : 0
 
   return {
     activeBookings,
@@ -133,7 +124,9 @@ export function FleetStats() {
       title: "Fuel Spending Progress",
       value: formatCurrency(data?.totalFuelSpent || 0),
       icon: Fuel,
-      description: `${data?.fuelProgress?.toFixed(1) || 0}% of ${formatCurrency(data?.totalFuelDeposited || 0)}`,
+      description: data?.totalFuelDeposited > 0 
+        ? `${((data?.totalFuelSpent / data?.totalFuelDeposited) * 100).toFixed(1)}% of ${formatCurrency(data?.totalFuelDeposited)}`
+        : formatCurrency(data?.totalFuelSpent || 0),
       trend: "neutral",
     },
   ]
@@ -152,6 +145,8 @@ export function FleetStats() {
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
       {stats.map((stat) => {
         const Icon = stat.icon
+        const isFuelProgress = stat.title === "Fuel Spending Progress"
+        
         return (
           <Card key={stat.title} className="bg-background/50 backdrop-blur">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -159,8 +154,20 @@ export function FleetStats() {
               <Icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">{stat.description}</p>
+              {isFuelProgress ? (
+                <>
+                  <FuelMeter 
+                    totalSpent={data?.totalFuelSpent || 0} 
+                    totalDeposited={data?.totalFuelDeposited || 0} 
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">{stat.description}</p>
+                </>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stat.value}</div>
+                  <p className="text-xs text-muted-foreground">{stat.description}</p>
+                </>
+              )}
             </CardContent>
           </Card>
         )
