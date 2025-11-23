@@ -21,7 +21,7 @@ import {
   moveToOnboarding,
   uploadProcurementDocument,
 } from "@/app/actions/procurement"
-import { DollarSign, Package, Truck, User, FileText, Clock, CheckCircle2, Upload, X, Download } from "lucide-react"
+import { DollarSign, Package, Truck, User, FileText, Clock, CheckCircle2, Upload, X, Download, Eye } from "lucide-react"
 import { formatRelativeTime, formatDateTime, formatCurrency } from "@/lib/utils"
 import { PostDealForm } from "@/components/procurement/post-deal-form" // Import PostDealForm
 
@@ -91,7 +91,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
   const handleNegotiate = async () => {
     if (!negotiationAmount) return
     setIsSubmitting(true)
-    await negotiateProcurement(procurementId, Number.parseFloat(negotiationAmount), negotiationNote)
+    await negotiateProcurement(procurementId, Number.parseFloat(negotiationAmount))
     setNegotiationAmount("")
     setNegotiationNote("")
     mutate()
@@ -121,97 +121,64 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
         await fetchWorkerConfig()
       }
 
+      // Helper function to upload file using worker
+      const uploadFileToWorker = async (file: File, folder: string): Promise<string | null> => {
+        try {
+          const workerUrlObj = new URL(workerUrl)
+          workerUrlObj.searchParams.set("filename", file.name)
+          workerUrlObj.searchParams.set("folder", folder)
+
+          const uploadRes = await fetch(workerUrlObj.toString(), {
+            method: "PUT",
+            body: file,
+            headers: {
+              Authorization: `Bearer ${authKey}`,
+              "Content-Type": file.type,
+            },
+          })
+
+          if (uploadRes.ok) {
+            const result = await uploadRes.json()
+            return result.url || null
+          }
+          return null
+        } catch (error) {
+          console.error("Upload error:", error)
+          return null
+        }
+      }
+
       if (mtcFile) {
-        const formData = new FormData()
-        formData.append("file", mtcFile)
-        formData.append("folder", `procurement-documents/${procurementId}`)
-
-        const uploadRes = await fetch(workerUrl, {
-          method: "POST",
-          headers: {
-            "X-Auth-Key": authKey,
-          },
-          body: formData,
-        })
-
-        if (uploadRes.ok) {
-          const { url } = await uploadRes.json()
+        const url = await uploadFileToWorker(mtcFile, `procurement-documents/${procurementId}`)
+        if (url) {
           await uploadProcurementDocument(procurementId, mtcFile.name, url, "Manufacturer's Test Certificate")
         }
       }
 
       if (proformaFile) {
-        const formData = new FormData()
-        formData.append("file", proformaFile)
-        formData.append("folder", `procurement-documents/${procurementId}`)
-
-        const uploadRes = await fetch(workerUrl, {
-          method: "POST",
-          headers: {
-            "X-Auth-Key": authKey,
-          },
-          body: formData,
-        })
-
-        if (uploadRes.ok) {
-          const { url } = await uploadRes.json()
+        const url = await uploadFileToWorker(proformaFile, `procurement-documents/${procurementId}`)
+        if (url) {
           await uploadProcurementDocument(procurementId, proformaFile.name, url, "Proforma Invoice")
         }
       }
 
       if (cocFile) {
-        const formData = new FormData()
-        formData.append("file", cocFile)
-        formData.append("folder", `procurement-documents/${procurementId}`)
-
-        const uploadRes = await fetch(workerUrl, {
-          method: "POST",
-          headers: {
-            "X-Auth-Key": authKey,
-          },
-          body: formData,
-        })
-
-        if (uploadRes.ok) {
-          const { url } = await uploadRes.json()
+        const url = await uploadFileToWorker(cocFile, `procurement-documents/${procurementId}`)
+        if (url) {
           await uploadProcurementDocument(procurementId, cocFile.name, url, "Certificate of Conformity")
         }
       }
 
       if (invoiceFile) {
-        const formData = new FormData()
-        formData.append("file", invoiceFile)
-        formData.append("folder", `procurement-documents/${procurementId}`)
-
-        const uploadRes = await fetch(workerUrl, {
-          method: "POST",
-          headers: {
-            "X-Auth-Key": authKey,
-          },
-          body: formData,
-        })
-
-        if (uploadRes.ok) {
-          const { url } = await uploadRes.json()
+        const url = await uploadFileToWorker(invoiceFile, `procurement-documents/${procurementId}`)
+        if (url) {
           await uploadProcurementDocument(procurementId, invoiceFile.name, url, "Invoice")
         }
       }
 
       if (receiptFile) {
-        const formData = new FormData()
-        formData.append("file", receiptFile)
-        formData.append("folder", `procurement-documents/${procurementId}`)
-
-        const uploadRes = await fetch(workerUrl, {
-          method: "POST",
-          headers: {
-            "X-Auth-Key": authKey,
-          },
-          body: formData,
-        })
-
-        if (uploadRes.ok) {
-          const { url } = await uploadRes.json()
+        const url = await uploadFileToWorker(receiptFile, `procurement-documents/${procurementId}`)
+        if (url) {
           await uploadProcurementDocument(procurementId, receiptFile.name, url, "Receipt")
         }
       }
@@ -235,7 +202,12 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
   const handleAddShipping = async () => {
     if (!waybill || !shippingDuration) return
     setIsSubmitting(true)
-    await addShippingInfo(procurementId, waybill, Number.parseInt(shippingDuration))
+    await addShippingInfo(procurementId, {
+      waybill_number: waybill,
+      tracking_info: waybill,
+      estimated_delivery_months: Number.parseInt(shippingDuration),
+      shipping_date: new Date().toISOString().split("T")[0],
+    })
     setWaybill("")
     setShippingDuration("")
     mutate()
@@ -957,11 +929,18 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
                             <p className="text-xs text-muted-foreground truncate">{doc.document_name}</p>
                             <p className="text-xs text-muted-foreground">{formatDateTime(doc.uploaded_at)}</p>
                           </div>
-                          <Button variant="ghost" size="sm" asChild className="flex-shrink-0">
-                            <a href={doc.document_url} target="_blank" rel="noopener noreferrer" download>
-                              <Download className="h-4 w-4" />
-                            </a>
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="sm" asChild className="flex-shrink-0">
+                              <a href={doc.document_url} target="_blank" rel="noopener noreferrer">
+                                <Eye className="h-4 w-4" />
+                              </a>
+                            </Button>
+                            <Button variant="ghost" size="sm" asChild className="flex-shrink-0">
+                              <a href={doc.document_url} target="_blank" rel="noopener noreferrer" download>
+                                <Download className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>

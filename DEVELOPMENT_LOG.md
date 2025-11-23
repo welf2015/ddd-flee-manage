@@ -364,6 +364,35 @@ All environment variables are stored in `.env.local` (not committed to git).
   - Updated button text to "Save Shipping Details & Mark as In Transit"
   - Updated success toast message
 
+- ✅ Fixed upload functionality and document display
+  - **Upload Method Fix**: Changed from POST with FormData to PUT with file body (matches worker.js implementation)
+  - **Document View**: Added "View" button alongside "Download" button for PDF documents
+  - **Clearing Documents**: Verified clearing has 3 document uploads (Customs Duty Receipt, Release Order, TDO)
+  - **Received By Field**: Confirmed "Received By (From Clearing Agent)" field exists in clearing form
+  - **Document Storage**: All documents are saved to `procurement_documents` table and displayed in Documents tab
+  - **Worker Configuration**: Upload uses Cloudflare R2 Worker with proper CORS and authentication
+
+#### Files Modified (Upload & Document Display Fix)
+- `components/procurement/procurement-detail-sheet.tsx`
+  - Fixed upload method to use PUT with Bearer token (matches worker.js)
+  - Added View button for documents (opens in new tab)
+  - Fixed function call signatures (negotiateProcurement, addShippingInfo)
+  - Documents displayed in Documents tab with View and Download options
+
+#### Upload Workflow Confirmation
+1. **Deal Closed Stage**: Documents uploaded via worker → saved to `procurement_documents` table
+2. **Paid Stage**: Shipping documents (Bill of Lading, Packing List, Commercial Invoice) uploaded via worker
+3. **Clearing Stage**: Clearing documents (Customs Duty Receipt, Release Order, TDO) uploaded via worker
+4. **All Documents**: Displayed in Documents tab with View (open in new tab) and Download options
+5. **Received By**: When clearing is completed, "Received By (From Clearing Agent)" field captures who received the vehicle
+
+#### Worker.js Implementation
+- Uses Cloudflare R2 Worker for file uploads
+- Supports PUT method with Bearer token authentication
+- CORS enabled for cross-origin requests
+- Files stored in organized folders: `procurement-documents/{procurementId}/`
+- Returns public URL for document access
+
 ---
 
 ## Collaboration Guidelines
