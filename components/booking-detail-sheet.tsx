@@ -30,6 +30,7 @@ import { RateDriverDialog } from "./rate-driver-dialog"
 import { NegotiateBookingDialog } from "./negotiate-booking-dialog"
 import { TripExpenseDialog } from "./trip-expense-dialog"
 import { TripHoldDialog } from "./trip-hold-dialog"
+import { AnimatedRoute } from "./booking/animated-route"
 import { createClient } from "@/lib/supabase/client"
 import { useState } from "react"
 import { Label } from "@/components/ui/label"
@@ -493,30 +494,41 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                          {/* Route Display with Icons */}
-                          <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
-                            <div className="flex items-center gap-2 flex-1">
-                              <div className="flex flex-col items-center">
-                                <MapPin className="h-5 w-5 text-green-500" />
-                                <span className="text-xs text-muted-foreground mt-1">From</span>
+                          {/* Animated Route Display */}
+                          {displayBooking.status === "In Transit" || displayBooking.status === "On Hold" ? (
+                            <AnimatedRoute
+                              route={displayBooking.route}
+                              status={displayBooking.status}
+                              startedAt={displayBooking.started_at}
+                              timeline={displayBooking.timeline}
+                              isOnHold={displayBooking.status === "On Hold"}
+                            />
+                          ) : (
+                            /* Static Route Display for non-transit statuses */
+                            <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
+                              <div className="flex items-center gap-2 flex-1">
+                                <div className="flex flex-col items-center">
+                                  <MapPin className="h-5 w-5 text-green-500" />
+                                  <span className="text-xs text-muted-foreground mt-1">From</span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium">{displayBooking.route.split("→")[0]?.trim() || "Origin"}</p>
+                                </div>
                               </div>
-                              <div className="flex-1">
-                                <p className="font-medium">{displayBooking.route.split("→")[0]?.trim() || "Origin"}</p>
+                              <ArrowRight className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+                              <div className="flex items-center gap-2 flex-1">
+                                <div className="flex-1">
+                                  <p className="font-medium">
+                                    {displayBooking.route.split("→")[1]?.trim() || "Destination"}
+                                  </p>
+                                </div>
+                                <div className="flex flex-col items-center">
+                                  <MapPin className="h-5 w-5 text-red-500" />
+                                  <span className="text-xs text-muted-foreground mt-1">To</span>
+                                </div>
                               </div>
                             </div>
-                            <ArrowRight className="h-6 w-6 text-muted-foreground flex-shrink-0" />
-                            <div className="flex items-center gap-2 flex-1">
-                              <div className="flex-1">
-                                <p className="font-medium">
-                                  {displayBooking.route.split("→")[1]?.trim() || "Destination"}
-                                </p>
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <MapPin className="h-5 w-5 text-red-500" />
-                                <span className="text-xs text-muted-foreground mt-1">To</span>
-                              </div>
-                            </div>
-                          </div>
+                          )}
 
                           {/* Embedded Map */}
                           <div className="w-full h-64 rounded-lg overflow-hidden border bg-muted/30 flex items-center justify-center relative">
