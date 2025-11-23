@@ -86,7 +86,9 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
       }) || []
 
       if (fuelOnly.length > 0) {
-        setFuelAccount(fuelOnly[0])
+        // Ensure current_balance is a number
+        const fuelAcc = { ...fuelOnly[0], current_balance: parseFloat(fuelOnly[0].current_balance || 0) }
+        setFuelAccount(fuelAcc)
       } else {
         console.warn("No fuel account found. Available accounts:", allAccounts.map((a: any) => ({
           id: a.id,
@@ -96,11 +98,15 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
       }
       
       if (ticketingOnly.length > 0) {
-        setTicketingAccount(ticketingOnly[0])
+        // Ensure current_balance is a number
+        const ticketingAcc = { ...ticketingOnly[0], current_balance: parseFloat(ticketingOnly[0].current_balance || 0) }
+        setTicketingAccount(ticketingAcc)
       }
       
       if (allowanceOnly.length > 0) {
-        setAllowanceAccount(allowanceOnly[0])
+        // Ensure current_balance is a number
+        const allowanceAcc = { ...allowanceOnly[0], current_balance: parseFloat(allowanceOnly[0].current_balance || 0) }
+        setAllowanceAccount(allowanceAcc)
       }
     } catch (error) {
       console.error("Failed to fetch accounts:", error)
@@ -353,11 +359,11 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                       <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
                       <p
                         className={`text-sm font-medium ${
-                          fuelAccount.current_balance < 0 ? "text-red-500" : "text-green-500"
+                          (fuelAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
                         }`}
                       >
-                        {formatCurrency(fuelAccount.current_balance, "NGN")}
-                        {fuelAccount.current_balance < 0 && " (Overdrawn)"}
+                        {formatCurrency(fuelAccount.current_balance || 0, "NGN")}
+                        {(fuelAccount.current_balance || 0) < 0 && " (Overdrawn)"}
                       </p>
                     </div>
                   ) : (
@@ -394,11 +400,11 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                       <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
                       <p
                         className={`text-sm font-medium ${
-                          ticketingAccount.current_balance < 0 ? "text-red-500" : "text-green-500"
+                          (ticketingAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
                         }`}
                       >
-                        {formatCurrency(ticketingAccount.current_balance, "NGN")}
-                        {ticketingAccount.current_balance < 0 && " (Overdrawn)"}
+                        {formatCurrency(ticketingAccount.current_balance || 0, "NGN")}
+                        {(ticketingAccount.current_balance || 0) < 0 && " (Overdrawn)"}
                       </p>
                     </div>
                   ) : (
@@ -435,11 +441,11 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                       <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
                       <p
                         className={`text-sm font-medium ${
-                          allowanceAccount.current_balance < 0 ? "text-red-500" : "text-green-500"
+                          (allowanceAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
                         }`}
                       >
-                        {formatCurrency(allowanceAccount.current_balance, "NGN")}
-                        {allowanceAccount.current_balance < 0 && " (Overdrawn)"}
+                        {formatCurrency(allowanceAccount.current_balance || 0, "NGN")}
+                        {(allowanceAccount.current_balance || 0) < 0 && " (Overdrawn)"}
                       </p>
                     </div>
                   ) : (
