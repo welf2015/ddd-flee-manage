@@ -651,18 +651,66 @@ export async function assignDriverWithExpenses(
     // Fuel transaction - always created (even if amount is 0)
     if (expenses.fuelAccountId) {
       const fuelAmount = expenses.fuelAmount ?? 0
+      const fuelLiters = expenses.fuelLiters ?? 0
+      
       const fuelResult = await createExpenseTransaction(expenses.fuelAccountId, {
         bookingId,
         driverId,
         vehicleId: driver.assigned_vehicle_id,
         expenseType: "Fuel",
         amount: fuelAmount,
-        quantity: expenses.fuelLiters,
+        quantity: fuelLiters,
         unit: "Liters",
         notes: fuelAmount > 0 ? `Fuel for trip ${bookingId}` : `No fuel expense for trip ${bookingId}`,
       })
+      
       if (!fuelResult.success) {
         console.error("Failed to create fuel transaction:", fuelResult.error)
+      } else if (fuelResult.data && (fuelAmount > 0 || fuelLiters > 0)) {
+        // Directly create fuel log since we have all the data
+        // This is more reliable than relying on triggers
+        const supabase = await createClient()
+        
+        // Get vendor name for station
+        const { data: accountData } = await supabase
+          .from("prepaid_accounts")
+          .select("vendor:expense_vendors(vendor_name)")
+          .eq("id", expenses.fuelAccountId)
+          .single()
+        
+        const stationName = accountData?.vendor?.vendor_name || "Total Energies"
+        
+        // Get vehicle fuel type (default to Petrol as user specified)
+        const { data: vehicleData } = await supabase
+          .from("vehicles")
+          .select("fuel_type")
+          .eq("id", driver.assigned_vehicle_id)
+          .single()
+        
+        const fuelType = vehicleData?.fuel_type || "Petrol"
+        
+        // Create fuel log directly
+        const { error: fuelLogError } = await supabase
+          .from("fuel_logs")
+          .insert({
+            vehicle_id: driver.assigned_vehicle_id,
+            driver_id: driverId,
+            booking_id: bookingId,
+            fuel_type: fuelType,
+            quantity: fuelLiters,
+            unit: "Liters",
+            cost: fuelAmount,
+            station_name: stationName,
+            logged_at: new Date().toISOString(),
+            expense_transaction_id: fuelResult.data.id,
+          })
+        
+        if (fuelLogError) {
+          console.error("Failed to create fuel log:", fuelLogError)
+          // Don't fail the assignment, just log the error
+        } else {
+          console.log("✅ Fuel log created successfully for transaction:", fuelResult.data.id)
+        }
       }
     }
 
