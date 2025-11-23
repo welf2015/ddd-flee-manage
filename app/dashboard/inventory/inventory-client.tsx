@@ -6,14 +6,18 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
-import { Plus, AlertTriangle, Edit, Trash2 } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Plus, AlertTriangle, Edit, Trash2, ClipboardList } from 'lucide-react'
 import { InventorySpreadsheet } from "@/components/inventory/inventory-spreadsheet"
+import { CollectionLogDialog } from "@/components/inventory/collection-log-dialog"
+import { CollectionLogsTable } from "@/components/inventory/collection-logs-table"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 
 export function InventoryClient() {
   const [showAddPart, setShowAddPart] = useState(false)
+  const [showCollectionLog, setShowCollectionLog] = useState(false)
   const [selectedPart, setSelectedPart] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const supabase = createClient()
@@ -105,92 +109,117 @@ export function InventoryClient() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Spare Parts Inventory List</CardTitle>
-              <CardDescription>Manage vehicle parts and supplies</CardDescription>
-            </div>
-            <Button onClick={() => setShowAddPart(true)} className="bg-accent hover:bg-accent/90">
+      <Tabs defaultValue="inventory" className="w-full">
+        <TabsList>
+          <TabsTrigger value="inventory">Inventory</TabsTrigger>
+          <TabsTrigger value="collections">Collection Logs</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="inventory" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Spare Parts Inventory List</CardTitle>
+                  <CardDescription>Manage vehicle parts and supplies</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={() => setShowCollectionLog(true)} variant="outline">
+                    <ClipboardList className="h-4 w-4 mr-2" />
+                    Log Collection
+                  </Button>
+                  <Button onClick={() => setShowAddPart(true)} className="bg-accent hover:bg-accent/90">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Part
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4">
+                <Input
+                  placeholder="Search parts..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="max-w-sm"
+                />
+              </div>
+
+              <div className="border rounded-lg overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">S/N</TableHead>
+                      <TableHead>Part Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Applicable Vehicle Type</TableHead>
+                      <TableHead>Description / Notes</TableHead>
+                      <TableHead className="text-center">Current Qty</TableHead>
+                      <TableHead className="text-center">Reorder Level</TableHead>
+                      <TableHead>Supplier / Brand</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredParts.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                          No parts found. Click "Add Part" to get started.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredParts.map((part: any, index: number) => (
+                        <TableRow key={part.id}>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell className="font-medium">{part.name}</TableCell>
+                          <TableCell>{part.category || '-'}</TableCell>
+                          <TableCell>{part.applicable_vehicle_type || 'All'}</TableCell>
+                          <TableCell>{part.description || '-'}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant={part.current_stock <= part.reorder_level ? "destructive" : "secondary"}>
+                              {part.current_stock}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">{part.reorder_level}</TableCell>
+                          <TableCell>{part.supplier_brand || '-'}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(part)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(part.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="collections" className="space-y-4 mt-4">
+          <div className="flex justify-end">
+            <Button onClick={() => setShowCollectionLog(true)} className="bg-accent hover:bg-accent/90">
               <Plus className="h-4 w-4 mr-2" />
-              Add Part
+              Log Collection
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <Input
-              placeholder="Search parts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="max-w-sm"
-            />
-          </div>
-
-          <div className="border rounded-lg overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">S/N</TableHead>
-                  <TableHead>Part Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Applicable Vehicle Type</TableHead>
-                  <TableHead>Description / Notes</TableHead>
-                  <TableHead className="text-center">Current Qty</TableHead>
-                  <TableHead className="text-center">Reorder Level</TableHead>
-                  <TableHead>Supplier / Brand</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredParts.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                      No parts found. Click "Add Part" to get started.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredParts.map((part: any, index: number) => (
-                    <TableRow key={part.id}>
-                      <TableCell>{index + 1}</TableCell>
-                      <TableCell className="font-medium">{part.name}</TableCell>
-                      <TableCell>{part.category || '-'}</TableCell>
-                      <TableCell>{part.applicable_vehicle_type || 'All'}</TableCell>
-                      <TableCell>{part.description || '-'}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant={part.current_stock <= part.reorder_level ? "destructive" : "secondary"}>
-                          {part.current_stock}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">{part.reorder_level}</TableCell>
-                      <TableCell>{part.supplier_brand || '-'}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(part)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(part.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+          <CollectionLogsTable />
+        </TabsContent>
+      </Tabs>
 
       {showAddPart && (
         <InventorySpreadsheet
@@ -200,6 +229,16 @@ export function InventoryClient() {
           onSuccess={() => {
             mutate()
             handleCloseSheet()
+          }}
+        />
+      )}
+
+      {showCollectionLog && (
+        <CollectionLogDialog
+          open={showCollectionLog}
+          onOpenChange={setShowCollectionLog}
+          onSuccess={() => {
+            // Collection logs will auto-refresh via SWR
           }}
         />
       )}

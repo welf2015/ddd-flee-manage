@@ -55,6 +55,7 @@ export function AccountabilityClient() {
       Fuel: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
       Document: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
       Onboarding: "bg-pink-500/10 text-pink-500 border-pink-500/20",
+      Inventory: "bg-teal-500/10 text-teal-500 border-teal-500/20",
     }
     return colors[module] || "bg-gray-500/10 text-gray-500 border-gray-500/20"
   }
@@ -103,6 +104,7 @@ export function AccountabilityClient() {
                 <SelectItem value="Fuel">Fuel</SelectItem>
                 <SelectItem value="Document">Document</SelectItem>
                 <SelectItem value="Onboarding">Onboarding</SelectItem>
+                <SelectItem value="Inventory">Inventory</SelectItem>
               </SelectContent>
             </Select>
           </div>
