@@ -81,9 +81,14 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
       throw new Error("Upload service not configured")
     }
 
-    const { workerUrl, authKey } = await configRes.json()
-    setWorkerUrl(workerUrl)
-    setAuthKey(authKey)
+    const config = await configRes.json()
+    if (!config.workerUrl || !config.authKey) {
+      throw new Error("R2 upload worker not configured. Please check environment variables.")
+    }
+    
+    setWorkerUrl(config.workerUrl)
+    setAuthKey(config.authKey)
+    return config // Return config for immediate use
   }
 
   if (!procurement) {
@@ -159,14 +164,29 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
     setIsUploading(true)
 
     try {
-      if (!workerUrl || !authKey) {
-        await fetchWorkerConfig()
+      // Get config - use state if available, otherwise fetch
+      let currentWorkerUrl = workerUrl
+      let currentAuthKey = authKey
+      
+      if (!currentWorkerUrl || !currentAuthKey) {
+        const config = await fetchWorkerConfig()
+        currentWorkerUrl = config.workerUrl
+        currentAuthKey = config.authKey
+      }
+
+      // Validate URLs before using
+      if (!currentWorkerUrl || !currentAuthKey) {
+        throw new Error("Upload service not configured")
       }
 
       // Helper function to upload file using worker
       const uploadFileToWorker = async (file: File, folder: string): Promise<string | null> => {
         try {
-          const workerUrlObj = new URL(workerUrl)
+          if (!currentWorkerUrl) {
+            throw new Error("Worker URL not available")
+          }
+          
+          const workerUrlObj = new URL(currentWorkerUrl)
           workerUrlObj.searchParams.set("filename", file.name)
           workerUrlObj.searchParams.set("folder", folder)
 
@@ -174,7 +194,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
             method: "PUT",
             body: file,
             headers: {
-              Authorization: `Bearer ${authKey}`,
+              Authorization: `Bearer ${currentAuthKey}`,
               "Content-Type": file.type,
             },
           })

@@ -60,7 +60,13 @@ export function PostDealForm({ procurementId, currentStatus, onComplete }: PostD
 
       let publicUrl = ""
 
-      if (config.workerUrl) {
+      // Validate config before using
+      if (!config.workerUrl || !config.authKey) {
+        throw new Error("Upload service not configured. Please check environment variables.")
+      }
+
+      // Validate URL before constructing
+      try {
         const workerUrl = new URL(config.workerUrl)
         workerUrl.searchParams.set("filename", file.name)
         workerUrl.searchParams.set("folder", `procurement-documents/${procurementId}`)
@@ -75,13 +81,21 @@ export function PostDealForm({ procurementId, currentStatus, onComplete }: PostD
         })
 
         if (!uploadResponse.ok) {
-          throw new Error("Failed to upload to Worker")
+          const errorText = await uploadResponse.text()
+          throw new Error(`Failed to upload to Worker: ${errorText}`)
         }
 
         const result = await uploadResponse.json()
-        publicUrl = result.url
-      } else {
-        throw new Error("Upload configuration missing")
+        publicUrl = result.url || result.publicUrl || ""
+        
+        if (!publicUrl) {
+          throw new Error("Upload succeeded but no URL returned")
+        }
+      } catch (error: any) {
+        if (error instanceof TypeError && error.message.includes("Invalid URL")) {
+          throw new Error(`Invalid upload worker URL: ${config.workerUrl}. Please check R2_UPLOAD_WORKER_URL environment variable.`)
+        }
+        throw error
       }
 
       // @ts-ignore - dynamic key access
