@@ -325,17 +325,29 @@ All environment variables are stored in `.env.local` (not committed to git).
   - **After**: "Upload Required Documents (Before Payment)" now appears first, followed by "Shipping & Tracking Information"
   - This matches the actual workflow where documents must be uploaded before shipping information
 
+- ✅ Added document upload section to "Deal Closed" status in `procurement-detail-sheet.tsx`
+  - **Before**: When "Deal Closed", only `PostDealForm` was shown
+  - **After**: Document upload section (MTC, Proforma Invoice, COC, Final Invoice, Receipt) now appears FIRST, followed by `PostDealForm`
+  - This ensures users upload required documents before proceeding with shipping information
+  - The document upload section includes "Submit Documents & Mark as Paid" button
+
 #### Files Modified
 - `components/procurement/post-deal-form.tsx`
   - Reordered sections in the "Deal Closed" status form
   - Moved document upload section above shipping information section
   - Maintained all existing functionality and validation
 
+- `components/procurement/procurement-detail-sheet.tsx`
+  - Added document upload section to "Deal Closed" status block
+  - Placed document upload section before `PostDealForm` component
+  - Maintained existing "Payment Pending" status functionality
+
 #### Technical Details
 - Changed the visual order of sections within the same form component
+- Added document upload UI to "Deal Closed" status (previously only in "Payment Pending")
 - No changes to data structure or API calls
 - All form validation and submission logic remains unchanged
-- Visual separation maintained with border-top divider
+- Visual separation maintained with spacing and dividers
 
 ---
 
