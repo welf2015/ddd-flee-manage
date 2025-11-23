@@ -25,6 +25,7 @@ import {
   Fuel,
   FileText,
   Wallet,
+  Activity,
 } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { useState, useEffect, startTransition } from "react"
@@ -91,6 +92,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
     { name: "Inventory", href: "/dashboard/inventory", icon: Package },
     { name: "Sales Insights", href: "/dashboard/sales-insights", icon: TrendingUp },
     { name: "Reports", href: "/dashboard/reports", icon: TrendingUp },
+    { name: "Fleet Activity", href: "/dashboard/fleet-activity", icon: Activity },
     { name: "Accountability", href: "/dashboard/accountability", icon: FileText },
     { name: "Settings", href: "/dashboard/settings", icon: Settings },
   ]

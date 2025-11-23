@@ -16,17 +16,21 @@ export function FuelClient() {
   const { data: fuelStats, mutate } = useSWR("fuel-stats", async () => {
     const { data } = await supabase.from("fuel_logs").select("*")
     const total = data?.reduce((sum, log) => sum + (log.cost || 0), 0) || 0
-    const thisMonth = data?.filter(log => {
+    
+    // Calculate weekly spending (last 7 days)
+    const now = new Date()
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const thisWeek = data?.filter(log => {
       const logDate = new Date(log.logged_at)
-      const now = new Date()
-      return logDate.getMonth() === now.getMonth() && logDate.getFullYear() === now.getFullYear()
+      return logDate >= weekAgo
     }) || []
-    const thisMonthTotal = thisMonth.reduce((sum, log) => sum + (log.cost || 0), 0)
+    const thisWeekTotal = thisWeek.reduce((sum, log) => sum + (log.cost || 0), 0)
+    
     const avgCost = data && data.length > 0 ? total / data.length : 0
 
     return {
       totalSpent: total,
-      thisMonthSpent: thisMonthTotal,
+      thisWeekSpent: thisWeekTotal,
       totalLogs: data?.length || 0,
       avgCostPerFill: avgCost,
     }
@@ -59,12 +63,12 @@ export function FuelClient() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Month</CardTitle>
+            <CardTitle className="text-sm font-medium">This Week</CardTitle>
             <TrendingUp className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₦{fuelStats?.thisMonthSpent.toLocaleString() || 0}</div>
-            <p className="text-xs text-muted-foreground">Current month spending</p>
+            <div className="text-2xl font-bold">₦{fuelStats?.thisWeekSpent.toLocaleString() || 0}</div>
+            <p className="text-xs text-muted-foreground">Current week spending</p>
           </CardContent>
         </Card>
 
