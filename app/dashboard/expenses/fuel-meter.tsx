@@ -5,9 +5,10 @@ import { useEffect, useState } from "react"
 
 type FuelMeterProps = {
   totalSpent: number
+  totalDeposited?: number
 }
 
-export function FuelMeter({ totalSpent }: FuelMeterProps) {
+export function FuelMeter({ totalSpent, totalDeposited = 0 }: FuelMeterProps) {
   const [displaySpent, setDisplaySpent] = useState(totalSpent)
 
   // Update display when totalSpent changes
@@ -16,10 +17,10 @@ export function FuelMeter({ totalSpent }: FuelMeterProps) {
   }, [totalSpent])
 
   // Calculate percentage for fuel meter visualization
-  // Using a scale where 0-100% represents spending levels
-  // For visualization, we'll use a logarithmic scale or fixed thresholds
-  const maxDisplay = 10000000 // 10M as max for visualization
-  const percentage = Math.min((displaySpent / maxDisplay) * 100, 100)
+  // Use totalDeposited as the scale if available, otherwise use a reasonable default
+  // This shows spending as a percentage of what was deposited
+  const maxDisplay = totalDeposited > 0 ? totalDeposited : Math.max(totalSpent * 2, 1000000) // At least 1M or 2x spent
+  const percentage = maxDisplay > 0 ? Math.min((displaySpent / maxDisplay) * 100, 100) : 0
 
   // Color based on spending level (like fuel gauge)
   const getColor = (pct: number) => {

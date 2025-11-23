@@ -109,6 +109,32 @@ export function ExpensesClient({ initialAccounts = [] }: ExpensesClientProps) {
         </Card>
       </div>
 
+      {/* Fuel Spending Overview - Only show for fuel tab */}
+      {activeTab === "fuel" && (() => {
+        const fuelAccount = accounts.find((a: any) => a.vendor?.vendor_type === "Fuel")
+        const totalFuelSpent = fuelAccount ? Number(fuelAccount.total_spent || 0) : 0
+        const totalDeposited = fuelAccount ? Number(fuelAccount.total_deposited || 0) : 0
+        
+        return (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Fuel Spending Overview</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Total Spent Display */}
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-1">Total Spent</p>
+                <p className="text-3xl font-bold">{formatCurrency(totalFuelSpent, "NGN")}</p>
+                <p className="text-xs text-muted-foreground mt-1">All time</p>
+              </div>
+
+              {/* Fuel Meter Visualization */}
+              <FuelMeter totalSpent={totalFuelSpent} totalDeposited={totalDeposited} />
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* Tabs */}
       <Tabs defaultValue="fuel" className="w-full" onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3">

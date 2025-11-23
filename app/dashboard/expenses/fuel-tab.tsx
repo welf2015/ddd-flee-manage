@@ -10,10 +10,6 @@ import { FuelMeter } from "./fuel-meter"
 
 type FuelTabProps = {
   onAddTopup: (accountId?: string) => void
-}
-
-type FuelTabProps = {
-  onAddTopup: (accountId?: string) => void
   initialAccounts?: any[]
 }
 
@@ -75,59 +71,6 @@ export function FuelTab({ onAddTopup, initialAccounts = [] }: FuelTabProps) {
 
   return (
     <div className="space-y-4">
-      {/* Account Card at Top */}
-      {mainAccount && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{mainAccount.account_name}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Current Balance</p>
-                <p
-                  className={`text-2xl font-bold ${
-                    mainAccount.current_balance < 0 ? "text-red-500" : "text-green-500"
-                  }`}
-                >
-                  {formatCurrency(mainAccount.current_balance, "NGN")}
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Total Deposited</p>
-                  <p className="font-medium">{formatCurrency(mainAccount.total_deposited, "NGN")}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Total Spent</p>
-                  <p className="font-medium">{formatCurrency(mainAccount.total_spent, "NGN")}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Fuel Meter Section */}
-      {mainAccount && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Fuel Spending Overview</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Total Spent Display */}
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-1">Total Spent</p>
-              <p className="text-3xl font-bold">{formatCurrency(totalFuelSpent, "NGN")}</p>
-              <p className="text-xs text-muted-foreground mt-1">All time</p>
-            </div>
-
-            {/* Fuel Meter Visualization */}
-            <FuelMeter totalSpent={totalFuelSpent} />
-          </CardContent>
-        </Card>
-      )}
-
       {/* Unified Transactions List */}
       <Card>
         <CardHeader>
