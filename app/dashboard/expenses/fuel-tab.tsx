@@ -16,7 +16,7 @@ type FuelTabProps = {
 export function FuelTab({ onAddTopup, initialAccounts = [] }: FuelTabProps) {
   // Get fuel accounts - filter initial accounts if provided
   const initialFuelAccounts = initialAccounts.filter((a: any) => a.vendor?.vendor_type === "Fuel")
-  const { data: fuelAccounts = initialFuelAccounts, mutate: mutateFuelAccounts } = useSWR(
+  const { data: fuelAccounts = initialFuelAccounts } = useSWR(
     "fuel-accounts",
     async () => {
       const { data } = await getPrepaidAccounts("Fuel")
@@ -25,7 +25,7 @@ export function FuelTab({ onAddTopup, initialAccounts = [] }: FuelTabProps) {
     },
     {
       fallbackData: initialFuelAccounts,
-      revalidateOnMount: true,
+      revalidateOnMount: false, // Don't revalidate on mount if we have initial data
     },
   )
 
@@ -36,13 +36,19 @@ export function FuelTab({ onAddTopup, initialAccounts = [] }: FuelTabProps) {
   // Get total fuel spent from account (more reliable than calculating from transactions)
   const totalFuelSpent = mainAccount ? Number(mainAccount.total_spent || 0) : 0
 
-  // Get fuel transactions
-  const { data: transactions = [], mutate: mutateTransactions } = useSWR("fuel-transactions", async () => {
-    const { data } = await getExpenseTransactions({ expenseType: "Fuel" })
-    return data || []
-  })
+  // Get fuel transactions - only fetch when mainAccount exists
+  const { data: transactions = [] } = useSWR(
+    mainAccount ? "fuel-transactions" : null,
+    async () => {
+      const { data } = await getExpenseTransactions({ expenseType: "Fuel" })
+      return data || []
+    },
+    {
+      revalidateOnMount: false,
+    },
+  )
 
-  // Get topups for fuel accounts
+  // Get topups for fuel accounts - only fetch when mainAccount exists
   const { data: topups = [] } = useSWR(
     mainAccount ? `fuel-topups-${mainAccount.id}` : null,
     async () => {
@@ -50,6 +56,9 @@ export function FuelTab({ onAddTopup, initialAccounts = [] }: FuelTabProps) {
       const { getTopups } = await import("@/app/actions/expenses")
       const result = await getTopups(mainAccount.id)
       return result.data || []
+    },
+    {
+      revalidateOnMount: false,
     },
   )
 

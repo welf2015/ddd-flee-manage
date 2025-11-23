@@ -34,7 +34,7 @@ export function ExpensesClient({ initialAccounts = [] }: ExpensesClientProps) {
     },
     {
       fallbackData: initialAccounts,
-      revalidateOnMount: true,
+      revalidateOnMount: false, // Use initial data immediately
     },
   )
 
