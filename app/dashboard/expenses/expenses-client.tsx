@@ -124,7 +124,7 @@ export function ExpensesClient({ initialAccounts = [] }: ExpensesClientProps) {
               Add Top-up
             </Button>
           </div>
-          <FuelTab onAddTopup={handleAddTopup} />
+          <FuelTab onAddTopup={handleAddTopup} initialAccounts={accounts} />
         </TabsContent>
 
         <TabsContent value="ticketing" className="space-y-4 mt-4">
@@ -134,7 +134,7 @@ export function ExpensesClient({ initialAccounts = [] }: ExpensesClientProps) {
               Add Top-up
             </Button>
           </div>
-          <TicketingTab onAddTopup={handleAddTopup} />
+          <TicketingTab onAddTopup={handleAddTopup} initialAccounts={accounts} />
         </TabsContent>
 
         <TabsContent value="allowance" className="space-y-4 mt-4">
@@ -144,7 +144,7 @@ export function ExpensesClient({ initialAccounts = [] }: ExpensesClientProps) {
               Add Top-up
             </Button>
           </div>
-          <AllowanceTab onAddTopup={handleAddTopup} />
+          <AllowanceTab onAddTopup={handleAddTopup} initialAccounts={accounts} />
         </TabsContent>
       </Tabs>
 
