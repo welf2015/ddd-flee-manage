@@ -37,25 +37,49 @@ export function PostDealForm({ procurementId, currentStatus, onComplete }: PostD
     idecWaiverValid: false,
     invoiceUrl: "",
     receiptUrl: "",
+    soncapUrl: "",
+    naddcUrl: "",
+    formMUrl: "",
+    customDutyReceiptUrl: "",
+    releaseOrderUrl: "",
+    billOfLadingUrl: "",
+    packingListUrl: "",
+    commercialInvoiceUrl: "",
+    receivedAt: "", // Added receivedAt to state
   })
 
-  const handleFileUpload = async (file: File, fieldName: "invoiceUrl" | "receiptUrl") => {
+  const handleFileUpload = async (file: File, fieldName: string, docType: string) => {
     setUploading(true)
     try {
+      const configRes = await fetch("/api/upload")
+      if (!configRes.ok) {
+        throw new Error("Upload service not configured")
+      }
+
+      const { workerUrl, authKey } = await configRes.json()
+
       const formDataUpload = new FormData()
       formDataUpload.append("file", file)
       formDataUpload.append("folder", `procurement-documents/${procurementId}`)
 
-      const response = await fetch("/api/r2-upload", {
+      const response = await fetch(workerUrl, {
         method: "POST",
+        headers: {
+          "X-Auth-Key": authKey,
+        },
         body: formDataUpload,
       })
 
       if (!response.ok) throw new Error("Upload failed")
 
       const { url } = await response.json()
+      // @ts-ignore - dynamic key access
       setFormData({ ...formData, [fieldName]: url })
-      toast.success("Document uploaded successfully")
+
+      // Automatically save the document record
+      await uploadProcurementDocument(procurementId, file.name, url, docType)
+
+      toast.success(`${docType} uploaded successfully`)
     } catch (error) {
       console.error("[v0] Upload error:", error)
       toast.error("Failed to upload document")
@@ -98,14 +122,9 @@ export function PostDealForm({ procurementId, currentStatus, onComplete }: PostD
         customs_documents: formData.customsDocuments,
         tdo_obtained: formData.tdoObtained,
         idec_waiver_valid: formData.idecWaiverValid,
+        received_by: formData.receivedBy, // Added receiver details
+        received_at: formData.receivedAt, // Added receiver details
       })
-
-      if (formData.invoiceUrl) {
-        await uploadProcurementDocument(procurementId, "Invoice", formData.invoiceUrl, "Invoice")
-      }
-      if (formData.receiptUrl) {
-        await uploadProcurementDocument(procurementId, "Receipt", formData.receiptUrl, "Receipt")
-      }
 
       toast.success("Clearing details saved")
       onComplete?.()
@@ -148,6 +167,85 @@ export function PostDealForm({ procurementId, currentStatus, onComplete }: PostD
               <Package className="h-4 w-4" />
               Shipping & Tracking Information
             </h3>
+
+            <div className="col-span-2 space-y-4 border-b pb-4">
+              <Label className="text-sm font-medium">Post-Payment Documents</Label>
+              <div className="grid grid-cols-3 gap-3">
+                {/* SONCAP Upload */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">SONCAP</Label>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={uploading}
+                      className={formData.soncapUrl ? "border-green-500 text-green-600" : ""}
+                      onClick={() => document.getElementById("soncap-upload")?.click()}
+                    >
+                      <Upload className="h-3 w-3 mr-2" />
+                      {formData.soncapUrl ? "Uploaded" : "Upload"}
+                    </Button>
+                    <input
+                      type="file"
+                      id="soncap-upload"
+                      className="hidden"
+                      onChange={(e) =>
+                        e.target.files?.[0] && handleFileUpload(e.target.files[0], "soncapUrl", "SONCAP")
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* NADDC Upload */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">NADDC</Label>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={uploading}
+                      className={formData.naddcUrl ? "border-green-500 text-green-600" : ""}
+                      onClick={() => document.getElementById("naddc-upload")?.click()}
+                    >
+                      <Upload className="h-3 w-3 mr-2" />
+                      {formData.naddcUrl ? "Uploaded" : "Upload"}
+                    </Button>
+                    <input
+                      type="file"
+                      id="naddc-upload"
+                      className="hidden"
+                      onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], "naddcUrl", "NADDC")}
+                    />
+                  </div>
+                </div>
+
+                {/* Form M Upload */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Form M</Label>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={uploading}
+                      className={formData.formMUrl ? "border-green-500 text-green-600" : ""}
+                      onClick={() => document.getElementById("formm-upload")?.click()}
+                    >
+                      <Upload className="h-3 w-3 mr-2" />
+                      {formData.formMUrl ? "Uploaded" : "Upload"}
+                    </Button>
+                    <input
+                      type="file"
+                      id="formm-upload"
+                      className="hidden"
+                      onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], "formMUrl", "Form M")}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -220,6 +318,154 @@ export function PostDealForm({ procurementId, currentStatus, onComplete }: PostD
               Customs & Clearing Details
             </h3>
 
+            <div className="space-y-4 border-b pb-4">
+              <Label className="text-sm font-medium">Clearing Documentation</Label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {/* Custom Duty Receipt */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Custom Duty Receipt</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={`w-full ${formData.customDutyReceiptUrl ? "border-green-500 text-green-600" : ""}`}
+                    onClick={() => document.getElementById("cdr-upload")?.click()}
+                  >
+                    <Upload className="h-3 w-3 mr-2" />
+                    {formData.customDutyReceiptUrl ? "Uploaded" : "Upload"}
+                  </Button>
+                  <input
+                    type="file"
+                    id="cdr-upload"
+                    className="hidden"
+                    onChange={(e) =>
+                      e.target.files?.[0] &&
+                      handleFileUpload(e.target.files[0], "customDutyReceiptUrl", "Custom Duty Receipt")
+                    }
+                  />
+                </div>
+
+                {/* Release Order */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Release Order</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={`w-full ${formData.releaseOrderUrl ? "border-green-500 text-green-600" : ""}`}
+                    onClick={() => document.getElementById("ro-upload")?.click()}
+                  >
+                    <Upload className="h-3 w-3 mr-2" />
+                    {formData.releaseOrderUrl ? "Uploaded" : "Upload"}
+                  </Button>
+                  <input
+                    type="file"
+                    id="ro-upload"
+                    className="hidden"
+                    onChange={(e) =>
+                      e.target.files?.[0] && handleFileUpload(e.target.files[0], "releaseOrderUrl", "Release Order")
+                    }
+                  />
+                </div>
+
+                {/* Terminal Delivery Order */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Terminal Delivery Order (TDO)</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={`w-full ${formData.tdoObtained ? "border-green-500 text-green-600" : ""}`}
+                    onClick={() => document.getElementById("tdo-file-upload")?.click()}
+                  >
+                    <Upload className="h-3 w-3 mr-2" />
+                    {formData.tdoObtained ? "Uploaded" : "Upload"}
+                  </Button>
+                  <input
+                    type="file"
+                    id="tdo-file-upload"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) {
+                        handleFileUpload(e.target.files[0], "tdoObtained", "Terminal Delivery Order")
+                        setFormData((prev) => ({ ...prev, tdoObtained: true }))
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* Bill of Lading */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Bill of Lading</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={`w-full ${formData.billOfLadingUrl ? "border-green-500 text-green-600" : ""}`}
+                    onClick={() => document.getElementById("bol-upload")?.click()}
+                  >
+                    <Upload className="h-3 w-3 mr-2" />
+                    {formData.billOfLadingUrl ? "Uploaded" : "Upload"}
+                  </Button>
+                  <input
+                    type="file"
+                    id="bol-upload"
+                    className="hidden"
+                    onChange={(e) =>
+                      e.target.files?.[0] && handleFileUpload(e.target.files[0], "billOfLadingUrl", "Bill of Lading")
+                    }
+                  />
+                </div>
+
+                {/* Packing List */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Packing List</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={`w-full ${formData.packingListUrl ? "border-green-500 text-green-600" : ""}`}
+                    onClick={() => document.getElementById("pl-upload")?.click()}
+                  >
+                    <Upload className="h-3 w-3 mr-2" />
+                    {formData.packingListUrl ? "Uploaded" : "Upload"}
+                  </Button>
+                  <input
+                    type="file"
+                    id="pl-upload"
+                    className="hidden"
+                    onChange={(e) =>
+                      e.target.files?.[0] && handleFileUpload(e.target.files[0], "packingListUrl", "Packing List")
+                    }
+                  />
+                </div>
+
+                {/* Commercial Invoice */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Commercial Invoice</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={`w-full ${formData.commercialInvoiceUrl ? "border-green-500 text-green-600" : ""}`}
+                    onClick={() => document.getElementById("ci-upload")?.click()}
+                  >
+                    <Upload className="h-3 w-3 mr-2" />
+                    {formData.commercialInvoiceUrl ? "Uploaded" : "Upload"}
+                  </Button>
+                  <input
+                    type="file"
+                    id="ci-upload"
+                    className="hidden"
+                    onChange={(e) =>
+                      e.target.files?.[0] &&
+                      handleFileUpload(e.target.files[0], "commercialInvoiceUrl", "Commercial Invoice")
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Clearing Date *</Label>
@@ -240,7 +486,7 @@ export function PostDealForm({ procurementId, currentStatus, onComplete }: PostD
                 />
               </div>
               <div className="col-span-2">
-                <Label>Customs Documents & Duty Payments *</Label>
+                <Label>Customs Documents & Duty Payments Notes</Label>
                 <Textarea
                   value={formData.customsDocuments}
                   onChange={(e) => setFormData({ ...formData, customsDocuments: e.target.value })}
@@ -250,76 +496,22 @@ export function PostDealForm({ procurementId, currentStatus, onComplete }: PostD
                 />
               </div>
               <div>
-                <Label>Invoice Upload</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    id="invoice-upload"
-                    accept="image/*,.pdf"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) {
-                        handleFileUpload(e.target.files[0], "invoiceUrl")
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={uploading}
-                    onClick={() => document.getElementById("invoice-upload")?.click()}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    {formData.invoiceUrl ? "Change Invoice" : "Upload Invoice"}
-                  </Button>
-                  {formData.invoiceUrl && (
-                    <a
-                      href={formData.invoiceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-accent hover:underline"
-                    >
-                      View
-                    </a>
-                  )}
-                </div>
+                <Label>Received By (From Clearing Agent) *</Label>
+                <Input
+                  value={formData.receivedBy}
+                  onChange={(e) => setFormData({ ...formData, receivedBy: e.target.value })}
+                  placeholder="Name of person receiving goods"
+                  required
+                />
               </div>
               <div>
-                <Label>Receipt Upload</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    id="receipt-upload"
-                    accept="image/*,.pdf"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) {
-                        handleFileUpload(e.target.files[0], "receiptUrl")
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={uploading}
-                    onClick={() => document.getElementById("receipt-upload")?.click()}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    {formData.receiptUrl ? "Change Receipt" : "Upload Receipt"}
-                  </Button>
-                  {formData.receiptUrl && (
-                    <a
-                      href={formData.receiptUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-accent hover:underline"
-                    >
-                      View
-                    </a>
-                  )}
-                </div>
+                <Label>Date Received *</Label>
+                <Input
+                  type="datetime-local"
+                  value={formData.receivedAt}
+                  onChange={(e) => setFormData({ ...formData, receivedAt: e.target.value })}
+                  required
+                />
               </div>
             </div>
 

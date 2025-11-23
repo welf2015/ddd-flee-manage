@@ -1,22 +1,32 @@
-import { put } from "@vercel/blob"
+// This ensures that if the Worker is configured, we don't even load the AWS SDK which caused file system issues.
 import { NextResponse } from "next/server"
 
-export async function POST(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const filename = searchParams.get("filename")
+// Standard Node.js runtime
+export const runtime = "nodejs"
 
-  if (!filename || !request.body) {
-    return NextResponse.json({ error: "Filename and body required" }, { status: 400 })
-  }
+export async function GET(request: Request) {
+  const workerUrl = process.env.R2_UPLOAD_WORKER_URL
+  const authKey = process.env.R2_AUTH_KEY
 
-  try {
-    const blob = await put(filename, request.body, {
-      access: "public",
+  if (workerUrl && authKey) {
+    return NextResponse.json({
+      workerUrl,
+      authKey,
     })
-
-    return NextResponse.json(blob)
-  } catch (error) {
-    console.error("Upload error:", error)
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 })
   }
+
+  // Worker configuration is required
+  return NextResponse.json(
+    {
+      error: "R2 upload worker not configured. Please add R2_UPLOAD_WORKER_URL and R2_AUTH_KEY environment variables.",
+    },
+    { status: 500 },
+  )
+}
+
+export async function POST(request: Request) {
+  return NextResponse.json(
+    { error: "Please use GET to obtain a presigned URL, then PUT the file directly." },
+    { status: 405 },
+  )
 }

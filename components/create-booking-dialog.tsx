@@ -58,6 +58,32 @@ export function CreateBookingDialog() {
   const router = useRouter()
   const supabase = createClient()
 
+  useEffect(() => {
+    if (!open) return
+
+    const searchClients = async () => {
+      if (clientSearchTerm.length < 2) {
+        setClientSuggestions([])
+        setShowClientSuggestions(false)
+        return
+      }
+
+      const { data } = await supabase
+        .from("clients")
+        .select("*")
+        .or(`company_name.ilike.%${clientSearchTerm}%,name.ilike.%${clientSearchTerm}%`)
+        .limit(5)
+
+      if (data) {
+        setClientSuggestions(data)
+        setShowClientSuggestions(data.length > 0)
+      }
+    }
+
+    const timeoutId = setTimeout(searchClients, 300)
+    return () => clearTimeout(timeoutId)
+  }, [clientSearchTerm, open, supabase])
+
   const { data: driversWithRatings = [] } = useSWR(open ? "drivers-with-ratings" : null, async () => {
     const { data: drivers } = await supabase.from("drivers").select("*").eq("status", "Active").order("full_name")
     if (!drivers) return []
@@ -107,7 +133,7 @@ export function CreateBookingDialog() {
 
     try {
       const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&types=address,poi,place`,
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&types=address,poi,place&country=NG&proximity=3.3792,6.5244&limit=5`,
       )
       const data = await response.json()
       setSuggestions(data.features || [])
@@ -151,7 +177,7 @@ export function CreateBookingDialog() {
 
     try {
       const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&limit=1`,
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&country=NG&limit=1`,
       )
       const data = await response.json()
 
@@ -198,20 +224,21 @@ export function CreateBookingDialog() {
 
     setDestinations(updatedDestinations)
 
-    const formData = new FormData(e.currentTarget)
+    const form = e.currentTarget
+    const formData = new FormData(form)
 
     const route = updatedDestinations.map((d) => `${d.from} → ${d.to}`).join(", ")
     formData.set("route", route)
     formData.set("requires_waybill", requiresWaybill.toString())
 
-    if (updatedDestinations[0].fromLat && updatedDestinations[0].fromLng) {
+    if (updatedDestinations[0]?.fromLat != null && updatedDestinations[0]?.fromLng != null) {
       formData.set("pickup_lat", updatedDestinations[0].fromLat.toString())
       formData.set("pickup_lng", updatedDestinations[0].fromLng.toString())
       formData.set("pickup_address", updatedDestinations[0].from)
     }
 
     const lastDest = updatedDestinations[updatedDestinations.length - 1]
-    if (lastDest.toLat && lastDest.toLng) {
+    if (lastDest?.toLat != null && lastDest?.toLng != null) {
       formData.set("delivery_lat", lastDest.toLat.toString())
       formData.set("delivery_lng", lastDest.toLng.toString())
       formData.set("delivery_address", lastDest.to)
@@ -224,7 +251,7 @@ export function CreateBookingDialog() {
         toast.success("Booking created successfully")
         setOpen(false)
         router.refresh()
-        ;(e.target as HTMLFormElement).reset()
+        form.reset()
         setDestinations([{ from: "", to: "", fromLat: null, fromLng: null, toLat: null, toLng: null }])
         setRequiresWaybill(false)
         setClientSearchTerm("")
@@ -232,6 +259,7 @@ export function CreateBookingDialog() {
         toast.error(result.error || "Failed to create booking")
       }
     } catch (error) {
+      console.error("[v0] Booking creation error:", error)
       toast.error("An unexpected error occurred")
     } finally {
       setLoading(false)
@@ -344,20 +372,47 @@ export function CreateBookingDialog() {
           coordinates.forEach((coord) => bounds.extend(coord as [number, number]))
           currentMap.fitBounds(bounds, { padding: 50 })
 
-          if (currentMap.getSource("route")) {
-            ;(currentMap.getSource("route") as mapboxgl.GeoJSONSource).setData({
-              type: "Feature",
-              properties: {},
-              geometry: {
-                type: "LineString",
-                coordinates: coordinates,
-              },
-            })
-          } else {
-            if (currentMap.isStyleLoaded()) {
-              addRouteLayer(currentMap, coordinates)
-            } else {
-              currentMap.on("load", () => addRouteLayer(currentMap, coordinates))
+          if (coordinates.length >= 2) {
+            try {
+              const waypoints = coordinates.map((coord) => `${coord[0]},${coord[1]}`).join(";")
+              const directionsResponse = await fetch(
+                `https://api.mapbox.com/directions/v5/mapbox/driving/${waypoints}?geometries=geojson&access_token=${MAPBOX_TOKEN}`,
+              )
+              const directionsData = await directionsResponse.json()
+
+              if (directionsData.routes && directionsData.routes[0]) {
+                const routeGeometry = directionsData.routes[0].geometry
+
+                if (currentMap.getSource("route")) {
+                  ;(currentMap.getSource("route") as mapboxgl.GeoJSONSource).setData(routeGeometry)
+                } else {
+                  if (currentMap.isStyleLoaded()) {
+                    addRouteLayer(currentMap, routeGeometry)
+                  } else {
+                    currentMap.on("load", () => addRouteLayer(currentMap, routeGeometry))
+                  }
+                }
+              }
+            } catch (error) {
+              console.error("Error fetching directions:", error)
+              // Fallback to straight line if directions fail
+              const lineGeometry = {
+                type: "Feature",
+                properties: {},
+                geometry: {
+                  type: "LineString",
+                  coordinates: coordinates,
+                },
+              }
+              if (currentMap.getSource("route")) {
+                ;(currentMap.getSource("route") as mapboxgl.GeoJSONSource).setData(lineGeometry)
+              } else {
+                if (currentMap.isStyleLoaded()) {
+                  addRouteLayer(currentMap, lineGeometry)
+                } else {
+                  currentMap.on("load", () => addRouteLayer(currentMap, lineGeometry))
+                }
+              }
             }
           }
         }
@@ -367,19 +422,12 @@ export function CreateBookingDialog() {
       }
     }
 
-    const addRouteLayer = (map: mapboxgl.Map, coordinates: [number, number][]) => {
+    const addRouteLayer = (map: mapboxgl.Map, routeGeometry: any) => {
       if (map.getSource("route")) return
 
       map.addSource("route", {
         type: "geojson",
-        data: {
-          type: "Feature",
-          properties: {},
-          geometry: {
-            type: "LineString",
-            coordinates: coordinates,
-          },
-        },
+        data: routeGeometry,
       })
       map.addLayer({
         id: "route",

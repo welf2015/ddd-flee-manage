@@ -3,6 +3,93 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
+export async function getOnboardingDetails(onboardingId: string) {
+  const supabase = await createClient()
+
+  // 1. Try to fetch the onboarding record with current progress
+  const { data: onboarding, error } = await supabase
+    .from("vehicle_onboarding")
+    .select(`
+      *,
+      procurement:procurements!vehicle_onboarding_procurement_id_fkey(
+        procurement_number, 
+        received_by,
+        received_at,
+        vendor:vendors(name, email, phone),
+        clearing_agent:clearing_agents(name, email, phone)
+      ),
+      assigned_to:profiles(full_name),
+      progress:vehicle_onboarding_progress(
+        *,
+        checklist_item:onboarding_checklist_items(
+          *,
+          category:onboarding_categories(name)
+        ),
+        completed_by:profiles(full_name)
+      )
+    `)
+    .eq("id", onboardingId)
+    .single()
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  // 2. If progress is empty, it means we need to initialize it with the new checklist
+  if (!onboarding.progress || onboarding.progress.length === 0) {
+    // Get all checklist items
+    const { data: checklistItems } = await supabase.from("onboarding_checklist_items").select("id").order("order_index")
+
+    if (checklistItems && checklistItems.length > 0) {
+      const progressEntries = checklistItems.map((item) => ({
+        onboarding_id: onboardingId,
+        checklist_item_id: item.id,
+        is_completed: false,
+      }))
+
+      const { error: insertError } = await supabase.from("vehicle_onboarding_progress").insert(progressEntries)
+
+      if (insertError) {
+        console.error("Error initializing progress:", insertError)
+        return { success: false, error: "Failed to initialize checklist" }
+      }
+
+      // 3. Refetch the data now that progress exists
+      const { data: refetchedData, error: refetchError } = await supabase
+        .from("vehicle_onboarding")
+        .select(`
+          *,
+          procurement:procurements!vehicle_onboarding_procurement_id_fkey(
+            procurement_number, 
+            received_by,
+            received_at,
+            vendor:vendors(name, email, phone),
+            clearing_agent:clearing_agents(name, email, phone)
+          ),
+          assigned_to:profiles(full_name),
+          progress:vehicle_onboarding_progress(
+            *,
+            checklist_item:onboarding_checklist_items(
+              *,
+              category:onboarding_categories(name)
+            ),
+            completed_by:profiles(full_name)
+          )
+        `)
+        .eq("id", onboardingId)
+        .single()
+
+      if (refetchError) {
+        return { success: false, error: refetchError.message }
+      }
+
+      return { success: true, data: refetchedData }
+    }
+  }
+
+  return { success: true, data: onboarding }
+}
+
 export async function toggleChecklistItem(progressId: string, isCompleted: boolean) {
   const supabase = await createClient()
 
@@ -51,7 +138,7 @@ export async function completeOnboarding(onboardingId: string) {
   // Get onboarding details
   const { data: onboarding } = await supabase
     .from("vehicle_onboarding")
-    .select("*, progress:vehicle_onboarding_progress(*), procurement:procurements(id)")
+    .select("*, progress:vehicle_onboarding_progress(*)")
     .eq("id", onboardingId)
     .single()
 

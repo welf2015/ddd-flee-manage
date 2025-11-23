@@ -78,13 +78,9 @@ export async function rejectInspection(inspectionId: string, reason: string) {
 export async function getExpiringComplianceItems() {
   const supabase = await createClient()
 
-  const { data: vehicles } = await supabase
-    .from('vehicles')
-    .select('id, vehicle_number')
+  const { data: vehicles } = await supabase.from("vehicles").select("id, vehicle_number")
 
-  const { data: checklists } = await supabase
-    .from('vehicle_compliance_checklist')
-    .select('*')
+  const { data: checklists } = await supabase.from("vehicle_compliance_checklist").select("*")
 
   const thirtyDaysFromNow = new Date()
   thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
@@ -97,12 +93,12 @@ export async function getExpiringComplianceItems() {
     if (!vehicle) return
 
     const ITEMS_WITH_DATES = [
-      { key: 'vehicle_insurance', label: 'Vehicle Insurance' },
-      { key: 'vehicle_license', label: 'Vehicle License' },
-      { key: 'road_worthiness', label: 'Road Worthiness' },
-      { key: 'hackney_permit', label: 'Hackney Permit' },
-      { key: 'cdl_license', label: 'CDL License' },
-      { key: 'driver_license', label: "Driver's License" },
+      { key: "vehicle_insurance", label: "Vehicle Insurance" },
+      { key: "vehicle_license", label: "Vehicle License" },
+      { key: "road_worthiness", label: "Road Worthiness" },
+      { key: "hackney_permit", label: "Hackney Permit" },
+      { key: "cdl_license", label: "CDL License" },
+      { key: "driver_license", label: "Driver's License" },
     ]
 
     ITEMS_WITH_DATES.forEach((item) => {
@@ -126,25 +122,32 @@ export async function getExpiringComplianceItems() {
 }
 
 export async function getLowStockItems() {
-  const supabase = await createClient()
+  try {
+    const supabase = await createClient()
 
-  const { data: parts, error } = await supabase
-    .from("inventory_parts")
-    .select("name, part_number, current_stock, reorder_level")
-    .order("current_stock", { ascending: true })
+    const { data: parts, error } = await supabase
+      .from("inventory_parts")
+      .select("name, part_number, current_stock, reorder_level")
+      .order("current_stock", { ascending: true })
 
-  if (error) {
-    console.error("[v0] Error fetching inventory parts:", error)
+    if (error) {
+      if (!JSON.stringify(error).includes("Too Many Requests")) {
+        console.error("[v0] Error fetching inventory parts:", error)
+      }
+      return []
+    }
+
+    // Filter in JS to avoid type casting issues with the reorder_level column
+    const lowStock = parts.filter((part: any) => part.current_stock <= part.reorder_level)
+
+    return lowStock.map((part: any) => ({
+      name: part.name,
+      partNumber: part.part_number,
+      currentStock: part.current_stock,
+      reorderLevel: part.reorder_level,
+    }))
+  } catch (err) {
+    console.error("[v0] Unexpected error in getLowStockItems:", err)
     return []
   }
-
-  // Filter in JS to avoid type casting issues with the reorder_level column
-  const lowStock = parts.filter((part: any) => part.current_stock <= part.reorder_level)
-
-  return lowStock.map((part: any) => ({
-    name: part.name,
-    partNumber: part.part_number,
-    currentStock: part.current_stock,
-    reorderLevel: part.reorder_level,
-  }))
 }

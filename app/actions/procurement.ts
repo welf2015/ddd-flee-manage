@@ -15,7 +15,10 @@ export async function createProcurement(data: {
   transmission_type?: string
   quantity: number
   initial_quote: number
+  currency?: "NGN" | "USD"
   notes?: string
+  car_design_photos?: string[]
+  warranty_details?: string
 }) {
   const supabase = await createClient()
 
@@ -50,7 +53,10 @@ export async function createProcurement(data: {
       transmission_type: data.transmission_type,
       quantity: data.quantity,
       initial_quote: data.initial_quote,
+      currency: data.currency,
       notes: data.notes,
+      car_design_photos: data.car_design_photos,
+      warranty_details: data.warranty_details,
       status: "Negotiation",
       created_by: user.id,
     })
@@ -594,6 +600,7 @@ export async function updatePostDealInfo(
     condition_on_arrival?: string
     warranty_details?: string
     received_by?: string
+    received_at?: string
     clearing_date?: string
     license_plate_number?: string
     customs_documents?: string
@@ -623,7 +630,7 @@ export async function updatePostDealInfo(
   } else if (data.clearing_date && data.license_plate_number) {
     statusUpdate.status = "Ready for Onboarding"
     timelineAction = "Clearing Completed"
-    timelineNotes = `Vehicle cleared, License Plate: ${data.license_plate_number}`
+    timelineNotes = `Vehicle cleared and received by ${data.received_by || "Unknown"} on ${data.received_at}`
   } else if (data.condition_on_arrival) {
     timelineAction = "Arrival Details Updated"
     timelineNotes = `Vehicle condition documented by ${data.received_by}`

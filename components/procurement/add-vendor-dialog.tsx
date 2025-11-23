@@ -192,6 +192,7 @@ export function AddVendorDialog({ open, onOpenChange, onVendorAdded }: AddVendor
 
             <div className="col-span-2">
               <Label>Bank Details (Optional)</Label>
+              <p className="text-xs text-red-500 mb-2">* No personal account allowed. Company account required.</p>
               <Textarea
                 value={formData.bankDetails}
                 onChange={(e) => setFormData({ ...formData, bankDetails: e.target.value })}

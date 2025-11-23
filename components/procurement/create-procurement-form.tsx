@@ -10,10 +10,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createProcurement } from "@/app/actions/procurement"
-import { Plus } from "lucide-react"
+import { Plus, Upload, X } from "lucide-react"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
 import { AddVendorDialog } from "./add-vendor-dialog"
+import { toast } from "sonner"
 
 interface CreateProcurementFormProps {
   open: boolean
@@ -23,6 +24,7 @@ interface CreateProcurementFormProps {
 export function CreateProcurementForm({ open, onOpenChange }: CreateProcurementFormProps) {
   const supabase = createClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [showAddVendor, setShowAddVendor] = useState(false)
   const [currency, setCurrency] = useState<"NGN" | "USD">("NGN")
   const [formData, setFormData] = useState({
@@ -38,7 +40,63 @@ export function CreateProcurementForm({ open, onOpenChange }: CreateProcurementF
     quantity: "1",
     initialQuote: "",
     notes: "",
+    warrantyDetails: "",
+    carDesignPhotos: [] as string[],
   })
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return
+
+    setUploading(true)
+    const newPhotos: string[] = []
+
+    try {
+      const configRes = await fetch("/api/upload")
+      if (!configRes.ok) {
+        throw new Error("Upload service not configured")
+      }
+
+      const { workerUrl, authKey } = await configRes.json()
+
+      for (let i = 0; i < e.target.files.length; i++) {
+        const file = e.target.files[i]
+        const formDataUpload = new FormData()
+        formDataUpload.append("file", file)
+        formDataUpload.append("folder", "procurement-designs")
+
+        const response = await fetch(workerUrl, {
+          method: "POST",
+          headers: {
+            "X-Auth-Key": authKey,
+          },
+          body: formDataUpload,
+        })
+
+        if (!response.ok) throw new Error("Upload failed")
+
+        const { url } = await response.json()
+        newPhotos.push(url)
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        carDesignPhotos: [...prev.carDesignPhotos, ...newPhotos],
+      }))
+      toast.success("Photos uploaded successfully")
+    } catch (error) {
+      console.error("Upload error:", error)
+      toast.error("Failed to upload photos")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const removePhoto = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      carDesignPhotos: prev.carDesignPhotos.filter((_, i) => i !== index),
+    }))
+  }
 
   const { data: vendors = [], mutate: mutateVendors } = useSWR("vendors-list", async () => {
     const { data } = await supabase.from("vendors").select("*").order("name")
@@ -65,8 +123,10 @@ export function CreateProcurementForm({ open, onOpenChange }: CreateProcurementF
         transmission_type: formData.transmissionType,
         quantity: Number.parseInt(formData.quantity),
         initial_quote: Number.parseFloat(formData.initialQuote.replace(/,/g, "")),
-        currency: currency, // Include currency in procurement creation
+        currency: currency,
         notes: formData.notes,
+        car_design_photos: formData.carDesignPhotos,
+        warranty_details: formData.warrantyDetails,
       })
 
       onOpenChange(false)
@@ -84,6 +144,8 @@ export function CreateProcurementForm({ open, onOpenChange }: CreateProcurementF
         quantity: "1",
         initialQuote: "",
         notes: "",
+        warrantyDetails: "",
+        carDesignPhotos: [],
       })
       setCurrency("NGN")
     } catch (error) {
@@ -254,6 +316,48 @@ export function CreateProcurementForm({ open, onOpenChange }: CreateProcurementF
                       <SelectItem value="Automatic">Automatic</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="col-span-2">
+                  <Label>Warranty Details</Label>
+                  <Textarea
+                    value={formData.warrantyDetails}
+                    onChange={(e) => setFormData({ ...formData, warrantyDetails: e.target.value })}
+                    placeholder="Enter warranty information (e.g., 3 years / 100,000 km)"
+                    rows={2}
+                  />
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label>Car Design Photos</Label>
+                  <div className="grid grid-cols-4 gap-4">
+                    {formData.carDesignPhotos.map((photo, index) => (
+                      <div key={index} className="relative aspect-video bg-muted rounded-lg overflow-hidden group">
+                        <img
+                          src={photo || "/placeholder.svg"}
+                          alt={`Design ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePhoto(index)}
+                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                    <div className="relative aspect-video bg-muted border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        disabled={uploading}
+                      />
+                      <Upload className="h-6 w-6 text-muted-foreground mb-2" />
+                      <span className="text-xs text-muted-foreground">{uploading ? "Uploading..." : "Add Photos"}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

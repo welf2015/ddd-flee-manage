@@ -22,14 +22,14 @@ import {
   Wrench,
   Star,
   CheckSquare,
-  DollarSign,
+  Fuel,
   FileText,
 } from "lucide-react"
-import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState, useEffect, startTransition } from "react"
 import { cn } from "@/lib/utils"
 import { NotificationsBell } from "@/components/notifications-bell"
+import { Progress } from "@/components/ui/progress"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -39,6 +39,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
   const [open, setOpen] = useState(false)
   const [vehicleManagementOpen, setVehicleManagementOpen] = useState(false)
+  const [isNavigating, setIsNavigating] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -52,6 +53,18 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
     }
   }, [pathname])
 
+  useEffect(() => {
+    setIsNavigating(false)
+  }, [pathname])
+
+  const handleNavigation = (href: string) => {
+    setIsNavigating(true)
+    setOpen(false)
+    startTransition(() => {
+      router.push(href)
+    })
+  }
+
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: Home },
     { name: "Bookings", href: "/dashboard/bookings", icon: ClipboardList },
@@ -63,18 +76,18 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
       submenu: [
         { name: "Vehicles", href: "/dashboard/vehicle-management/vehicles", icon: Truck },
         { name: "Onboarding", href: "/dashboard/vehicle-management/onboarding", icon: ClipboardList },
-        { name: "Fuel/Charging", href: "/dashboard/vehicle-management/fuel", icon: DollarSign },
+        { name: "Fuel/Charging", href: "/dashboard/vehicle-management/fuel", icon: Fuel },
         { name: "Feedbacks", href: "/dashboard/vehicle-management/feedbacks", icon: Star },
         { name: "Compliance", href: "/dashboard/vehicle-management/compliance", icon: CheckSquare },
         { name: "Inspections", href: "/dashboard/vehicle-management/inspections", icon: ClipboardList },
         { name: "Incidents", href: "/dashboard/incidents", icon: AlertCircle },
-        { name: "Maintenance", href: "/dashboard/vehicle-management/maintenance", icon: Wrench },
+        { name: "Maintenance/Repairs", href: "/dashboard/vehicle-management/maintenance", icon: Wrench },
       ],
     },
     { name: "Clients", href: "/dashboard/clients", icon: Building2 },
     { name: "Procurement", href: "/dashboard/procurement", icon: ShoppingCart },
     { name: "Inventory", href: "/dashboard/inventory", icon: Package },
-    { name: "Sales Insights", href: "/dashboard/sales-insights", icon: DollarSign },
+    { name: "Sales Insights", href: "/dashboard/sales-insights", icon: TrendingUp },
     { name: "Reports", href: "/dashboard/reports", icon: TrendingUp },
     { name: "Accountability", href: "/dashboard/accountability", icon: FileText },
     { name: "Settings", href: "/dashboard/settings", icon: Settings },
@@ -88,7 +101,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
       <div className="px-4 py-4">
         <Button
           className="w-full justify-start gap-2 bg-accent hover:bg-accent/90 text-accent-foreground"
-          onClick={() => router.push("/dashboard/bookings")}
+          onClick={() => handleNavigation("/dashboard/bookings")}
         >
           <Plus className="h-5 w-5" />
           Create Booking
@@ -125,36 +138,35 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
                         const SubIcon = subitem.icon
                         const isSubActive = pathname === subitem.href
                         return (
-                          <Link key={subitem.href} href={subitem.href} onClick={() => setOpen(false)}>
-                            <Button
-                              variant="ghost"
-                              className={cn(
-                                "w-full justify-start gap-3 text-sm h-10",
-                                isSubActive && "bg-accent text-accent-foreground hover:bg-accent/90",
-                              )}
-                            >
-                              <SubIcon className="h-5 w-5" />
-                              {subitem.name}
-                            </Button>
-                          </Link>
+                          <Button
+                            key={subitem.href}
+                            variant="ghost"
+                            className={cn(
+                              "w-full justify-start gap-3 text-sm h-10",
+                              isSubActive && "bg-accent text-accent-foreground hover:bg-accent/90",
+                            )}
+                            onClick={() => handleNavigation(subitem.href)}
+                          >
+                            <SubIcon className="h-5 w-5" />
+                            {subitem.name}
+                          </Button>
                         )
                       })}
                     </div>
                   )}
                 </>
               ) : (
-                <Link href={item.href} onClick={() => setOpen(false)}>
-                  <Button
-                    variant="ghost"
-                    className={cn(
-                      "w-full justify-start gap-3 h-11",
-                      isActive && "bg-accent text-accent-foreground hover:bg-accent/90",
-                    )}
-                  >
-                    <Icon className="h-6 w-6" />
-                    <span className="text-sm font-medium">{item.name}</span>
-                  </Button>
-                </Link>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "w-full justify-start gap-3 h-11",
+                    isActive && "bg-accent text-accent-foreground hover:bg-accent/90",
+                  )}
+                  onClick={() => handleNavigation(item.href)}
+                >
+                  <Icon className="h-6 w-6" />
+                  <span className="text-sm font-medium">{item.name}</span>
+                </Button>
               )}
             </div>
           )
@@ -171,6 +183,12 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      {isNavigating && (
+        <div className="fixed top-0 left-0 right-0 z-[100]">
+          <Progress value={100} className="h-1 rounded-none [&>div]:bg-accent animate-pulse" />
+        </div>
+      )}
+
       <div className="flex">
         <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:w-[320px] border-r border-border bg-background/50 backdrop-blur">
           <Sidebar />

@@ -3,13 +3,13 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Eye } from 'lucide-react'
+import { Eye } from "lucide-react"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
 
 const fetcher = async () => {
   const supabase = createClient()
-  
+
   const { data, error } = await supabase
     .from("vehicle_onboarding")
     .select(`
@@ -23,13 +23,11 @@ const fetcher = async () => {
     console.error("[v0] Onboarding fetch error:", error.message)
     throw error
   }
-  
+
   // Manually fetch procurement data to avoid circular reference
   if (data && data.length > 0) {
-    const procurementIds = data
-      .filter(item => item.procurement_id)
-      .map(item => item.procurement_id)
-    
+    const procurementIds = data.filter((item) => item.procurement_id).map((item) => item.procurement_id)
+
     if (procurementIds.length > 0) {
       const { data: procurements } = await supabase
         .from("procurements")
@@ -39,17 +37,16 @@ const fetcher = async () => {
           vendor:vendors(name)
         `)
         .in("id", procurementIds)
-      
+
       // Map procurement data to onboarding records
-      data.forEach(item => {
+      data.forEach((item) => {
         if (item.procurement_id) {
-          item.procurement = procurements?.find(p => p.id === item.procurement_id)
+          item.procurement = procurements?.find((p) => p.id === item.procurement_id)
         }
       })
     }
   }
-  
-  console.log("[v0] Onboarding data fetched:", data?.length || 0, "records")
+
   return data || []
 }
 
@@ -59,19 +56,21 @@ interface OnboardingTableProps {
 }
 
 export function OnboardingTable({ search, onViewDetails }: OnboardingTableProps) {
-  const { data: onboarding, error, mutate } = useSWR("vehicle-onboarding", fetcher, {
-    refreshInterval: 5000,
+  const {
+    data: onboarding,
+    error,
+    mutate,
+  } = useSWR("vehicle-onboarding", fetcher, {
+    refreshInterval: 30000,
   })
 
   const filteredData = onboarding?.filter((item) =>
-    search ? item.vehicle_number?.toLowerCase().includes(search.toLowerCase()) : true
+    search ? item.vehicle_number?.toLowerCase().includes(search.toLowerCase()) : true,
   )
 
   if (error) {
     return (
-      <div className="text-sm text-destructive">
-        Failed to load onboarding data: {error.message || "Unknown error"}
-      </div>
+      <div className="text-sm text-destructive">Failed to load onboarding data: {error.message || "Unknown error"}</div>
     )
   }
 
@@ -121,36 +120,23 @@ export function OnboardingTable({ search, onViewDetails }: OnboardingTableProps)
                 <TableCell>
                   {item.procurement?.procurement_number || "N/A"}
                   {item.procurement?.vendor && (
-                    <div className="text-xs text-muted-foreground">
-                      {item.procurement.vendor.name}
-                    </div>
+                    <div className="text-xs text-muted-foreground">{item.procurement.vendor.name}</div>
                   )}
                 </TableCell>
                 <TableCell>{item.assigned_to_profile?.full_name || "Unassigned"}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <div className="w-full bg-secondary rounded-full h-2">
-                      <div
-                        className="bg-accent h-2 rounded-full transition-all"
-                        style={{ width: `${completion}%` }}
-                      />
+                      <div className="bg-accent h-2 rounded-full transition-all" style={{ width: `${completion}%` }} />
                     </div>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {completion}%
-                    </span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{completion}%</span>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={item.status === "Completed" ? "default" : "secondary"}>
-                    {item.status}
-                  </Badge>
+                  <Badge variant={item.status === "Completed" ? "default" : "secondary"}>{item.status}</Badge>
                 </TableCell>
                 <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onViewDetails(item.id)}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => onViewDetails(item.id)}>
                     <Eye className="h-4 w-4" />
                   </Button>
                 </TableCell>

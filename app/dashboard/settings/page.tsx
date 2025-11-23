@@ -11,6 +11,7 @@ import { ProfileSettings } from "@/components/profile-settings"
 import { DriversTable } from "@/components/drivers-table"
 import { CreateDriverDialog } from "@/components/create-driver-dialog"
 import { AccessControlSettings } from "@/components/settings/access-control-settings"
+import { StaffDirectorySettings } from "@/components/settings/staff-directory-settings"
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -57,6 +58,9 @@ export default async function SettingsPage() {
           <TabsTrigger value="drivers" className="flex-1 sm:flex-none">
             Drivers
           </TabsTrigger>
+          <TabsTrigger value="staff" className="flex-1 sm:flex-none">
+            Staff Directory
+          </TabsTrigger>
           <TabsTrigger value="access-control" className="flex-1 sm:flex-none">
             Access Control
           </TabsTrigger>
@@ -82,6 +86,10 @@ export default async function SettingsPage() {
             </CardHeader>
           </Card>
           <DriversTable drivers={drivers || []} />
+        </TabsContent>
+
+        <TabsContent value="staff">
+          <StaffDirectorySettings />
         </TabsContent>
 
         <TabsContent value="access-control">

@@ -1,16 +1,16 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, TrendingUp, TrendingDown, Activity } from 'lucide-react'
+import { Wallet, TrendingUp, TrendingDown, Activity } from "lucide-react"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
 
 const fetcher = async (timeRange: string) => {
   const supabase = createClient()
-  
+
   // Calculate date range
   const now = new Date()
-  let startDate = new Date()
+  const startDate = new Date()
   if (timeRange === "weekly") {
     startDate.setDate(now.getDate() - 7)
   } else if (timeRange === "monthly") {
@@ -44,17 +44,17 @@ const fetcher = async (timeRange: string) => {
     .gte("created_at", startDate.toISOString())
 
   // Calculate metrics
-  const totalRevenue = bookings
-    ?.filter((b) => ["Completed", "Closed"].includes(b.status))
-    .reduce((sum, b) => sum + (Number(b.current_negotiation_amount) || 0), 0) || 0
+  const totalRevenue =
+    bookings
+      ?.filter((b) => ["Completed", "Closed"].includes(b.status))
+      .reduce((sum, b) => sum + (Number(b.current_negotiation_amount) || 0), 0) || 0
 
   const totalJobCosts = jobCosts?.reduce((sum, c) => sum + (Number(c.amount) || 0), 0) || 0
-  
+
   const totalMaintenanceCosts = maintenance?.reduce((sum, m) => sum + (Number(m.cost) || 0), 0) || 0
-  
-  const totalProcurementCosts = procurements
-    ?.filter((p) => p.status === "Completed")
-    .reduce((sum, p) => sum + (Number(p.final_price) || 0), 0) || 0
+
+  const totalProcurementCosts =
+    procurements?.filter((p) => p.status === "Completed").reduce((sum, p) => sum + (Number(p.final_price) || 0), 0) || 0
 
   const totalCosts = totalJobCosts + totalMaintenanceCosts + totalProcurementCosts
   const netProfit = totalRevenue - totalCosts
@@ -86,7 +86,7 @@ export function FinancialOverview({ timeRange }: FinancialOverviewProps) {
     {
       title: "Total Revenue",
       value: `₦${(data?.totalRevenue || 0).toLocaleString()}`,
-      icon: DollarSign,
+      icon: Wallet,
       description: `${data?.completedJobs || 0} completed jobs`,
       trend: "up",
     },
@@ -106,9 +106,7 @@ export function FinancialOverview({ timeRange }: FinancialOverviewProps) {
     },
     {
       title: "Job Success Rate",
-      value: data?.totalJobs
-        ? `${Math.round((data.completedJobs / data.totalJobs) * 100)}%`
-        : "0%",
+      value: data?.totalJobs ? `${Math.round((data.completedJobs / data.totalJobs) * 100)}%` : "0%",
       icon: Activity,
       description: `${data?.failedJobs || 0} failed jobs`,
       trend: "neutral",

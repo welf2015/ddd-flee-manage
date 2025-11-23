@@ -12,7 +12,7 @@ import useSWR from "swr"
 
 export function NotificationsBell() {
   const [count, setCount] = useState(0)
-  const [prevCount, setPrevCount] = useState(0)
+  const prevCountRef = useRef(0)
   const [isOpen, setIsOpen] = useState(false)
   const [complianceAlerts, setComplianceAlerts] = useState<any[]>([])
   const [lowStockAlerts, setLowStockAlerts] = useState<any[]>([])
@@ -38,7 +38,7 @@ export function NotificationsBell() {
 
       return data || []
     },
-    { refreshInterval: 5000 },
+    { refreshInterval: 60000 },
   )
 
   useEffect(() => {
@@ -48,34 +48,39 @@ export function NotificationsBell() {
 
   useEffect(() => {
     async function fetchCount() {
-      const pendingCount = await getPendingInspectionsCount()
-      const alerts = await getExpiringComplianceItems()
-      const lowStock = await getLowStockItems()
+      try {
+        const pendingCount = await getPendingInspectionsCount()
+        const alerts = await getExpiringComplianceItems()
+        const lowStock = await getLowStockItems()
 
-      setComplianceAlerts(alerts)
-      setLowStockAlerts(lowStock)
+        setComplianceAlerts(alerts)
+        setLowStockAlerts(lowStock)
 
-      const totalCount = notifications.length + pendingCount + alerts.length + lowStock.length
+        const totalCount = notifications.length + pendingCount + alerts.length + lowStock.length
+        const prevCount = prevCountRef.current
 
-      const hasPlayedInSession = sessionStorage.getItem("hasPlayedNotificationSound")
+        const hasPlayedInSession = sessionStorage.getItem("hasPlayedNotificationSound")
 
-      if (totalCount > 0 && !hasPlayedInSession) {
-        playNotificationSound()
-        sessionStorage.setItem("hasPlayedNotificationSound", "true")
-      } else if (totalCount > prevCount && prevCount > 0) {
-        playNotificationSound()
+        if (totalCount > 0 && !hasPlayedInSession) {
+          playNotificationSound()
+          sessionStorage.setItem("hasPlayedNotificationSound", "true")
+        } else if (totalCount > prevCount && prevCount > 0) {
+          playNotificationSound()
+        }
+
+        setCount(totalCount)
+        prevCountRef.current = totalCount
+      } catch (error) {
+        console.error("[v0] Error fetching notification counts:", error)
       }
-
-      setCount(totalCount)
-      setPrevCount(totalCount)
     }
 
     fetchCount()
 
-    const interval = setInterval(fetchCount, 30000)
+    const interval = setInterval(fetchCount, 60000)
 
     return () => clearInterval(interval)
-  }, [prevCount, notifications.length])
+  }, [notifications.length])
 
   const playNotificationSound = () => {
     if (audioRef.current) {

@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Plus, Trash2, Upload } from 'lucide-react'
+import { Plus, Trash2, Upload } from "lucide-react"
 import { toast } from "sonner"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
@@ -29,10 +29,14 @@ type TripExpenseDialogProps = {
   embedded?: boolean
 }
 
-export function TripExpenseDialog({ open, onOpenChange, bookingId, onSuccess, embedded = false }: TripExpenseDialogProps) {
-  const [expenses, setExpenses] = useState<TripExpense[]>([
-    { cost_type: "Fuel", amount: "", description: "" },
-  ])
+export function TripExpenseDialog({
+  open,
+  onOpenChange,
+  bookingId,
+  onSuccess,
+  embedded = false,
+}: TripExpenseDialogProps) {
+  const [expenses, setExpenses] = useState<TripExpense[]>([{ cost_type: "Fuel", amount: "", description: "" }])
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const supabase = createClient()
@@ -47,7 +51,7 @@ export function TripExpenseDialog({ open, onOpenChange, bookingId, onSuccess, em
         .order("created_at", { ascending: false })
       return data || []
     },
-    { refreshInterval: 5000 }
+    { refreshInterval: 5000 },
   )
 
   const addExpense = () => {
@@ -67,12 +71,22 @@ export function TripExpenseDialog({ open, onOpenChange, bookingId, onSuccess, em
   const uploadReceipt = async (index: number, file: File) => {
     setUploading(true)
     try {
+      const configRes = await fetch("/api/upload")
+      if (!configRes.ok) {
+        throw new Error("Upload service not configured")
+      }
+
+      const { workerUrl, authKey } = await configRes.json()
+
       const formData = new FormData()
       formData.append("file", file)
-      formData.append("filename", `receipts/${bookingId}/${Date.now()}-${file.name}`)
+      formData.append("folder", `receipts/${bookingId}`)
 
-      const response = await fetch("/api/r2-upload", {
+      const response = await fetch(workerUrl, {
         method: "POST",
+        headers: {
+          "X-Auth-Key": authKey,
+        },
         body: formData,
       })
 
@@ -95,7 +109,7 @@ export function TripExpenseDialog({ open, onOpenChange, bookingId, onSuccess, em
       const { logTripExpenses } = await import("@/app/actions/bookings")
 
       for (const expense of expenses) {
-        if (!expense.amount || parseFloat(expense.amount) <= 0) {
+        if (!expense.amount || Number.parseFloat(expense.amount) <= 0) {
           toast.error("Please enter valid amounts for all expenses")
           setSaving(false)
           return
@@ -142,7 +156,9 @@ export function TripExpenseDialog({ open, onOpenChange, bookingId, onSuccess, em
               <Separator />
               <div className="flex justify-between items-center font-bold">
                 <span>Total</span>
-                <span>₦{existingExpenses.reduce((sum: number, e: any) => sum + (e.amount || 0), 0).toLocaleString()}</span>
+                <span>
+                  ₦{existingExpenses.reduce((sum: number, e: any) => sum + (e.amount || 0), 0).toLocaleString()}
+                </span>
               </div>
             </div>
           </CardContent>
@@ -237,7 +253,7 @@ export function TripExpenseDialog({ open, onOpenChange, bookingId, onSuccess, em
         </div>
       ))}
 
-      <Button variant="outline" onClick={addExpense} className="w-full">
+      <Button variant="outline" onClick={addExpense} className="w-full bg-transparent">
         <Plus className="h-4 w-4 mr-2" />
         Add Another Expense
       </Button>

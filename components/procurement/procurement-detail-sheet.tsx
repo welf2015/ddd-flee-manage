@@ -38,10 +38,15 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
   const [negotiationNote, setNegotiationNote] = useState("")
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null)
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
+  const [mtcFile, setMtcFile] = useState<File | null>(null)
+  const [proformaFile, setProformaFile] = useState<File | null>(null)
+  const [cocFile, setCocFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [waybill, setWaybill] = useState("")
   const [shippingDuration, setShippingDuration] = useState("")
   const [selectedAgent, setSelectedAgent] = useState("")
+  const [workerUrl, setWorkerUrl] = useState("")
+  const [authKey, setAuthKey] = useState("")
 
   const { data: procurement, mutate } = useSWR(
     procurementId ? `procurement-${procurementId}` : null,
@@ -67,6 +72,17 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
     const { data } = await supabase.from("clearing_agents").select("*")
     return data || []
   })
+
+  const fetchWorkerConfig = async () => {
+    const configRes = await fetch("/api/upload")
+    if (!configRes.ok) {
+      throw new Error("Upload service not configured")
+    }
+
+    const { workerUrl, authKey } = await configRes.json()
+    setWorkerUrl(workerUrl)
+    setAuthKey(authKey)
+  }
 
   if (!procurement) {
     return null
@@ -95,20 +111,83 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
   }
 
   const handleMarkPaid = async () => {
-    if (!invoiceFile && !receiptFile) return
+    if (!proformaFile && !invoiceFile) return
 
     setIsSubmitting(true)
     setIsUploading(true)
 
     try {
-      // Upload invoice
+      if (!workerUrl || !authKey) {
+        await fetchWorkerConfig()
+      }
+
+      if (mtcFile) {
+        const formData = new FormData()
+        formData.append("file", mtcFile)
+        formData.append("folder", `procurement-documents/${procurementId}`)
+
+        const uploadRes = await fetch(workerUrl, {
+          method: "POST",
+          headers: {
+            "X-Auth-Key": authKey,
+          },
+          body: formData,
+        })
+
+        if (uploadRes.ok) {
+          const { url } = await uploadRes.json()
+          await uploadProcurementDocument(procurementId, mtcFile.name, url, "Manufacturer's Test Certificate")
+        }
+      }
+
+      if (proformaFile) {
+        const formData = new FormData()
+        formData.append("file", proformaFile)
+        formData.append("folder", `procurement-documents/${procurementId}`)
+
+        const uploadRes = await fetch(workerUrl, {
+          method: "POST",
+          headers: {
+            "X-Auth-Key": authKey,
+          },
+          body: formData,
+        })
+
+        if (uploadRes.ok) {
+          const { url } = await uploadRes.json()
+          await uploadProcurementDocument(procurementId, proformaFile.name, url, "Proforma Invoice")
+        }
+      }
+
+      if (cocFile) {
+        const formData = new FormData()
+        formData.append("file", cocFile)
+        formData.append("folder", `procurement-documents/${procurementId}`)
+
+        const uploadRes = await fetch(workerUrl, {
+          method: "POST",
+          headers: {
+            "X-Auth-Key": authKey,
+          },
+          body: formData,
+        })
+
+        if (uploadRes.ok) {
+          const { url } = await uploadRes.json()
+          await uploadProcurementDocument(procurementId, cocFile.name, url, "Certificate of Conformity")
+        }
+      }
+
       if (invoiceFile) {
         const formData = new FormData()
         formData.append("file", invoiceFile)
         formData.append("folder", `procurement-documents/${procurementId}`)
 
-        const uploadRes = await fetch("/api/r2-upload", {
+        const uploadRes = await fetch(workerUrl, {
           method: "POST",
+          headers: {
+            "X-Auth-Key": authKey,
+          },
           body: formData,
         })
 
@@ -118,14 +197,16 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
         }
       }
 
-      // Upload receipt
       if (receiptFile) {
         const formData = new FormData()
         formData.append("file", receiptFile)
         formData.append("folder", `procurement-documents/${procurementId}`)
 
-        const uploadRes = await fetch("/api/r2-upload", {
+        const uploadRes = await fetch(workerUrl, {
           method: "POST",
+          headers: {
+            "X-Auth-Key": authKey,
+          },
           body: formData,
         })
 
@@ -139,6 +220,9 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
       await markProcurementAsPaid(procurementId)
       setInvoiceFile(null)
       setReceiptFile(null)
+      setMtcFile(null)
+      setProformaFile(null)
+      setCocFile(null)
       mutate()
     } catch (error) {
       console.error("Upload error:", error)
@@ -304,11 +388,92 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
 
             {procurement.status === "Payment Pending" && (
               <div className="w-full space-y-3">
-                <Label className="text-sm font-medium">Upload Payment Documents</Label>
+                <Label className="text-sm font-medium">Upload Required Documents (Before Payment)</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Manufacturer's Test Certificate</Label>
+                    {mtcFile ? (
+                      <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm flex-1 truncate">{mtcFile.name}</span>
+                        <Button variant="ghost" size="sm" onClick={() => setMtcFile(null)} className="h-6 w-6 p-0">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Test Certificate</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) setMtcFile(file)
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Proforma Invoice *</Label>
+                    {proformaFile ? (
+                      <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm flex-1 truncate">{proformaFile.name}</span>
+                        <Button variant="ghost" size="sm" onClick={() => setProformaFile(null)} className="h-6 w-6 p-0">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Proforma Invoice</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) setProformaFile(file)
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Certificate of Conformity (COC)</Label>
+                    {cocFile ? (
+                      <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm flex-1 truncate">{cocFile.name}</span>
+                        <Button variant="ghost" size="sm" onClick={() => setCocFile(null)} className="h-6 w-6 p-0">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">COC</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) setCocFile(file)
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
                   {/* Invoice Upload */}
                   <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Invoice</Label>
+                    <Label className="text-xs text-muted-foreground">Final Invoice</Label>
                     {invoiceFile ? (
                       <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
                         <FileText className="h-4 w-4 text-muted-foreground" />
@@ -364,10 +529,10 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
                 </div>
                 <Button
                   onClick={handleMarkPaid}
-                  disabled={isSubmitting || isUploading || (!invoiceFile && !receiptFile)}
+                  disabled={isSubmitting || isUploading || !proformaFile}
                   className="w-full"
                 >
-                  {isUploading ? "Uploading..." : "Mark as Paid"}
+                  {isUploading ? "Uploading..." : "Submit Documents & Mark as Paid"}
                 </Button>
               </div>
             )}
