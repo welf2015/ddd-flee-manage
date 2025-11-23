@@ -20,6 +20,10 @@ export function FuelTab({ onAddTopup }: FuelTabProps) {
     return (data || []).filter((a: any) => a.vendor?.vendor_type === "Fuel")
   })
 
+  // Filter to get only Fuel type accounts (not Allowance)
+  const fuelOnlyAccounts = fuelAccounts.filter((a: any) => a.vendor?.vendor_type === "Fuel")
+  const mainAccount = fuelOnlyAccounts[0] // Total Energies main account
+
   // Get total fuel spent from account (more reliable than calculating from transactions)
   const totalFuelSpent = mainAccount ? Number(mainAccount.total_spent || 0) : 0
 
@@ -39,10 +43,6 @@ export function FuelTab({ onAddTopup }: FuelTabProps) {
       return data || []
     },
   )
-
-  // Filter to get only Fuel type accounts (not Allowance)
-  const fuelOnlyAccounts = fuelAccounts.filter((a: any) => a.vendor?.vendor_type === "Fuel")
-  const mainAccount = fuelOnlyAccounts[0] // Total Energies main account
 
   // Get total fuel spent from account (more reliable than calculating from transactions)
   const totalFuelSpent = mainAccount ? Number(mainAccount.total_spent || 0) : 0
