@@ -325,11 +325,11 @@ All environment variables are stored in `.env.local` (not committed to git).
   - **After**: "Upload Required Documents (Before Payment)" now appears first, followed by "Shipping & Tracking Information"
   - This matches the actual workflow where documents must be uploaded before shipping information
 
-- ✅ Added document upload section to "Deal Closed" status in `procurement-detail-sheet.tsx`
-  - **Before**: When "Deal Closed", only `PostDealForm` was shown
-  - **After**: Document upload section (MTC, Proforma Invoice, COC, Final Invoice, Receipt) now appears FIRST, followed by `PostDealForm`
-  - This ensures users upload required documents before proceeding with shipping information
-  - The document upload section includes "Submit Documents & Mark as Paid" button
+- ✅ Separated procurement workflow into two distinct stages
+  - **Stage 1 - "Deal Closed"**: Shows ONLY first document upload section (MTC, Proforma Invoice, COC, Final Invoice, Receipt) with "Submit Documents & Mark as Paid" button
+  - **Stage 2 - "Paid"**: Shows ONLY `PostDealForm` with shipping documents (Bill of Lading, Packing List, Commercial Invoice) and Shipping & Tracking Information
+  - **Before**: Both sections were showing simultaneously when "Deal Closed"
+  - **After**: Each stage shows only its relevant section, following the correct workflow sequence
 
 #### Files Modified
 - `components/procurement/post-deal-form.tsx`
@@ -338,8 +338,9 @@ All environment variables are stored in `.env.local` (not committed to git).
   - Maintained all existing functionality and validation
 
 - `components/procurement/procurement-detail-sheet.tsx`
-  - Added document upload section to "Deal Closed" status block
-  - Placed document upload section before `PostDealForm` component
+  - Removed `PostDealForm` from "Deal Closed" status - now shows only first document upload section
+  - "Deal Closed" status: Shows document upload (MTC, Proforma, COC, Final Invoice, Receipt) → "Submit Documents & Mark as Paid"
+  - "Paid" status: Shows `PostDealForm` (Bill of Lading, Packing List, Commercial Invoice, Shipping & Tracking)
   - Maintained existing "Payment Pending" status functionality
 
 #### Technical Details

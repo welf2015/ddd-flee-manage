@@ -377,163 +377,153 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
             )}
 
             {procurement.status === "Deal Closed" && (
-              <div className="w-full space-y-6">
-                {/* Document Upload Section - Must come first */}
-                <div className="w-full space-y-3">
-                  <Label className="text-sm font-medium">Upload Required Documents (Before Payment)</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Manufacturer's Test Certificate</Label>
-                      {mtcFile ? (
-                        <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm flex-1 truncate">{mtcFile.name}</span>
-                          <Button variant="ghost" size="sm" onClick={() => setMtcFile(null)} className="h-6 w-6 p-0">
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
-                          <Upload className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Test Certificate</span>
-                          <input
-                            type="file"
-                            className="hidden"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              if (file) setMtcFile(file)
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Proforma Invoice *</Label>
-                      {proformaFile ? (
-                        <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm flex-1 truncate">{proformaFile.name}</span>
-                          <Button variant="ghost" size="sm" onClick={() => setProformaFile(null)} className="h-6 w-6 p-0">
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
-                          <Upload className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Proforma Invoice</span>
-                          <input
-                            type="file"
-                            className="hidden"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              if (file) setProformaFile(file)
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Certificate of Conformity (COC)</Label>
-                      {cocFile ? (
-                        <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm flex-1 truncate">{cocFile.name}</span>
-                          <Button variant="ghost" size="sm" onClick={() => setCocFile(null)} className="h-6 w-6 p-0">
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
-                          <Upload className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">COC</span>
-                          <input
-                            type="file"
-                            className="hidden"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              if (file) setCocFile(file)
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
-
-                    {/* Invoice Upload */}
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Final Invoice</Label>
-                      {invoiceFile ? (
-                        <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm flex-1 truncate">{invoiceFile.name}</span>
-                          <Button variant="ghost" size="sm" onClick={() => setInvoiceFile(null)} className="h-6 w-6 p-0">
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
-                          <Upload className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Choose invoice file</span>
-                          <input
-                            type="file"
-                            className="hidden"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              if (file) setInvoiceFile(file)
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
-
-                    {/* Receipt Upload */}
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Receipt</Label>
-                      {receiptFile ? (
-                        <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm flex-1 truncate">{receiptFile.name}</span>
-                          <Button variant="ghost" size="sm" onClick={() => setReceiptFile(null)} className="h-6 w-6 p-0">
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
-                          <Upload className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Choose receipt file</span>
-                          <input
-                            type="file"
-                            className="hidden"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              if (file) setReceiptFile(file)
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
+              <div className="w-full space-y-3">
+                <Label className="text-sm font-medium">Upload Required Documents (Before Payment)</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Manufacturer's Test Certificate</Label>
+                    {mtcFile ? (
+                      <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm flex-1 truncate">{mtcFile.name}</span>
+                        <Button variant="ghost" size="sm" onClick={() => setMtcFile(null)} className="h-6 w-6 p-0">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Test Certificate</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) setMtcFile(file)
+                          }}
+                        />
+                      </label>
+                    )}
                   </div>
-                  <Button
-                    onClick={handleMarkPaid}
-                    disabled={isSubmitting || isUploading || !proformaFile}
-                    className="w-full"
-                  >
-                    {isUploading ? "Uploading..." : "Submit Documents & Mark as Paid"}
-                  </Button>
-                </div>
 
-                {/* PostDealForm - Shipping & Tracking comes after document upload */}
-                <PostDealForm
-                  procurementId={procurementId}
-                  currentStatus={procurement.status}
-                  onComplete={() => mutate()}
-                />
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Proforma Invoice *</Label>
+                    {proformaFile ? (
+                      <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm flex-1 truncate">{proformaFile.name}</span>
+                        <Button variant="ghost" size="sm" onClick={() => setProformaFile(null)} className="h-6 w-6 p-0">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Proforma Invoice</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) setProformaFile(file)
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Certificate of Conformity (COC)</Label>
+                    {cocFile ? (
+                      <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm flex-1 truncate">{cocFile.name}</span>
+                        <Button variant="ghost" size="sm" onClick={() => setCocFile(null)} className="h-6 w-6 p-0">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">COC</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) setCocFile(file)
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Invoice Upload */}
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Final Invoice</Label>
+                    {invoiceFile ? (
+                      <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm flex-1 truncate">{invoiceFile.name}</span>
+                        <Button variant="ghost" size="sm" onClick={() => setInvoiceFile(null)} className="h-6 w-6 p-0">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Choose invoice file</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) setInvoiceFile(file)
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Receipt Upload */}
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Receipt</Label>
+                    {receiptFile ? (
+                      <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm flex-1 truncate">{receiptFile.name}</span>
+                        <Button variant="ghost" size="sm" onClick={() => setReceiptFile(null)} className="h-6 w-6 p-0">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Choose receipt file</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) setReceiptFile(file)
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  onClick={handleMarkPaid}
+                  disabled={isSubmitting || isUploading || !proformaFile}
+                  className="w-full"
+                >
+                  {isUploading ? "Uploading..." : "Submit Documents & Mark as Paid"}
+                </Button>
               </div>
             )}
 
