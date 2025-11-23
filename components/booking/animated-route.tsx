@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { MapPin, ArrowRight } from "lucide-react"
+import { MapPin, Navigation2 } from "lucide-react"
 
 type AnimatedRouteProps = {
   route: string
@@ -97,27 +97,28 @@ export function AnimatedRoute({ route, status, startedAt, timeline, isOnHold }: 
         </div>
 
         {/* Animated Route Line */}
-        <div className="flex-1 relative h-12 flex items-center justify-center">
+        <div className="flex-1 relative h-16 flex flex-col items-center justify-center">
           {/* Route line */}
-          <div className="absolute w-full h-0.5 bg-muted-foreground/30"></div>
+          <div className="absolute top-6 w-full h-0.5 bg-muted-foreground/30"></div>
           
           {/* Progress line (completed portion) */}
           <div 
-            className="absolute h-0.5 bg-accent transition-all duration-1000 ease-linear"
+            className="absolute top-6 h-0.5 bg-accent transition-all duration-1000 ease-linear"
             style={{ width: `${arrowPosition}%` }}
           ></div>
 
-          {/* Animated Arrow */}
+          {/* Animated Navigation Icon */}
           <div
-            className="absolute transition-all duration-1000 ease-linear flex items-center justify-center"
+            className="absolute top-3 transition-all duration-1000 ease-linear flex items-center justify-center"
             style={{ 
               left: `${arrowPosition}%`,
               transform: 'translateX(-50%)',
             }}
           >
             <div className={`relative ${isPaused ? 'animate-pulse' : ''}`}>
-              <ArrowRight 
-                className={`h-6 w-6 ${isPaused ? 'text-yellow-500' : 'text-accent'} ${!isPaused ? 'animate-bounce' : ''}`}
+              <Navigation2 
+                className={`h-5 w-5 ${isPaused ? 'text-yellow-500' : 'text-green-500'} ${!isPaused ? 'animate-bounce' : ''}`}
+                fill={isPaused ? 'currentColor' : 'currentColor'}
               />
               {isPaused && (
                 <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
@@ -127,6 +128,11 @@ export function AnimatedRoute({ route, status, startedAt, timeline, isOnHold }: 
             </div>
           </div>
 
+          {/* Route name below animation */}
+          <div className="absolute bottom-0 w-full text-center">
+            <p className="text-[10px] text-muted-foreground truncate px-2">{route}</p>
+          </div>
+
           {/* Dots along the route */}
           {Array.from({ length: 5 }, (_, i) => {
             const dotPosition = (i + 1) * 20 // 20%, 40%, 60%, 80%, 100%
@@ -134,7 +140,7 @@ export function AnimatedRoute({ route, status, startedAt, timeline, isOnHold }: 
             return (
               <div
                 key={i}
-                className="absolute w-2 h-2 rounded-full bg-background border-2 transition-colors duration-500"
+                className="absolute top-[22px] w-2 h-2 rounded-full bg-background border-2 transition-colors duration-500"
                 style={{
                   left: `${dotPosition}%`,
                   transform: 'translateX(-50%)',
