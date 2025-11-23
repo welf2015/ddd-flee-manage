@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { addAccountTopup, getPrepaidAccounts } from "@/app/actions/expenses"
 import { toast } from "sonner"
-import useSWR from "swr"
+import useSWR, { mutate } from "swr"
 
 type AddTopupDialogProps = {
   open: boolean
@@ -69,6 +69,20 @@ export function AddTopupDialog({ open, onOpenChange, accountId }: AddTopupDialog
 
     if (result.success) {
       toast.success("Top-up added successfully")
+      // Invalidate all related SWR caches
+      await mutate("prepaid-accounts")
+      await mutate("fuel-accounts")
+      await mutate("ticketing-accounts")
+      await mutate("allowance-accounts")
+      await mutate("fuel-topups")
+      await mutate("total-fuel-spent")
+      await mutate("weekly-expenses")
+      await mutate("all-accounts")
+      // Also invalidate specific account caches
+      if (selectedAccount) {
+        await mutate(`ticketing-topups-${selectedAccount}`)
+        await mutate(`allowance-topups-${selectedAccount}`)
+      }
       onOpenChange(false)
     } else {
       toast.error(result.error || "Failed to add top-up")

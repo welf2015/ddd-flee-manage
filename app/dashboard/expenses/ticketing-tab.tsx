@@ -1,8 +1,6 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
 import { getPrepaidAccounts, getExpenseTransactions, getTopups } from "@/app/actions/expenses"
 import useSWR from "swr"
 import { formatCurrency, formatRelativeTime } from "@/lib/utils"
@@ -14,7 +12,8 @@ type TicketingTabProps = {
 export function TicketingTab({ onAddTopup }: TicketingTabProps) {
   const { data: accounts = [] } = useSWR("ticketing-accounts", async () => {
     const { data } = await getPrepaidAccounts("Ticketing")
-    return data || []
+    // Filter to ensure only Ticketing accounts
+    return (data || []).filter((a: any) => a.vendor?.vendor_type === "Ticketing")
   })
 
   const { data: transactions = [] } = useSWR("ticketing-transactions", async () => {

@@ -51,15 +51,11 @@ export function ExpensesClient() {
 
   return (
     <>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-6 flex flex-col gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">Expense Management</h1>
           <p className="text-sm text-muted-foreground">Manage prepaid accounts for fuel, ticketing, and allowances</p>
         </div>
-        <Button onClick={() => handleAddTopup()}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Top-up
-        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -120,22 +116,40 @@ export function ExpensesClient() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="fuel" className="space-y-4">
-        <TabsList>
+      <Tabs defaultValue="fuel" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="fuel">Fuel</TabsTrigger>
           <TabsTrigger value="ticketing">Ticketing</TabsTrigger>
           <TabsTrigger value="allowance">Allowance</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="fuel" className="space-y-4">
+        <TabsContent value="fuel" className="space-y-4 mt-4">
+          <div className="flex justify-end items-center">
+            <Button onClick={() => handleAddTopup()} className="bg-accent hover:bg-accent/90">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Top-up
+            </Button>
+          </div>
           <FuelTab onAddTopup={handleAddTopup} />
         </TabsContent>
 
-        <TabsContent value="ticketing" className="space-y-4">
+        <TabsContent value="ticketing" className="space-y-4 mt-4">
+          <div className="flex justify-end items-center">
+            <Button onClick={() => handleAddTopup()} className="bg-accent hover:bg-accent/90">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Top-up
+            </Button>
+          </div>
           <TicketingTab onAddTopup={handleAddTopup} />
         </TabsContent>
 
-        <TabsContent value="allowance" className="space-y-4">
+        <TabsContent value="allowance" className="space-y-4 mt-4">
+          <div className="flex justify-end items-center">
+            <Button onClick={() => handleAddTopup()} className="bg-accent hover:bg-accent/90">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Top-up
+            </Button>
+          </div>
           <AllowanceTab onAddTopup={handleAddTopup} />
         </TabsContent>
       </Tabs>

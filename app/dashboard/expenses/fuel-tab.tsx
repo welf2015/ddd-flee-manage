@@ -7,6 +7,8 @@ import { getPrepaidAccounts, getExpenseTransactions, getTotalFuelSpent } from "@
 import useSWR from "swr"
 import { formatCurrency, formatRelativeTime } from "@/lib/utils"
 import { FuelMeter } from "./fuel-meter"
+import { Button } from "@/components/ui/button"
+import { Plus } from "lucide-react"
 
 type FuelTabProps = {
   onAddTopup: (accountId?: string) => void
@@ -40,7 +42,9 @@ export function FuelTab({ onAddTopup }: FuelTabProps) {
     return allTopups.flatMap((t: any) => t.data || [])
   })
 
-  const mainAccount = fuelAccounts[0] // Total Energies main account
+  // Filter to get only Fuel type accounts (not Allowance)
+  const fuelOnlyAccounts = fuelAccounts.filter((a: any) => a.vendor?.vendor_type === "Fuel")
+  const mainAccount = fuelOnlyAccounts[0] // Total Energies main account
 
   return (
     <div className="space-y-4">
@@ -65,12 +69,8 @@ export function FuelTab({ onAddTopup }: FuelTabProps) {
       {/* Account Balance */}
       {mainAccount && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader>
             <CardTitle>{mainAccount.account_name}</CardTitle>
-            <Button size="sm" onClick={() => onAddTopup(mainAccount.id)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Top-up
-            </Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">

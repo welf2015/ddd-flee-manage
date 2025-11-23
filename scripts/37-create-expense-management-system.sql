@@ -61,6 +61,10 @@ CREATE TABLE IF NOT EXISTS expense_transactions (
 ALTER TABLE fuel_logs 
 ADD COLUMN IF NOT EXISTS expense_transaction_id UUID REFERENCES expense_transactions(id) ON DELETE SET NULL;
 
+-- Add booking_id to fuel_logs if it doesn't exist (for linking to bookings)
+ALTER TABLE fuel_logs 
+ADD COLUMN IF NOT EXISTS booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL;
+
 -- 6. Update bookings table to track expense amounts
 ALTER TABLE bookings
 ADD COLUMN IF NOT EXISTS fuel_amount DECIMAL(12, 2),
@@ -165,13 +169,20 @@ RETURNS TRIGGER AS $$
 DECLARE
   v_fuel_log_id UUID;
   v_vehicle_fuel_type TEXT;
+  v_vendor_name TEXT;
 BEGIN
   -- Only process Fuel type transactions
-  IF NEW.expense_type = 'Fuel' AND NEW.vehicle_id IS NOT NULL THEN
+  IF NEW.expense_type = 'Fuel' AND NEW.vehicle_id IS NOT NULL AND NEW.quantity IS NOT NULL THEN
     -- Get vehicle fuel type
     SELECT fuel_type INTO v_vehicle_fuel_type
     FROM vehicles
     WHERE id = NEW.vehicle_id;
+    
+    -- Get vendor name
+    SELECT ev.vendor_name INTO v_vendor_name
+    FROM expense_vendors ev
+    JOIN prepaid_accounts pa ON pa.vendor_id = ev.id
+    WHERE pa.id = NEW.account_id;
     
     -- Create fuel log entry
     INSERT INTO fuel_logs (
@@ -185,7 +196,8 @@ BEGIN
       station_name,
       logged_at,
       expense_transaction_id
-    ) VALUES (
+    )
+    SELECT
       NEW.vehicle_id,
       NEW.driver_id,
       NEW.booking_id,
@@ -193,14 +205,21 @@ BEGIN
       NEW.quantity,
       COALESCE(NEW.unit, 'Liters'),
       NEW.amount,
-      (SELECT vendor_name FROM expense_vendors WHERE id = (SELECT vendor_id FROM prepaid_accounts WHERE id = NEW.account_id)),
-      NEW.transaction_date,
+      COALESCE(v_vendor_name, 'Total Energies'),
+      COALESCE(NEW.transaction_date, NOW()),
       NEW.id
+    WHERE NOT EXISTS (
+      SELECT 1 FROM fuel_logs WHERE expense_transaction_id = NEW.id
     )
     RETURNING id INTO v_fuel_log_id;
   END IF;
   
   RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Log error but don't fail the transaction
+    RAISE WARNING 'Error creating fuel log: %', SQLERRM;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 

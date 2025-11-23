@@ -1,8 +1,6 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
 import { getPrepaidAccounts, getExpenseTransactions, getTopups } from "@/app/actions/expenses"
 import useSWR from "swr"
 import { formatCurrency, formatRelativeTime } from "@/lib/utils"
@@ -14,7 +12,8 @@ type AllowanceTabProps = {
 export function AllowanceTab({ onAddTopup }: AllowanceTabProps) {
   const { data: accounts = [] } = useSWR("allowance-accounts", async () => {
     const { data } = await getPrepaidAccounts("Allowance")
-    return data || []
+    // Filter to ensure only Allowance accounts
+    return (data || []).filter((a: any) => a.vendor?.vendor_type === "Allowance")
   })
 
   const { data: transactions = [] } = useSWR("allowance-transactions", async () => {

@@ -58,14 +58,19 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
       const { data: ticketingAccounts } = await getPrepaidAccounts("Ticketing")
       const { data: allowanceAccounts } = await getPrepaidAccounts("Allowance")
 
-      if (fuelAccounts && fuelAccounts.length > 0) {
-        setFuelAccount(fuelAccounts[0])
+      // Filter to ensure we get the correct account type
+      const fuelOnly = fuelAccounts?.filter((a: any) => a.vendor?.vendor_type === "Fuel") || []
+      const ticketingOnly = ticketingAccounts?.filter((a: any) => a.vendor?.vendor_type === "Ticketing") || []
+      const allowanceOnly = allowanceAccounts?.filter((a: any) => a.vendor?.vendor_type === "Allowance") || []
+
+      if (fuelOnly.length > 0) {
+        setFuelAccount(fuelOnly[0])
       }
-      if (ticketingAccounts && ticketingAccounts.length > 0) {
-        setTicketingAccount(ticketingAccounts[0])
+      if (ticketingOnly.length > 0) {
+        setTicketingAccount(ticketingOnly[0])
       }
-      if (allowanceAccounts && allowanceAccounts.length > 0) {
-        setAllowanceAccount(allowanceAccounts[0])
+      if (allowanceOnly.length > 0) {
+        setAllowanceAccount(allowanceOnly[0])
       }
     } catch (error) {
       console.error("Failed to fetch accounts:", error)

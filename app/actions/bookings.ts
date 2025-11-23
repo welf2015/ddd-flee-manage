@@ -650,7 +650,7 @@ export async function assignDriverWithExpenses(
 
     // Fuel transaction
     if (expenses.fuelAmount && expenses.fuelAccountId) {
-      await createExpenseTransaction(expenses.fuelAccountId, {
+      const fuelResult = await createExpenseTransaction(expenses.fuelAccountId, {
         bookingId,
         driverId,
         vehicleId: driver.assigned_vehicle_id,
@@ -660,11 +660,14 @@ export async function assignDriverWithExpenses(
         unit: "Liters",
         notes: `Fuel for trip ${bookingId}`,
       })
+      if (!fuelResult.success) {
+        console.error("Failed to create fuel transaction:", fuelResult.error)
+      }
     }
 
     // Ticketing transaction
     if (expenses.ticketingAmount && expenses.ticketingAccountId) {
-      await createExpenseTransaction(expenses.ticketingAccountId, {
+      const ticketingResult = await createExpenseTransaction(expenses.ticketingAccountId, {
         bookingId,
         driverId,
         vehicleId: driver.assigned_vehicle_id,
@@ -672,14 +675,18 @@ export async function assignDriverWithExpenses(
         amount: expenses.ticketingAmount,
         notes: `Government ticketing for trip ${bookingId}`,
       })
+      if (!ticketingResult.success) {
+        console.error("Failed to create ticketing transaction:", ticketingResult.error)
+      }
     }
 
     // Allowance transaction - need to get allowance account
     if (expenses.allowanceAmount) {
       const { getPrepaidAccounts } = await import("./expenses")
       const { data: allowanceAccounts } = await getPrepaidAccounts("Allowance")
-      if (allowanceAccounts && allowanceAccounts.length > 0) {
-        await createExpenseTransaction(allowanceAccounts[0].id, {
+      const allowanceOnly = allowanceAccounts?.filter((a: any) => a.vendor?.vendor_type === "Allowance") || []
+      if (allowanceOnly.length > 0) {
+        const allowanceResult = await createExpenseTransaction(allowanceOnly[0].id, {
           bookingId,
           driverId,
           vehicleId: driver.assigned_vehicle_id,
@@ -687,6 +694,9 @@ export async function assignDriverWithExpenses(
           amount: expenses.allowanceAmount,
           notes: `Driver allowance for trip ${bookingId}`,
         })
+        if (!allowanceResult.success) {
+          console.error("Failed to create allowance transaction:", allowanceResult.error)
+        }
       }
     }
   }

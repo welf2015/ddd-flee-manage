@@ -13,16 +13,23 @@ export async function getPrepaidAccounts(vendorType?: string) {
   const supabase = await createClient()
   let query = supabase
     .from("prepaid_accounts")
-    .select("*, vendor:expense_vendors(*)")
+    .select("*, vendor:expense_vendors!prepaid_accounts_vendor_id_fkey(*)")
     .eq("is_active", true)
     .order("account_name")
 
-  if (vendorType) {
-    query = query.eq("vendor.vendor_type", vendorType)
+  const { data, error } = await query
+  
+  if (error) {
+    return { data: [], error }
   }
 
-  const { data, error } = await query
-  return { data: data || [], error }
+  // Filter by vendor type if specified (client-side filtering for now)
+  let filteredData = data || []
+  if (vendorType && data) {
+    filteredData = data.filter((account: any) => account.vendor?.vendor_type === vendorType)
+  }
+
+  return { data: filteredData, error: null }
 }
 
 export async function getAccountBalance(accountId: string) {
