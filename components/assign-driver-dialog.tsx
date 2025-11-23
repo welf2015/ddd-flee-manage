@@ -91,16 +91,49 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
         const vendorType = a.vendor?.vendor_type || a.vendor_type
         return vendorType === "Allowance"
       }) || []
+      
+      // Helper function to select the account with actual data (prefer non-zero balance or most recent)
+      const selectBestAccount = (accounts: any[]) => {
+        if (accounts.length === 0) return null
+        if (accounts.length === 1) return accounts[0]
+        
+        // Prefer account with non-zero balance or transactions
+        const withData = accounts.find((a: any) => 
+          (a.current_balance && parseFloat(a.current_balance) !== 0) || 
+          (a.total_deposited && parseFloat(a.total_deposited) !== 0) ||
+          (a.total_spent && parseFloat(a.total_spent) !== 0)
+        )
+        
+        if (withData) {
+          console.log("✅ Selected account with data:", withData.account_name, "balance:", withData.current_balance)
+          return withData
+        }
+        
+        // If all are zero, prefer the one with most recent update
+        const sorted = accounts.sort((a: any, b: any) => 
+          new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
+        )
+        
+        console.log("⚠️ All accounts have zero balance, selecting most recent:", sorted[0].account_name)
+        return sorted[0]
+      }
 
       console.log("🔍 [Assign Driver] Starting account fetch...")
       console.log("🔍 [Assign Driver] Total accounts fetched:", allAccounts.length)
       console.log("🔍 [Assign Driver] All accounts raw data:", JSON.stringify(allAccounts, null, 2))
       
       if (fuelOnly.length > 0) {
+        // Select the account with actual data (not the empty duplicate)
+        const selectedFuelAccount = selectBestAccount(fuelOnly)
+        if (!selectedFuelAccount) {
+          console.warn("⚠️ [Fuel Account] No valid account found after filtering")
+          return
+        }
+        
         // Ensure current_balance is a number
-        const rawBalance = fuelOnly[0].current_balance
+        const rawBalance = selectedFuelAccount.current_balance
         const parsedBalance = parseFloat(rawBalance || 0)
-        const fuelAcc = { ...fuelOnly[0], current_balance: parsedBalance }
+        const fuelAcc = { ...selectedFuelAccount, current_balance: parsedBalance }
         
         console.log("⛽ [Fuel Account] Raw data:", {
           id: fuelAcc.id,
@@ -130,10 +163,17 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
       }
       
       if (ticketingOnly.length > 0) {
+        // Select the account with actual data (not the empty duplicate)
+        const selectedTicketingAccount = selectBestAccount(ticketingOnly)
+        if (!selectedTicketingAccount) {
+          console.warn("⚠️ [Ticketing Account] No valid account found after filtering")
+          return
+        }
+        
         // Ensure current_balance is a number
-        const rawBalance = ticketingOnly[0].current_balance
+        const rawBalance = selectedTicketingAccount.current_balance
         const parsedBalance = parseFloat(rawBalance || 0)
-        const ticketingAcc = { ...ticketingOnly[0], current_balance: parsedBalance }
+        const ticketingAcc = { ...selectedTicketingAccount, current_balance: parsedBalance }
         
         console.log("🎫 [Ticketing Account] Raw data:", {
           id: ticketingAcc.id,
@@ -153,10 +193,17 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
       }
       
       if (allowanceOnly.length > 0) {
+        // Select the account with actual data (not the empty duplicate)
+        const selectedAllowanceAccount = selectBestAccount(allowanceOnly)
+        if (!selectedAllowanceAccount) {
+          console.warn("⚠️ [Allowance Account] No valid account found after filtering")
+          return
+        }
+        
         // Ensure current_balance is a number
-        const rawBalance = allowanceOnly[0].current_balance
+        const rawBalance = selectedAllowanceAccount.current_balance
         const parsedBalance = parseFloat(rawBalance || 0)
-        const allowanceAcc = { ...allowanceOnly[0], current_balance: parsedBalance }
+        const allowanceAcc = { ...selectedAllowanceAccount, current_balance: parsedBalance }
         
         console.log("💰 [Allowance Account] Raw data:", {
           id: allowanceAcc.id,
