@@ -35,6 +35,7 @@ import { useState } from "react"
 import { Label } from "@/components/ui/label"
 import useSWR from "swr"
 import cn from "classnames"
+import { formatRelativeTime, formatDateTime } from "@/lib/utils"
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiZGFtaWxvbGFqYW1lcyIsImEiOiJjbWk3bzRuZXUwMmx6MndyMWduZmcwNG9pIn0.lTWQddjYoQjt3w-CUEc81w"
 
@@ -765,7 +766,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                     rel="noopener noreferrer"
                                     className="text-xs text-accent hover:underline block"
                                   >
-                                    {new Date(w.uploaded_at).toLocaleString()}
+                                    {formatRelativeTime(w.uploaded_at)}
                                   </a>
                                 ))}
                               </div>
@@ -788,7 +789,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                 {event.notes && <p className="text-xs mt-1">{event.notes}</p>}
                                 <p className="text-xs text-muted-foreground">
                                   By {event.action_by?.full_name || "System"} •{" "}
-                                  {new Date(event.created_at).toLocaleString()}
+                                  {formatRelativeTime(event.created_at)}
                                 </p>
                               </div>
                             </div>
@@ -820,7 +821,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                       {waybill.file_name || "Waybill Document"}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
-                                      Uploaded {new Date(waybill.uploaded_at).toLocaleDateString()}
+                                      Uploaded {formatRelativeTime(waybill.uploaded_at)}
                                     </p>
                                   </div>
                                 </div>

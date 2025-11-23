@@ -10,6 +10,7 @@ import { Eye } from 'lucide-react'
 import { useState, useMemo, useEffect } from "react"
 import { BookingDetailSheet } from "./booking-detail-sheet"
 import { createClient } from "@/lib/supabase/client"
+import { formatRelativeTime } from "@/lib/utils"
 
 type Booking = {
   id: string
@@ -190,7 +191,7 @@ export function BookingsTable({ bookings, onUpdate }: BookingsTableProps) {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{new Date(booking.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>{formatRelativeTime(booking.created_at)}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {booking.created_by_profile?.full_name || "Unknown"}
                     </TableCell>

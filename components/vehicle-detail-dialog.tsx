@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Fuel, Wrench, AlertTriangle, Calendar } from "lucide-react"
+import { formatRelativeTime } from "@/lib/utils"
 
 type VehicleDetailDialogProps = {
   open: boolean
@@ -74,7 +75,7 @@ export function VehicleDetailDialog({ open, onOpenChange, vehicle }: VehicleDeta
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Registration Date</div>
-                <div className="font-medium">{new Date(vehicle.created_at).toLocaleDateString()}</div>
+                <div className="font-medium">{formatRelativeTime(vehicle.created_at)}</div>
               </div>
             </CardContent>
           </Card>
@@ -95,7 +96,7 @@ export function VehicleDetailDialog({ open, onOpenChange, vehicle }: VehicleDeta
                 </div>
                 <span className="text-sm font-medium">
                   {vehicle.last_service_date
-                    ? new Date(vehicle.last_service_date).toLocaleDateString()
+                    ? formatRelativeTime(vehicle.last_service_date)
                     : "No service recorded"}
                 </span>
               </div>
@@ -107,7 +108,7 @@ export function VehicleDetailDialog({ open, onOpenChange, vehicle }: VehicleDeta
                 </div>
                 <span className="text-sm font-medium">
                   {vehicle.next_service_date
-                    ? new Date(vehicle.next_service_date).toLocaleDateString()
+                    ? formatRelativeTime(vehicle.next_service_date)
                     : "Not scheduled"}
                 </span>
               </div>

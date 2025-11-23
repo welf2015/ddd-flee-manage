@@ -18,6 +18,7 @@ import { useState, useEffect } from "react"
 import { Label } from "@/components/ui/label"
 import useSWR from "swr"
 import { uploadWaybill } from "@/app/actions/bookings" // Added import
+import { formatRelativeTime, formatDateTime } from "@/lib/utils"
 
 type BookingDetailDialogProps = {
   booking: any
@@ -530,12 +531,12 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
                       </div>
                       <div>
                         <label className="text-sm font-medium text-muted-foreground">Created</label>
-                        <p className="mt-1 text-sm">{new Date(displayBooking.created_at).toLocaleString()}</p>
+                        <p className="mt-1 text-sm">{formatRelativeTime(displayBooking.created_at)}</p>
                       </div>
                       {displayBooking.started_at && (
                         <div>
                           <label className="text-sm font-medium text-muted-foreground">Started</label>
-                          <p className="mt-1 text-sm">{new Date(displayBooking.started_at).toLocaleString()}</p>
+                          <p className="mt-1 text-sm">{formatRelativeTime(displayBooking.started_at)}</p>
                         </div>
                       )}
                     </div>
@@ -598,7 +599,7 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
                                     </a>
                                   </div>
                                   <span className="text-muted-foreground text-xs">
-                                    {new Date(w.uploaded_at).toLocaleString()}
+                                    {formatRelativeTime(w.uploaded_at)}
                                   </span>
                                 </div>
                               ))}
@@ -624,7 +625,7 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
                             {event.notes && <p className="text-xs text-muted-foreground mt-1">{event.notes}</p>}
                             <p className="text-xs text-muted-foreground mt-1">
                               By {event.action_by?.full_name || "System"} •{" "}
-                              {new Date(event.created_at).toLocaleString()}
+                              {formatRelativeTime(event.created_at)}
                             </p>
                           </div>
                         </div>
@@ -656,7 +657,7 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
                                   {waybill.file_name || "Waybill Document"}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  Uploaded {new Date(waybill.uploaded_at).toLocaleDateString()}
+                                  Uploaded {formatRelativeTime(waybill.uploaded_at)}
                                 </p>
                               </div>
                             </div>
