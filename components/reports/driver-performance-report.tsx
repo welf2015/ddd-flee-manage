@@ -5,16 +5,28 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
+import { getDateRange, getPeriodLabel, type TimePeriod } from "@/lib/report-utils"
 
-export function DriverPerformanceReport() {
+type DriverPerformanceReportProps = {
+  timePeriod?: TimePeriod
+}
+
+export function DriverPerformanceReport({ timePeriod = "weekly" }: DriverPerformanceReportProps) {
   const supabase = createClient()
+  const { startDateISO } = getDateRange(timePeriod)
 
   const { data: driverData = [] } = useSWR(
-    "driver-performance",
+    `driver-performance-${timePeriod}`,
     async () => {
-      const { data: bookings } = await supabase
+      let bookingsQuery = supabase
         .from("bookings")
-        .select("assigned_driver_id, driver:drivers(full_name), status")
+        .select("assigned_driver_id, driver:drivers(full_name), status, created_at")
+
+      if (startDateISO) {
+        bookingsQuery = bookingsQuery.gte("created_at", startDateISO)
+      }
+
+      const { data: bookings } = await bookingsQuery
 
       const { data: ratings } = await supabase.from("driver_ratings").select("driver_id, rating")
 
@@ -60,7 +72,7 @@ export function DriverPerformanceReport() {
     <Card>
       <CardHeader>
         <CardTitle>Driver Performance</CardTitle>
-        <CardDescription>Trips completed and ratings</CardDescription>
+        <CardDescription>{getPeriodLabel(timePeriod)} - Trips completed and ratings</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>

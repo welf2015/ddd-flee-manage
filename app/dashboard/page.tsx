@@ -42,13 +42,7 @@ export default async function DashboardPage() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">Fleet Overview</h1>
-          <div className="text-sm text-muted-foreground">
-            {new Date().toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </div>
+          <div className="text-sm text-muted-foreground">This Week</div>
         </div>
         {pendingInspections && pendingInspections > 0 && (
           <Link href="/dashboard/vehicle-management/inspections">

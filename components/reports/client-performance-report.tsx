@@ -5,14 +5,26 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
+import { getDateRange, getPeriodLabel, type TimePeriod } from "@/lib/report-utils"
 
-export function ClientPerformanceReport() {
+type ClientPerformanceReportProps = {
+  timePeriod?: TimePeriod
+}
+
+export function ClientPerformanceReport({ timePeriod = "weekly" }: ClientPerformanceReportProps) {
   const supabase = createClient()
+  const { startDateISO } = getDateRange(timePeriod)
 
   const { data: clientData = [] } = useSWR(
-    "client-performance",
+    `client-performance-${timePeriod}`,
     async () => {
-      const { data } = await supabase.from("bookings").select("client_name, client_id, status, proposed_client_budget")
+      let query = supabase.from("bookings").select("client_name, client_id, status, proposed_client_budget, created_at")
+
+      if (startDateISO) {
+        query = query.gte("created_at", startDateISO)
+      }
+
+      const { data } = await query
 
       if (!data) return []
 
@@ -43,7 +55,7 @@ export function ClientPerformanceReport() {
       <Card>
         <CardHeader>
           <CardTitle>Top Clients</CardTitle>
-          <CardDescription>By number of bookings</CardDescription>
+          <CardDescription>{getPeriodLabel(timePeriod)} - By number of bookings</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>

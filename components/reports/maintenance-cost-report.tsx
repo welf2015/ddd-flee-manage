@@ -4,18 +4,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
+import { getDateRange, getPeriodLabel, type TimePeriod } from "@/lib/report-utils"
 
-export function MaintenanceCostReport() {
+type MaintenanceCostReportProps = {
+  timePeriod?: TimePeriod
+}
+
+export function MaintenanceCostReport({ timePeriod = "weekly" }: MaintenanceCostReportProps) {
   const supabase = createClient()
+  const { startDate } = getDateRange(timePeriod)
 
   const { data: maintenanceData = [] } = useSWR(
-    "maintenance-report",
+    `maintenance-report-${timePeriod}`,
     async () => {
-      const { data } = await supabase
+      let query = supabase
         .from("maintenance_logs")
         .select("maintenance_type, cost, service_date")
         .order("service_date", { ascending: false })
-        .limit(100)
+
+      if (startDate) {
+        query = query.gte("service_date", startDate.toISOString().split("T")[0])
+      }
+
+      const { data } = await query
 
       if (!data) return []
 
@@ -33,8 +44,14 @@ export function MaintenanceCostReport() {
     { refreshInterval: 15000 },
   )
 
-  const { data: totalCost } = useSWR("total-maintenance-cost", async () => {
-    const { data } = await supabase.from("maintenance_logs").select("cost")
+  const { data: totalCost } = useSWR(`total-maintenance-cost-${timePeriod}`, async () => {
+    let query = supabase.from("maintenance_logs").select("cost, service_date")
+
+    if (startDate) {
+      query = query.gte("service_date", startDate.toISOString().split("T")[0])
+    }
+
+    const { data } = await query
     return data?.reduce((sum: number, m: any) => sum + (m.cost || 0), 0) || 0
   })
 
@@ -45,7 +62,7 @@ export function MaintenanceCostReport() {
       <Card>
         <CardHeader>
           <CardTitle>Total Maintenance Cost</CardTitle>
-          <CardDescription>All time</CardDescription>
+          <CardDescription>{getPeriodLabel(timePeriod)}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-3xl font-bold">₦{totalCost?.toLocaleString() || 0}</div>

@@ -4,20 +4,40 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
+import { getDateRange, getPeriodLabel, type TimePeriod } from "@/lib/report-utils"
 
-export function FinancialSummaryReport() {
+type FinancialSummaryReportProps = {
+  timePeriod?: TimePeriod
+}
+
+export function FinancialSummaryReport({ timePeriod = "weekly" }: FinancialSummaryReportProps) {
   const supabase = createClient()
+  const { startDateISO, startDate } = getDateRange(timePeriod)
 
   const { data: financialData } = useSWR(
-    "financial-summary",
+    `financial-summary-${timePeriod}`,
     async () => {
-      const { data: bookings } = await supabase
+      let bookingsQuery = supabase
         .from("bookings")
         .select("proposed_client_budget, actual_cost, created_at, status")
 
-      const { data: fuelLogs } = await supabase.from("fuel_logs").select("cost")
+      if (startDateISO) {
+        bookingsQuery = bookingsQuery.gte("created_at", startDateISO)
+      }
 
-      const { data: maintenance } = await supabase.from("maintenance_logs").select("cost")
+      const { data: bookings } = await bookingsQuery
+
+      let fuelQuery = supabase.from("fuel_logs").select("cost, logged_at")
+      if (startDateISO) {
+        fuelQuery = fuelQuery.gte("logged_at", startDateISO)
+      }
+      const { data: fuelLogs } = await fuelQuery
+
+      let maintenanceQuery = supabase.from("maintenance_logs").select("cost, service_date")
+      if (startDate) {
+        maintenanceQuery = maintenanceQuery.gte("service_date", startDate.toISOString().split("T")[0])
+      }
+      const { data: maintenance } = await maintenanceQuery
 
       if (!bookings) return null
 
@@ -88,7 +108,7 @@ export function FinancialSummaryReport() {
       <Card>
         <CardHeader>
           <CardTitle>Financial Breakdown</CardTitle>
-          <CardDescription>Revenue vs Expenses</CardDescription>
+          <CardDescription>{getPeriodLabel(timePeriod)} - Revenue vs Expenses</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>

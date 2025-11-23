@@ -27,13 +27,6 @@ export default async function ReportsPage() {
 
   return (
     <DashboardLayout onSignOut={handleSignOut}>
-      <div className="mb-6 flex flex-col gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold">Reports & Analytics</h1>
-          <p className="text-sm text-muted-foreground">View detailed fleet reports and performance metrics</p>
-        </div>
-      </div>
-
       <ReportsClient />
     </DashboardLayout>
   )

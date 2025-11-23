@@ -4,17 +4,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from "recharts"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
+import { getDateRange, getPeriodLabel, type TimePeriod } from "@/lib/report-utils"
 
-export function TripsAnalyticsReport() {
+type TripsAnalyticsReportProps = {
+  timePeriod?: TimePeriod
+}
+
+export function TripsAnalyticsReport({ timePeriod = "weekly" }: TripsAnalyticsReportProps) {
   const supabase = createClient()
+  const { startDateISO } = getDateRange(timePeriod)
 
   const { data: tripsData = [] } = useSWR(
-    "trips-analytics",
+    `trips-analytics-${timePeriod}`,
     async () => {
-      const { data } = await supabase
+      let query = supabase
         .from("bookings")
         .select("created_at, status")
         .order("created_at", { ascending: true })
+
+      if (startDateISO) {
+        query = query.gte("created_at", startDateISO)
+      }
+
+      const { data } = await query
 
       if (!data) return []
 
@@ -28,13 +40,19 @@ export function TripsAnalyticsReport() {
         if (booking.status === "In Transit") grouped[date].inTransit++
       })
 
-      return Object.values(grouped).slice(-30)
+      return Object.values(grouped)
     },
     { refreshInterval: 10000 },
   )
 
-  const { data: stats } = useSWR("trips-stats", async () => {
-    const { data } = await supabase.from("bookings").select("status")
+  const { data: stats } = useSWR(`trips-stats-${timePeriod}`, async () => {
+    let query = supabase.from("bookings").select("status, created_at")
+
+    if (startDateISO) {
+      query = query.gte("created_at", startDateISO)
+    }
+
+    const { data } = await query
     if (!data) return { total: 0, completed: 0, pending: 0 }
 
     return {
@@ -76,7 +94,7 @@ export function TripsAnalyticsReport() {
       <Card>
         <CardHeader>
           <CardTitle>Trip Volume Trend</CardTitle>
-          <CardDescription>Last 30 days</CardDescription>
+          <CardDescription>{getPeriodLabel(timePeriod)}</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>

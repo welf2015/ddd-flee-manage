@@ -10,11 +10,19 @@ import { FuelMeter } from "@/app/dashboard/expenses/fuel-meter"
 const fetcher = async () => {
   const supabase = createClient()
 
+  // Calculate week start (Monday)
+  const now = new Date()
+  const dayOfWeek = now.getDay()
+  const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) // Adjust to Monday
+  const weekStart = new Date(now.setDate(diff))
+  weekStart.setHours(0, 0, 0, 0)
+  const weekStartISO = weekStart.toISOString()
+
   const [bookingsRes, vehiclesRes, driversRes, incidentsRes, clientsRes, inventoryRes] = await Promise.all([
-    supabase.from("bookings").select("status", { count: "exact", head: false }),
+    supabase.from("bookings").select("status, created_at", { count: "exact", head: false }).gte("created_at", weekStartISO),
     supabase.from("vehicles").select("status", { count: "exact", head: false }),
     supabase.from("drivers").select("id", { count: "exact", head: true }),
-    supabase.from("incidents").select("severity,status", { count: "exact", head: false }),
+    supabase.from("incidents").select("severity,status, incident_date", { count: "exact", head: false }).gte("incident_date", weekStart.toISOString().split("T")[0]),
     supabase.from("clients").select("id", { count: "exact", head: true }),
     supabase.from("inventory_parts").select("current_stock,reorder_level", { count: "exact", head: false }),
   ])
