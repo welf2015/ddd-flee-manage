@@ -624,7 +624,7 @@ export async function updatePostDealInfo(
   let timelineNotes = ""
 
   if (data.waybill_number && data.shipping_tracking_no) {
-    statusUpdate.status = "Payment Pending"
+    statusUpdate.status = "In Transit"
     timelineAction = "Shipping Details Added"
     timelineNotes = `Waybill: ${data.waybill_number}, Expected delivery: ${data.estimated_delivery_months} months`
   } else if (data.clearing_date && data.license_plate_number) {

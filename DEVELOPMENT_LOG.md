@@ -350,6 +350,20 @@ All environment variables are stored in `.env.local` (not committed to git).
 - All form validation and submission logic remains unchanged
 - Visual separation maintained with spacing and dividers
 
+- ✅ Fixed status transition after saving shipping details
+  - **Before**: Saving shipping details set status to "Payment Pending" (incorrect)
+  - **After**: Saving shipping details sets status to "In Transit" (correct)
+  - Updated button text: "Save Shipping Details & Mark as In Transit"
+  - Updated toast message to reflect correct status
+  - **Workflow**: "Paid" → Save Shipping Details → "In Transit" → Mark as Arrived → "Arrived" → Assign Clearing Agent → "Clearing"
+
+#### Files Modified (Status Transition Fix)
+- `app/actions/procurement.ts`
+  - Changed status update from "Payment Pending" to "In Transit" when shipping details are saved
+- `components/procurement/post-deal-form.tsx`
+  - Updated button text to "Save Shipping Details & Mark as In Transit"
+  - Updated success toast message
+
 ---
 
 ## Collaboration Guidelines

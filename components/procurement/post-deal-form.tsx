@@ -110,7 +110,7 @@ export function PostDealForm({ procurementId, currentStatus, onComplete }: PostD
         cif_lagos_terms: formData.cifLagosTerms,
       })
 
-      toast.success("Shipping details saved, moved to Payment Pending")
+      toast.success("Shipping details saved, status updated to In Transit")
       onComplete?.()
     } catch (error) {
       console.error("[v0] Error updating shipping info:", error)
@@ -338,7 +338,7 @@ export function PostDealForm({ procurementId, currentStatus, onComplete }: PostD
         </Card>
 
         <Button type="submit" disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90">
-          {isSubmitting ? "Saving..." : "Save Shipping Details & Move to Payment"}
+          {isSubmitting ? "Saving..." : "Save Shipping Details & Mark as In Transit"}
         </Button>
       </form>
     )
