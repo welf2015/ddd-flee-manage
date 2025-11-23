@@ -24,6 +24,7 @@ import {
   CheckSquare,
   Fuel,
   FileText,
+  Wallet,
 } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { useState, useEffect, startTransition } from "react"
@@ -86,6 +87,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
     },
     { name: "Clients", href: "/dashboard/clients", icon: Building2 },
     { name: "Procurement", href: "/dashboard/procurement", icon: ShoppingCart },
+    { name: "Expenses", href: "/dashboard/expenses", icon: Wallet },
     { name: "Inventory", href: "/dashboard/inventory", icon: Package },
     { name: "Sales Insights", href: "/dashboard/sales-insights", icon: TrendingUp },
     { name: "Reports", href: "/dashboard/reports", icon: TrendingUp },
