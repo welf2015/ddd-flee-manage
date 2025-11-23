@@ -289,7 +289,9 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="fuelAmount">Amount (NGN)</Label>
+                      <Label htmlFor="fuelAmount">
+                        Amount (NGN) <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="fuelAmount"
                         type="number"
@@ -298,7 +300,9 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                         value={fuelAmount}
                         onChange={(e) => setFuelAmount(e.target.value)}
                         placeholder="0.00"
+                        required
                       />
+                      <p className="text-xs text-muted-foreground">Required for accounting. Enter 0 if no fuel needed.</p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="fuelLiters">Liters</Label>
