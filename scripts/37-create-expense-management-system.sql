@@ -200,9 +200,9 @@ BEGIN
     JOIN prepaid_accounts pa ON pa.vendor_id = ev.id
     WHERE pa.id = NEW.account_id;
     
-    -- Create fuel log entry (only if amount > 0, or if quantity is provided)
+    -- Create fuel log entry (only if amount > 0)
     -- This allows accounting entries (amount=0) without creating unnecessary logs
-    IF NEW.amount > 0 OR NEW.quantity IS NOT NULL THEN
+    IF NEW.amount > 0 THEN
       INSERT INTO fuel_logs (
         vehicle_id,
         driver_id,

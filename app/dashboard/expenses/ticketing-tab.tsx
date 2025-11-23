@@ -23,16 +23,22 @@ export function TicketingTab({ onAddTopup, initialAccounts = [] }: TicketingTabP
     },
     {
       fallbackData: initialTicketingAccounts,
-      revalidateOnMount: true,
+      revalidateOnMount: false,
     },
   )
 
-  const { data: transactions = [] } = useSWR("ticketing-transactions", async () => {
-    const { data } = await getExpenseTransactions({ expenseType: "Ticketing" })
-    return data || []
-  })
-
   const mainAccount = accounts[0]
+
+  const { data: transactions = [] } = useSWR(
+    mainAccount ? "ticketing-transactions" : null,
+    async () => {
+      const { data } = await getExpenseTransactions({ expenseType: "Ticketing" })
+      return data || []
+    },
+    {
+      revalidateOnMount: false,
+    },
+  )
 
   const { data: topups = [] } = useSWR(
     mainAccount ? `ticketing-topups-${mainAccount.id}` : null,
@@ -40,6 +46,9 @@ export function TicketingTab({ onAddTopup, initialAccounts = [] }: TicketingTabP
       if (!mainAccount) return []
       const { data } = await getTopups(mainAccount.id)
       return data || []
+    },
+    {
+      revalidateOnMount: false,
     },
   )
 
@@ -94,57 +103,81 @@ export function TicketingTab({ onAddTopup, initialAccounts = [] }: TicketingTabP
         </Card>
       )}
 
-      {/* Unified Transactions List */}
+      {/* Unified Transactions Table */}
       <Card>
         <CardHeader>
           <CardTitle>All Transactions</CardTitle>
         </CardHeader>
         <CardContent>
           {allTransactions.length > 0 ? (
-            <div className="space-y-2">
-              {allTransactions.slice(0, 20).map((item: any, index: number) => (
-                <div
-                  key={item.id || `item-${index}`}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
-                >
-                  <div className="flex-1">
-                    {item.type === "expense" ? (
-                      <>
-                        <p className="font-medium">
-                          {item.booking?.job_id || "Manual Entry"}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-3 text-sm font-medium text-muted-foreground">Type</th>
+                    <th className="text-left p-3 text-sm font-medium text-muted-foreground">Details</th>
+                    <th className="text-left p-3 text-sm font-medium text-muted-foreground">By</th>
+                    <th className="text-left p-3 text-sm font-medium text-muted-foreground">Date</th>
+                    <th className="text-right p-3 text-sm font-medium text-muted-foreground">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allTransactions.slice(0, 20).map((item: any, index: number) => (
+                    <tr key={item.id || `item-${index}`} className="border-b hover:bg-muted/50">
+                      <td className="p-3">
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            item.type === "topup"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {item.type === "topup" ? "Top-up" : "Expense"}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        {item.type === "expense" ? (
+                          <div>
+                            <p className="font-medium">
+                              {item.booking?.job_id || "Manual Entry"}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {item.vehicle?.vehicle_number || "N/A"}
+                            </p>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="font-medium">{item.account?.account_name || "Account"}</p>
+                            {item.receipt_number && (
+                              <p className="text-sm text-muted-foreground">Receipt: {item.receipt_number}</p>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        <p className="text-sm">
+                          {item.type === "expense"
+                            ? item.driver?.full_name || "N/A"
+                            : item.deposited_by_profile?.full_name || "System"}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          {item.driver?.full_name || "N/A"} • {item.vehicle?.vehicle_number || "N/A"}
+                      </td>
+                      <td className="p-3">
+                        <p className="text-sm text-muted-foreground">{formatRelativeTime(item.date)}</p>
+                      </td>
+                      <td className="p-3 text-right">
+                        <p
+                          className={`font-bold ${
+                            item.type === "topup" ? "text-green-600" : "text-red-600"
+                          }`}
+                        >
+                          {item.type === "topup" ? "+" : "-"}
+                          {formatCurrency(Math.abs(item.amount), "NGN")}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatRelativeTime(item.date)}
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-medium">Top-up: {item.account?.account_name || "Account"}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {item.receipt_number && `Receipt: ${item.receipt_number} • `}
-                          {item.deposited_by_profile?.full_name || "System"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatRelativeTime(item.date)}
-                        </p>
-                      </>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <p
-                      className={`font-bold ${
-                        item.type === "topup" ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {item.type === "topup" ? "+" : "-"}
-                      {formatCurrency(Math.abs(item.amount), "NGN")}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-8">No transactions yet</p>

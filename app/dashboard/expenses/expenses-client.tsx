@@ -80,7 +80,7 @@ export function ExpensesClient({ initialAccounts = [] }: ExpensesClientProps) {
       </div>
 
       {/* Summary Cards - Dynamic based on active tab */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -108,33 +108,28 @@ export function ExpensesClient({ initialAccounts = [] }: ExpensesClientProps) {
             <p className="text-xs text-muted-foreground">Weekly accounting period</p>
           </CardContent>
         </Card>
+
+        {/* Fuel Spending Progress - Only show for fuel tab */}
+        {activeTab === "fuel" && (() => {
+          const fuelAccount = accounts.find((a: any) => a.vendor?.vendor_type === "Fuel")
+          const totalFuelSpent = fuelAccount ? Number(fuelAccount.total_spent || 0) : 0
+          const totalDeposited = fuelAccount ? Number(fuelAccount.total_deposited || 0) : 0
+          
+          return (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Fuel Spending Progress</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FuelMeter totalSpent={totalFuelSpent} totalDeposited={totalDeposited} />
+                <p className="text-xs text-muted-foreground mt-2">
+                  {formatCurrency(totalFuelSpent, "NGN")} of {formatCurrency(totalDeposited || 0, "NGN")}
+                </p>
+              </CardContent>
+            </Card>
+          )
+        })()}
       </div>
-
-      {/* Fuel Spending Overview - Only show for fuel tab */}
-      {activeTab === "fuel" && (() => {
-        const fuelAccount = accounts.find((a: any) => a.vendor?.vendor_type === "Fuel")
-        const totalFuelSpent = fuelAccount ? Number(fuelAccount.total_spent || 0) : 0
-        const totalDeposited = fuelAccount ? Number(fuelAccount.total_deposited || 0) : 0
-        
-        return (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Fuel Spending Overview</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Total Spent Display */}
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-1">Total Spent</p>
-                <p className="text-3xl font-bold">{formatCurrency(totalFuelSpent, "NGN")}</p>
-                <p className="text-xs text-muted-foreground mt-1">All time</p>
-              </div>
-
-              {/* Fuel Meter Visualization */}
-              <FuelMeter totalSpent={totalFuelSpent} totalDeposited={totalDeposited} />
-            </CardContent>
-          </Card>
-        )
-      })()}
 
       {/* Tabs */}
       <Tabs defaultValue="fuel" className="w-full" onValueChange={setActiveTab}>

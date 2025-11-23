@@ -1,6 +1,5 @@
 "use client"
 
-import { formatCurrency } from "@/lib/utils"
 import { useEffect, useState } from "react"
 
 type FuelMeterProps = {
@@ -22,85 +21,34 @@ export function FuelMeter({ totalSpent, totalDeposited = 0 }: FuelMeterProps) {
   const maxDisplay = totalDeposited > 0 ? totalDeposited : Math.max(totalSpent * 2, 1000000) // At least 1M or 2x spent
   const percentage = maxDisplay > 0 ? Math.min((displaySpent / maxDisplay) * 100, 100) : 0
 
-  // Color based on spending level (like fuel gauge)
-  const getColor = (pct: number) => {
-    if (pct < 25) return "bg-green-500"
-    if (pct < 50) return "bg-yellow-500"
-    if (pct < 75) return "bg-orange-500"
-    return "bg-red-500"
+  // Progress bar style like compliance - red to green gradient
+  const totalBars = 20
+  const filledBars = Math.round((percentage / 100) * totalBars)
+
+  // Get color for each bar based on position (red to green gradient)
+  const getBarColor = (index: number) => {
+    const barPercentage = (index / totalBars) * 100
+    if (barPercentage < 25) return '#ef4444' // Red
+    if (barPercentage < 50) return '#f97316' // Orange
+    if (barPercentage < 75) return '#eab308' // Yellow
+    return '#22c55e' // Green
   }
 
   return (
-    <div className="space-y-4">
-      {/* Fuel Gauge Visualization */}
-      <div className="relative w-full">
-        {/* Background bar */}
-        <div className="h-12 bg-gray-200 rounded-full overflow-hidden relative">
-          {/* Filled portion - like fuel gauge */}
-          <div
-            className={`h-full ${getColor(percentage)} transition-all duration-500 ease-out rounded-full`}
-            style={{ width: `${percentage}%` }}
+    <div className="flex items-center gap-2">
+      <div className="font-mono text-lg font-bold">
+        {Array.from({ length: totalBars }, (_, i) => (
+          <span
+            key={i}
+            style={{
+              color: i < filledBars ? getBarColor(i) : '#e5e7eb', // Gray for unfilled
+            }}
           >
-            {/* Gradient effect for more realistic fuel gauge */}
-            <div className="h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-          </div>
-          
-          {/* Percentage indicator lines */}
-          <div className="absolute inset-0 flex items-center justify-between px-2">
-            {[0, 25, 50, 75, 100].map((mark) => (
-              <div
-                key={mark}
-                className="h-full w-0.5 bg-gray-400/30"
-                style={{ marginLeft: mark === 0 ? "0" : mark === 100 ? "auto" : `${mark}%` }}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Percentage labels */}
-        <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-          <span>0%</span>
-          <span>25%</span>
-          <span>50%</span>
-          <span>75%</span>
-          <span>100%</span>
-        </div>
-
-        {/* Current percentage display */}
-        <div className="text-center mt-4">
-          <p className="text-2xl font-bold">{percentage.toFixed(1)}%</p>
-          <p className="text-xs text-muted-foreground">of display scale</p>
-        </div>
+            {i < filledBars ? '|' : '·'}
+          </span>
+        ))}
       </div>
-
-      {/* Alternative: Segmented fuel gauge (like car dashboard) */}
-      <div className="mt-8">
-        <p className="text-sm font-medium mb-3 text-center">Fuel Spending Level</p>
-        <div className="flex items-center justify-center gap-1">
-          {Array.from({ length: 20 }).map((_, i) => {
-            const segmentPct = (i + 1) * 5
-            const isFilled = percentage >= segmentPct
-            const segmentColor = getColor(segmentPct)
-            
-            return (
-              <div
-                key={i}
-                className={`h-8 w-4 rounded-sm transition-all duration-300 ${
-                  isFilled ? segmentColor : "bg-gray-200"
-                }`}
-                style={{
-                  opacity: isFilled ? 1 : 0.3,
-                }}
-              />
-            )
-          })}
-        </div>
-        <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-          <span>Low</span>
-          <span>Medium</span>
-          <span>High</span>
-        </div>
-      </div>
+      <span className="text-sm font-semibold">{percentage.toFixed(0)}%</span>
     </div>
   )
 }
