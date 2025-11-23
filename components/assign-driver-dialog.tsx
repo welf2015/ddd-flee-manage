@@ -44,8 +44,8 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
     if (open) {
       fetchDrivers()
       fetchAccounts()
-      // Reset expense fields when dialog opens
-      setFuelAmount("")
+      // Reset expense fields when dialog opens - fuel defaults to 0 (required for accounting)
+      setFuelAmount("0")
       setFuelLiters("")
       setTicketingAmount("")
       setAllowanceAmount("")
@@ -109,13 +109,19 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
 
     setLoading(true)
 
-    // Prepare expenses object
+    // Prepare expenses object - fuel is always required for accounting
     const expenses: any = {}
     
-    if (fuelAmount && fuelAccount) {
-      expenses.fuelAmount = Number.parseFloat(fuelAmount)
+    // Fuel is always required (defaults to 0 if not entered)
+    if (fuelAccount) {
+      const fuelAmt = fuelAmount ? Number.parseFloat(fuelAmount) : 0
+      expenses.fuelAmount = fuelAmt
       expenses.fuelLiters = fuelLiters ? Number.parseFloat(fuelLiters) : undefined
       expenses.fuelAccountId = fuelAccount.id
+    } else {
+      toast.error("Fuel account not found. Please contact administrator.")
+      setLoading(false)
+      return
     }
     
     if (ticketingAmount && ticketingAccount) {
@@ -127,7 +133,7 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
       expenses.allowanceAmount = Number.parseFloat(allowanceAmount)
     }
 
-    const result = await assignDriverWithExpenses(bookingId, selectedDriver, Object.keys(expenses).length > 0 ? expenses : undefined)
+    const result = await assignDriverWithExpenses(bookingId, selectedDriver, expenses)
     setLoading(false)
 
     if (result.success) {

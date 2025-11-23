@@ -187,8 +187,8 @@ DECLARE
   v_vehicle_fuel_type TEXT;
   v_vendor_name TEXT;
 BEGIN
-  -- Only process Fuel type transactions
-  IF NEW.expense_type = 'Fuel' AND NEW.vehicle_id IS NOT NULL AND NEW.quantity IS NOT NULL THEN
+  -- Only process Fuel type transactions with vehicle_id (quantity can be null/0 for accounting purposes)
+  IF NEW.expense_type = 'Fuel' AND NEW.vehicle_id IS NOT NULL THEN
     -- Get vehicle fuel type
     SELECT fuel_type INTO v_vehicle_fuel_type
     FROM vehicles
@@ -200,34 +200,37 @@ BEGIN
     JOIN prepaid_accounts pa ON pa.vendor_id = ev.id
     WHERE pa.id = NEW.account_id;
     
-    -- Create fuel log entry
-    INSERT INTO fuel_logs (
-      vehicle_id,
-      driver_id,
-      booking_id,
-      fuel_type,
-      quantity,
-      unit,
-      cost,
-      station_name,
-      logged_at,
-      expense_transaction_id
-    )
-    SELECT
-      NEW.vehicle_id,
-      NEW.driver_id,
-      NEW.booking_id,
-      COALESCE(v_vehicle_fuel_type, 'Diesel'),
-      NEW.quantity,
-      COALESCE(NEW.unit, 'Liters'),
-      NEW.amount,
-      COALESCE(v_vendor_name, 'Total Energies'),
-      COALESCE(NEW.transaction_date, NOW()),
-      NEW.id
-    WHERE NOT EXISTS (
-      SELECT 1 FROM fuel_logs WHERE expense_transaction_id = NEW.id
-    )
-    RETURNING id INTO v_fuel_log_id;
+    -- Create fuel log entry (only if amount > 0, or if quantity is provided)
+    -- This allows accounting entries (amount=0) without creating unnecessary logs
+    IF NEW.amount > 0 OR NEW.quantity IS NOT NULL THEN
+      INSERT INTO fuel_logs (
+        vehicle_id,
+        driver_id,
+        booking_id,
+        fuel_type,
+        quantity,
+        unit,
+        cost,
+        station_name,
+        logged_at,
+        expense_transaction_id
+      )
+      SELECT
+        NEW.vehicle_id,
+        NEW.driver_id,
+        NEW.booking_id,
+        COALESCE(v_vehicle_fuel_type, 'Diesel'),
+        COALESCE(NEW.quantity, 0),
+        COALESCE(NEW.unit, 'Liters'),
+        NEW.amount,
+        COALESCE(v_vendor_name, 'Total Energies'),
+        COALESCE(NEW.transaction_date, NOW()),
+        NEW.id
+      WHERE NOT EXISTS (
+        SELECT 1 FROM fuel_logs WHERE expense_transaction_id = NEW.id
+      )
+      RETURNING id INTO v_fuel_log_id;
+    END IF;
   END IF;
   
   RETURN NEW;

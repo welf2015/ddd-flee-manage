@@ -644,21 +644,22 @@ export async function assignDriverWithExpenses(
     return { success: false, error: error.message }
   }
 
-  // Create expense transactions if provided
+  // Create expense transactions - fuel is always required for accounting
   if (expenses) {
     const { createExpenseTransaction } = await import("./expenses")
 
-    // Fuel transaction
-    if (expenses.fuelAmount && expenses.fuelAccountId) {
+    // Fuel transaction - always created (even if amount is 0)
+    if (expenses.fuelAccountId) {
+      const fuelAmount = expenses.fuelAmount ?? 0
       const fuelResult = await createExpenseTransaction(expenses.fuelAccountId, {
         bookingId,
         driverId,
         vehicleId: driver.assigned_vehicle_id,
         expenseType: "Fuel",
-        amount: expenses.fuelAmount,
+        amount: fuelAmount,
         quantity: expenses.fuelLiters,
         unit: "Liters",
-        notes: `Fuel for trip ${bookingId}`,
+        notes: fuelAmount > 0 ? `Fuel for trip ${bookingId}` : `No fuel expense for trip ${bookingId}`,
       })
       if (!fuelResult.success) {
         console.error("Failed to create fuel transaction:", fuelResult.error)

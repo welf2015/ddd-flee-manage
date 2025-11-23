@@ -1,0 +1,11 @@
+{
+    "mcpServers": {
+      "Supabase MCP for ai hub ": {
+        "command": "npx -y @supabase/mcp-server-postgrest@latest --apiUrl https://dzurtdrwtaxwqzbaurtb.supabase.co/rest/v1 --apiKey eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR6dXJ0ZHJ3dGF4d3F6YmF1cnRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5MTkxODgsImV4cCI6MjA3ODQ5NTE4OH0.LwXIlh6rvKfEYpOJqMHeKVULPH49DlAJBEF2gauRfu4 --schema public",
+        "env": {},
+        "args": []
+      }
+    }
+  }
+  
+  
