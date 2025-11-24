@@ -73,4 +73,3 @@ WHERE tgname IN (
   'trigger_update_account_balance_on_topup',
   'trigger_deduct_account_balance_on_transaction'
 );
-

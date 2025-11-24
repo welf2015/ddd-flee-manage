@@ -217,4 +217,3 @@ ALTER VIEW system_activity_log SET (security_barrier = true);
 
 -- Grant access to authenticated users
 GRANT SELECT ON system_activity_log TO authenticated;
-

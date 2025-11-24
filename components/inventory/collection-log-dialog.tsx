@@ -294,4 +294,3 @@ export function CollectionLogDialog({ open, onOpenChange, onSuccess }: Collectio
     </Dialog>
   )
 }
-

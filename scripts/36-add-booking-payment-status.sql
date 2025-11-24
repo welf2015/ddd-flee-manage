@@ -9,4 +9,3 @@ WHERE status = 'Completed' AND payment_status IS NULL;
 
 -- Add comment for documentation
 COMMENT ON COLUMN bookings.payment_status IS 'Payment status for completed bookings: Unpaid (default) or Paid';
-

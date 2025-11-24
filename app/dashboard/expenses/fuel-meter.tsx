@@ -61,4 +61,3 @@ export function FuelMeter({ totalSpent, totalDeposited = 0 }: FuelMeterProps) {
     </div>
   )
 }
-

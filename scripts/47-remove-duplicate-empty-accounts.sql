@@ -98,4 +98,3 @@ SELECT
 FROM prepaid_accounts pa
 JOIN expense_vendors ev ON pa.vendor_id = ev.id
 ORDER BY ev.vendor_type, pa.account_name;
-

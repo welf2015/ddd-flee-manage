@@ -100,4 +100,3 @@ SELECT
   COUNT(expense_transaction_id) as logs_with_transaction_id,
   COUNT(*) - COUNT(expense_transaction_id) as logs_without_transaction_id
 FROM fuel_logs;
-

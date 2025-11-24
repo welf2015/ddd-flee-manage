@@ -62,4 +62,3 @@ WHERE
   (et.expense_type = 'Ticketing' AND ev.vendor_type != 'Ticketing') OR
   (et.expense_type = 'Allowance' AND ev.vendor_type != 'Allowance')
 ORDER BY et.transaction_date DESC;
-

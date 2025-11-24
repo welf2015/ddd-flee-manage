@@ -47,4 +47,3 @@ export function getPeriodLabel(period: TimePeriod): string {
       return "This week"
   }
 }
-

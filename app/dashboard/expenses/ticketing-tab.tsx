@@ -158,4 +158,3 @@ export function TicketingTab({ onAddTopup, initialAccounts = [], initialTransact
     </div>
   )
 }
-

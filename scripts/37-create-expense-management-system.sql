@@ -293,4 +293,3 @@ BEGIN
     VALUES (v_allowance_vendor_id, 'Driver Allowance Pool - Main Account', 0, true);
   END IF;
 END $$;
-

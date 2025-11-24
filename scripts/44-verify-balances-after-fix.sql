@@ -63,4 +63,3 @@ LEFT JOIN prepaid_accounts pa ON et.account_id = pa.id
 LEFT JOIN bookings b ON et.booking_id = b.id
 ORDER BY et.transaction_date DESC
 LIMIT 10;
-

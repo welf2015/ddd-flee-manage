@@ -72,4 +72,3 @@ export async function invitePlatformUser(data: { fullName: string; email: string
   revalidatePath("/dashboard/settings")
   return { success: true, password: tempPassword }
 }
-

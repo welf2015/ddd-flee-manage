@@ -169,4 +169,3 @@ export function FuelTab({ onAddTopup, initialAccounts = [], initialTransactions 
     </div>
   )
 }
-

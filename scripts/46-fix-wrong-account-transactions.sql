@@ -186,4 +186,3 @@ FROM expense_transactions et
 LEFT JOIN prepaid_accounts pa ON et.account_id = pa.id
 LEFT JOIN expense_vendors ev ON pa.vendor_id = ev.id
 ORDER BY et.transaction_date DESC;
-

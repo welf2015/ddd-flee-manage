@@ -168,4 +168,3 @@ export function DriverActivitiesTab({ initialBookings, initialDrivers }: DriverA
     </div>
   )
 }
-

@@ -181,4 +181,3 @@ BEGIN
       transaction_record.id, v_fuel_log_id;
   END LOOP;
 END $$;
-

@@ -23,4 +23,3 @@ ALTER TABLE public.profiles
       'Staff'
     )
   );
-

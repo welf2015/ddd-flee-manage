@@ -172,4 +172,3 @@ export function AnimatedRoute({ route, status, startedAt, timeline, isOnHold }: 
     </div>
   )
 }
-

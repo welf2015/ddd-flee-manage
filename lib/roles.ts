@@ -71,4 +71,3 @@ export const ROLE_SETTINGS_SUMMARY: Array<{
     ],
   },
 ]
-

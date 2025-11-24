@@ -263,4 +263,3 @@ export async function getTotalFuelSpent() {
   const total = data?.reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0
   return { data: total, error: null }
 }
-

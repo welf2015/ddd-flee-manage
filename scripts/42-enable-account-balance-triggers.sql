@@ -103,4 +103,3 @@ BEGIN
       account_record.account_name, calculated_balance, calculated_deposited, calculated_spent;
   END LOOP;
 END $$;
-

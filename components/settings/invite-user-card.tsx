@@ -135,4 +135,3 @@ export function InviteUserCard({ canManage, onUserCreated }: InviteUserCardProps
     </Card>
   )
 }
-
