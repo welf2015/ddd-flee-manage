@@ -3,6 +3,21 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
+const ACCESS_CONTROL_ROLES = ["MD", "ED", "Head of Operations"]
+
+async function assertAccessControlPermission(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<{ allowed: boolean; error?: string }> {
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).single()
+
+  if (!profile || !ACCESS_CONTROL_ROLES.includes(profile.role || "Staff")) {
+    return { allowed: false, error: "Insufficient permissions" }
+  }
+
+  return { allowed: true }
+}
+
 export async function getPagePermissions() {
   const supabase = await createClient()
 
@@ -80,6 +95,11 @@ export async function updateRolePermission(rolePermissionId: string, canAccess: 
     return { success: false, error: "Not authenticated" }
   }
 
+  const guard = await assertAccessControlPermission(supabase, user.id)
+  if (!guard.allowed) {
+    return { success: false, error: guard.error }
+  }
+
   const { error } = await supabase.from("role_permissions").update({ can_access: canAccess }).eq("id", rolePermissionId)
 
   if (error) {
@@ -99,6 +119,11 @@ export async function createRolePermission(role: string, pageId: string, canAcce
 
   if (!user) {
     return { success: false, error: "Not authenticated" }
+  }
+
+  const guard = await assertAccessControlPermission(supabase, user.id)
+  if (!guard.allowed) {
+    return { success: false, error: guard.error }
   }
 
   const { data, error } = await supabase
@@ -128,6 +153,11 @@ export async function updateUserRole(userId: string, newRole: string) {
 
   if (!user) {
     return { success: false, error: "Not authenticated" }
+  }
+
+  const guard = await assertAccessControlPermission(supabase, user.id)
+  if (!guard.allowed) {
+    return { success: false, error: guard.error }
   }
 
   const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", userId)

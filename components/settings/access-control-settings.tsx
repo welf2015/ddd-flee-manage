@@ -16,17 +16,22 @@ import {
 } from "@/app/actions/access-control"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
+import { InviteUserCard } from "@/components/settings/invite-user-card"
+import { ROLE_SETTINGS_SUMMARY, SETTINGS_TAB_ACCESS, SYSTEM_ROLES, type SystemRole } from "@/lib/roles"
 
-const AVAILABLE_ROLES = ["Admin", "Manager", "Staff", "Viewer"]
+type AccessControlSettingsProps = {
+  currentRole: SystemRole
+}
 
-export function AccessControlSettings() {
+export function AccessControlSettings({ currentRole }: AccessControlSettingsProps) {
   const [users, setUsers] = useState<any[]>([])
   const [pages, setPages] = useState<any[]>([])
-  const [selectedRole, setSelectedRole] = useState<string>("Manager")
+  const [selectedRole, setSelectedRole] = useState<string>(SYSTEM_ROLES.includes(currentRole) ? currentRole : SYSTEM_ROLES[0])
   const [permissions, setPermissions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [updatingPermission, setUpdatingPermission] = useState<string | null>(null)
   const [updatingUser, setUpdatingUser] = useState<string | null>(null)
+  const canManage = ["MD", "ED", "Head of Operations"].includes(currentRole)
 
   useEffect(() => {
     loadData()
@@ -40,7 +45,7 @@ export function AccessControlSettings() {
 
   const loadData = async () => {
     setLoading(true)
-    const [usersResult, pagesResult] = await Promise.all([getAllUsers(), getPagePermissions()])
+      const [usersResult, pagesResult] = await Promise.all([getAllUsers(), getPagePermissions()])
 
     if (usersResult.success) {
       setUsers(usersResult.data)
@@ -109,6 +114,8 @@ export function AccessControlSettings() {
 
   return (
     <div className="space-y-6">
+      <InviteUserCard canManage={canManage} onUserCreated={loadData} />
+
       <Card className="bg-background/50 backdrop-blur">
         <CardHeader>
           <CardTitle>User Roles</CardTitle>
@@ -136,13 +143,13 @@ export function AccessControlSettings() {
                     <Select
                       value={user.role || "Staff"}
                       onValueChange={(value) => handleUserRoleChange(user.id, value)}
-                      disabled={updatingUser === user.id}
+                      disabled={updatingUser === user.id || !canManage}
                     >
-                      <SelectTrigger className="w-[150px]">
+                      <SelectTrigger className="w-[220px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {AVAILABLE_ROLES.map((role) => (
+                        {SYSTEM_ROLES.map((role) => (
                           <SelectItem key={role} value={role}>
                             {role}
                           </SelectItem>
@@ -164,12 +171,12 @@ export function AccessControlSettings() {
               <CardTitle>Page Access Permissions</CardTitle>
               <CardDescription>Configure which roles can access specific pages</CardDescription>
             </div>
-            <Select value={selectedRole} onValueChange={setSelectedRole}>
-              <SelectTrigger className="w-[200px]">
+            <Select value={selectedRole} onValueChange={setSelectedRole} disabled={!canManage}>
+              <SelectTrigger className="w-[250px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {AVAILABLE_ROLES.map((role) => (
+                {SYSTEM_ROLES.map((role) => (
                   <SelectItem key={role} value={role}>
                     {role}
                   </SelectItem>
@@ -204,12 +211,55 @@ export function AccessControlSettings() {
                             handleCreatePermission(page.id, true)
                           }
                         }}
-                        disabled={updatingPermission === permission?.id}
+                        disabled={updatingPermission === permission?.id || !canManage}
                       />
                     </TableCell>
                   </TableRow>
                 )
               })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-background/50 backdrop-blur">
+        <CardHeader>
+          <CardTitle>Role Visibility on Settings</CardTitle>
+          <CardDescription>Summary of which tabs each role can access when they sign in.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Role</TableHead>
+                <TableHead>Highlights</TableHead>
+                <TableHead>Tabs</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {ROLE_SETTINGS_SUMMARY.map((summary) => (
+                <TableRow key={summary.role}>
+                  <TableCell className="font-medium">{summary.role}</TableCell>
+                  <TableCell>
+                    <ul className="list-disc space-y-1 pl-4 text-sm text-muted-foreground">
+                      {summary.highlights.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </TableCell>
+                  <TableCell className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      {(Object.keys(SETTINGS_TAB_ACCESS) as (keyof typeof SETTINGS_TAB_ACCESS)[])
+                        .filter((tab) => SETTINGS_TAB_ACCESS[tab].includes(summary.role))
+                        .map((tab) => (
+                          <Badge key={tab} variant="secondary" className="capitalize">
+                            {tab.replace("-", " ")}
+                          </Badge>
+                        ))}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </CardContent>

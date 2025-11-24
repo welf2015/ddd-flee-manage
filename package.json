@@ -55,6 +55,7 @@
     "mapbox-gl": "latest",
     "next": "14.2.25",
     "next-themes": "latest",
+    "pg": "^8.16.3",
     "react": "^19",
     "react-day-picker": "9.8.0",
     "react-dom": "^19",
