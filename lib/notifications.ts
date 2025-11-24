@@ -69,7 +69,7 @@ export async function notifyAdminsForBookingApproval(bookingData: {
   // Get creator name
   const creator = await getProfileById(bookingData.createdBy, supabase)
 
-  const emailData = generateBookingApprovalEmail({
+  const emailData = await generateBookingApprovalEmail({
     ...bookingData,
     requesterName: creator?.full_name || "Unknown",
     dashboardUrl: DASHBOARD_URL,
@@ -77,7 +77,7 @@ export async function notifyAdminsForBookingApproval(bookingData: {
 
   // Send emails to all admins
   const adminEmails = admins.filter((a) => a.email).map((a) => a.email!)
-  
+
   if (adminEmails.length > 0) {
     await sendEmailNotification({
       to: adminEmails,
@@ -120,13 +120,9 @@ export async function notifyStatusChange(data: {
   }
 
   // Get person who made the change
-  const { data: changer } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", data.changedBy)
-    .single()
+  const { data: changer } = await supabase.from("profiles").select("full_name").eq("id", data.changedBy).single()
 
-  const emailData = generateBookingStatusChangeEmail({
+  const emailData = await generateBookingStatusChangeEmail({
     ...data,
     changedBy: changer?.full_name || "Unknown",
     dashboardUrl: DASHBOARD_URL,
@@ -134,7 +130,7 @@ export async function notifyStatusChange(data: {
 
   // Send emails
   const userEmails = users.filter((u) => u.email).map((u) => u.email!)
-  
+
   if (userEmails.length > 0) {
     await sendEmailNotification({
       to: userEmails,
@@ -192,7 +188,7 @@ export async function notifyNegotiationEvent(params: {
   const emails = uniqueRecipients.map((p) => p.email).filter(Boolean) as string[]
 
   if (emails.length > 0) {
-    const emailData = generateNegotiationEmail({
+    const emailData = await generateNegotiationEmail({
       jobId: booking.job_id,
       clientName: booking.client_name,
       amount: params.amount,
@@ -233,8 +229,7 @@ export async function notifyPaymentReceived(bookingId: string, markedBy: string)
   if (!booking) return
 
   const marker = await getProfileById(markedBy, supabase)
-  const amount =
-    Number(booking.current_negotiation_amount) || Number(booking.proposed_client_budget) || undefined
+  const amount = Number(booking.current_negotiation_amount) || Number(booking.proposed_client_budget) || undefined
 
   const recipients = uniqueById([
     ...(await getProfilesByRoles([...new Set([...ROLE_MD_ED, ...ROLE_ACCOUNTANT])], supabase)),
@@ -242,7 +237,7 @@ export async function notifyPaymentReceived(bookingId: string, markedBy: string)
 
   const emails = recipients.map((p) => p.email).filter(Boolean) as string[]
   if (emails.length > 0) {
-    const emailData = generatePaymentReceivedEmail({
+    const emailData = await generatePaymentReceivedEmail({
       jobId: booking.job_id,
       clientName: booking.client_name,
       amount: amount || 0,
@@ -286,7 +281,7 @@ export async function notifyIncidentCreated(payload: {
 
   const emails = recipients.map((p) => p.email).filter(Boolean) as string[]
   if (emails.length > 0) {
-    const emailData = generateIncidentReportEmail({
+    const emailData = await generateIncidentReportEmail({
       incidentNumber: payload.incidentNumber,
       severity: payload.severity,
       vehicle: payload.vehicleLabel,
@@ -337,7 +332,7 @@ export async function notifyTopup(data: {
 
   const emails = recipients.map((p) => p.email).filter(Boolean) as string[]
   if (emails.length > 0) {
-    const emailData = generateTopupEmail({
+    const emailData = await generateTopupEmail({
       accountName: account.account_name,
       vendorType: account.vendor?.vendor_name || "Prepaid Account",
       amount: data.amount,
