@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
-import { notifyAdminsForBookingApproval, notifyStatusChange } from "@/lib/notifications"
+import { notifyAdminsForBookingApproval, notifyStatusChange, notifyPaymentReceived } from "@/lib/notifications"
 
 export async function createBooking(formData: FormData) {
   const supabase = await createClient()
@@ -256,6 +256,16 @@ export async function closeBooking(
     return { success: false, error: "Not authenticated" }
   }
 
+  const { data: existingBooking } = await supabase
+    .from("bookings")
+    .select("job_id, client_name, status")
+    .eq("id", bookingId)
+    .single()
+
+  if (!existingBooking) {
+    return { success: false, error: "Booking not found" }
+  }
+
   // Update booking to Completed status with Unpaid payment status
   const { error: bookingError } = await supabase
     .from("bookings")
@@ -311,6 +321,16 @@ export async function closeBooking(
     }
   }
 
+  await notifyStatusChange({
+    jobId: existingBooking.job_id,
+    clientName: existingBooking.client_name,
+    oldStatus: existingBooking.status,
+    newStatus: "Completed",
+    changedBy: user.id,
+    notifyRoles: ["MD", "ED", "Head of Operations"],
+    bookingId,
+  })
+
   revalidatePath("/dashboard/bookings")
   revalidatePath("/dashboard/drivers")
   return { success: true }
@@ -346,6 +366,8 @@ export async function markBookingAsPaid(bookingId: string) {
     action_by: user.id,
     notes: "Payment has been received for this booking",
   })
+
+  await notifyPaymentReceived(bookingId, user.id)
 
   revalidatePath("/dashboard/bookings")
   return { success: true }

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import { notifyIncidentCreated } from "@/lib/notifications"
 
 export async function createIncident(formData: FormData) {
   const supabase = await createClient()
@@ -62,6 +63,27 @@ export async function createIncident(formData: FormData) {
     console.error("[v0] Error creating incident:", error)
     return { success: false, error: error.message }
   }
+
+  let vehicleLabel: string | null = null
+  if (incident.vehicle_id) {
+    const { data: vehicle } = await supabase
+      .from("vehicles")
+      .select("vehicle_number, make, model")
+      .eq("id", incident.vehicle_id)
+      .single()
+    if (vehicle) {
+      const meta = [vehicle.make, vehicle.model].filter(Boolean).join(" ")
+      vehicleLabel = [vehicle.vehicle_number, meta].filter(Boolean).join(" - ")
+    }
+  }
+
+  await notifyIncidentCreated({
+    incidentNumber: incident.incident_number,
+    severity: incident.severity || "Unspecified",
+    vehicleLabel,
+    location: incident.location || undefined,
+    reportedBy: user.id,
+  })
 
   revalidatePath("/dashboard/incidents")
   return { success: true }

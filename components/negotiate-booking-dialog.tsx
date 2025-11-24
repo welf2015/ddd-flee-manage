@@ -57,6 +57,22 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
     setLoadingThreads(false)
   }
 
+  const triggerNegotiationNotification = async (eventType: "proposed" | "counter" | "approved", amountValue: number) => {
+    try {
+      await fetch("/api/notifications/negotiations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId: booking.id,
+          amount: amountValue,
+          eventType,
+        }),
+      })
+    } catch (error) {
+      console.error("[v0] negotiation notification failed", error)
+    }
+  }
+
   const handleNegotiate = async (isCounter: boolean) => {
     if (!amount) {
       toast.error("Please enter an amount")
@@ -140,6 +156,7 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
         .eq("id", booking.id)
 
       toast.success(isCounter ? "Counter proposal sent" : "Negotiation started")
+      await triggerNegotiationNotification(isCounter ? "counter" : "proposed", Number.parseFloat(amount))
       setAmount("")
       setComments("")
       fetchNegotiationThreads()
@@ -173,6 +190,12 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
 
   const handleAcceptNegotiation = async (threadId: string) => {
     setLoading(true)
+    const acceptedThread = threads.find((thread) => thread.id === threadId)
+    const acceptedAmount =
+      Number(acceptedThread?.counter_amount) ||
+      Number(acceptedThread?.proposed_amount) ||
+      Number(acceptedThread?.proposed_amount) ||
+      0
 
     try {
       const { error } = await supabase.from("negotiation_threads").update({ status: "Accepted" }).eq("id", threadId)
@@ -185,6 +208,7 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
         .eq("id", booking.id)
 
       toast.success("Negotiation accepted - booking approved")
+      await triggerNegotiationNotification("approved", acceptedAmount)
       onSuccess()
     } catch (error: any) {
       toast.error(error.message)

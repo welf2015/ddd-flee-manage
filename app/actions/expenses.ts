@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import { notifyTopup } from "@/lib/notifications"
 
 export async function getExpenseVendors() {
   const supabase = await createClient()
@@ -75,6 +76,13 @@ export async function addAccountTopup(
   if (error) {
     return { success: false, error: error.message }
   }
+
+  await notifyTopup({
+    accountId,
+    amount: data.amount,
+    depositedBy: user.id,
+    receiptNumber: data.receiptNumber,
+  })
 
   revalidatePath("/dashboard/expenses")
   return { success: true }
