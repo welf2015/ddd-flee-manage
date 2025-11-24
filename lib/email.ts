@@ -31,7 +31,7 @@ const getFromEmail = () => {
   return (
     process.env.RESEND_FROM_EMAIL ||
     process.env.NOTIFICATION_FROM_EMAIL ||
-    "Fleet Manager <notifications@voltaamobility.com>"
+    "Fleet Manager <notification@fleet.voltaamobility.com>"
   )
 }
 
