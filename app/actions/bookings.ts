@@ -769,11 +769,21 @@ export async function assignDriverWithExpenses(
   })
 
   // Create expense transactions - fuel is always required for accounting
+  // First, check if transactions already exist for this booking to prevent duplicates
+  const { data: existingTransactions } = await supabase
+    .from("expense_transactions")
+    .select("id, expense_type")
+    .eq("booking_id", bookingId)
+
+  const hasFuelTransaction = existingTransactions?.some((t) => t.expense_type === "Fuel")
+  const hasTicketingTransaction = existingTransactions?.some((t) => t.expense_type === "Ticketing")
+  const hasAllowanceTransaction = existingTransactions?.some((t) => t.expense_type === "Allowance")
+
   if (expenses) {
     const { createExpenseTransaction } = await import("./expenses")
 
-    // Fuel transaction - always created (even if amount is 0)
-    if (expenses.fuelAccountId) {
+    // Fuel transaction - always created (even if amount is 0) - but only if it doesn't exist
+    if (expenses.fuelAccountId && !hasFuelTransaction) {
       const fuelAmount = expenses.fuelAmount ?? 0
       const fuelLiters = expenses.fuelLiters ?? 0
 
@@ -836,8 +846,8 @@ export async function assignDriverWithExpenses(
       }
     }
 
-    // Ticketing transaction
-    if (expenses.ticketingAmount && expenses.ticketingAccountId) {
+    // Ticketing transaction - only create if it doesn't exist
+    if (expenses.ticketingAmount && expenses.ticketingAccountId && !hasTicketingTransaction) {
       const ticketingResult = await createExpenseTransaction(expenses.ticketingAccountId, {
         bookingId,
         driverId,
@@ -849,10 +859,12 @@ export async function assignDriverWithExpenses(
       if (!ticketingResult.success) {
         console.error("Failed to create ticketing transaction:", ticketingResult.error)
       }
+    } else if (hasTicketingTransaction) {
+      console.log("ℹ️ [assignDriverWithExpenses] Ticketing transaction already exists, skipping")
     }
 
-    // Allowance transaction - need to get allowance account
-    if (expenses.allowanceAmount) {
+    // Allowance transaction - need to get allowance account - only create if it doesn't exist
+    if (expenses.allowanceAmount && !hasAllowanceTransaction) {
       const { getPrepaidAccounts } = await import("./expenses")
       const { data: allowanceAccounts } = await getPrepaidAccounts("Allowance")
       const allowanceOnly = allowanceAccounts?.filter((a: any) => a.vendor?.vendor_type === "Allowance") || []
@@ -869,6 +881,8 @@ export async function assignDriverWithExpenses(
           console.error("Failed to create allowance transaction:", allowanceResult.error)
         }
       }
+    } else if (hasAllowanceTransaction) {
+      console.log("ℹ️ [assignDriverWithExpenses] Allowance transaction already exists, skipping")
     }
   }
 
