@@ -33,6 +33,8 @@ export function ManualExpenseLogDialog({
   const [fuelAccount, setFuelAccount] = useState<any>(null)
   const [ticketingAccount, setTicketingAccount] = useState<any>(null)
   const [allowanceAccount, setAllowanceAccount] = useState<any>(null)
+  const [bookingDriverId, setBookingDriverId] = useState<string | null>(null)
+  const [bookingVehicleId, setBookingVehicleId] = useState<string | null>(null)
   
   const [fuelAmount, setFuelAmount] = useState("")
   const [fuelLiters, setFuelLiters] = useState("")
@@ -44,14 +46,43 @@ export function ManualExpenseLogDialog({
   useEffect(() => {
     if (open) {
       setLoadingAccounts(true)
+      fetchBookingData()
       fetchAccounts().finally(() => setLoadingAccounts(false))
     } else {
       // Reset accounts when dialog closes
       setFuelAccount(null)
       setTicketingAccount(null)
       setAllowanceAccount(null)
+      setBookingDriverId(null)
+      setBookingVehicleId(null)
     }
-  }, [open])
+  }, [open, bookingId])
+
+  const fetchBookingData = async () => {
+    try {
+      const { data: booking, error } = await supabase
+        .from("bookings")
+        .select("assigned_driver_id, assigned_vehicle_id")
+        .eq("id", bookingId)
+        .single()
+
+      if (error) {
+        console.error("Error fetching booking data:", error)
+        return
+      }
+
+      if (booking) {
+        setBookingDriverId(booking.assigned_driver_id)
+        setBookingVehicleId(booking.assigned_vehicle_id || vehicleId || null)
+        console.log("📋 [Manual Expense] Booking data:", {
+          driverId: booking.assigned_driver_id,
+          vehicleId: booking.assigned_vehicle_id || vehicleId,
+        })
+      }
+    } catch (error) {
+      console.error("Error fetching booking data:", error)
+    }
+  }
 
   const fetchAccounts = async () => {
     try {
@@ -148,7 +179,8 @@ export function ManualExpenseLogDialog({
 
         const fuelResult = await createExpenseTransaction(fuelAccount.id, {
           bookingId,
-          vehicleId: vehicleId || undefined,
+          driverId: bookingDriverId || undefined,
+          vehicleId: bookingVehicleId || vehicleId || undefined,
           expenseType: "Fuel",
           amount: fuelAmt,
           quantity: fuelLitersValue,
@@ -166,7 +198,8 @@ export function ManualExpenseLogDialog({
       if (ticketingAmount && ticketingAccount) {
         const ticketingResult = await createExpenseTransaction(ticketingAccount.id, {
           bookingId,
-          vehicleId: vehicleId || undefined,
+          driverId: bookingDriverId || undefined,
+          vehicleId: bookingVehicleId || vehicleId || undefined,
           expenseType: "Ticketing",
           amount: parseFloat(ticketingAmount),
           notes: `Manual ticketing log for booking ${bookingId}`,
@@ -181,7 +214,8 @@ export function ManualExpenseLogDialog({
       if (allowanceAmount && allowanceAccount) {
         const allowanceResult = await createExpenseTransaction(allowanceAccount.id, {
           bookingId,
-          vehicleId: vehicleId || undefined,
+          driverId: bookingDriverId || undefined,
+          vehicleId: bookingVehicleId || vehicleId || undefined,
           expenseType: "Allowance",
           amount: parseFloat(allowanceAmount),
           notes: `Manual allowance log for booking ${bookingId}`,
