@@ -610,7 +610,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                 <TabsList
                   className={cn(
                     "grid w-full rounded-none border-b bg-muted/50 px-6",
-                    ["Completed", "Closed"].includes(displayBooking.status) ? "grid-cols-5" : "grid-cols-4",
+                    ["Completed", "Closed"].includes(displayBooking.status) ? "grid-cols-6" : "grid-cols-5",
                   )}
                 >
                   <TabsTrigger value="details" className="rounded-none">
@@ -624,6 +624,9 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                   </TabsTrigger>
                   <TabsTrigger value="docs" className="rounded-none">
                     Docs
+                  </TabsTrigger>
+                  <TabsTrigger value="expenses" className="rounded-none">
+                    Expenses
                   </TabsTrigger>
                   {["Completed", "Closed"].includes(displayBooking.status) && (
                     <TabsTrigger value="feedback" className="rounded-none">
