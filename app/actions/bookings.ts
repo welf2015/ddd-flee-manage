@@ -800,7 +800,7 @@ export async function assignDriverWithExpenses(
 
       if (!fuelResult.success) {
         console.error("Failed to create fuel transaction:", fuelResult.error)
-      } else if (fuelResult.data && (fuelAmount > 0 || fuelLiters > 0)) {
+      } else if (fuelResult.data) {
         // Directly create fuel log since we have all the data
         // This is more reliable than relying on triggers
         const supabase = await createClient()
@@ -844,6 +844,8 @@ export async function assignDriverWithExpenses(
           console.log("✅ Fuel log created successfully for transaction:", fuelResult.data.id)
         }
       }
+    } else if (hasFuelTransaction) {
+      console.log("ℹ️ [assignDriverWithExpenses] Fuel transaction already exists, skipping")
     }
 
     // Ticketing transaction - only create if it doesn't exist
