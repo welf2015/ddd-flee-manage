@@ -8,6 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Truck,
   User,
   AlertCircle,
@@ -61,6 +71,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const [userRole, setUserRole] = useState<string>("")
   const supabase = createClient()
   const [openSheet, setOpen] = useState(open) // State to control sheet visibility
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   useEffect(() => {
     setUserRole(localStorage.getItem("userRole") || "") // Get role from localStorage on mount
@@ -243,7 +254,8 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
       userRole === "ED" ||
       userRole === "Head of Operations" ||
       userRole === "Operations and Fleet Officer")
-  const canDelete = userRole === "MD" || userRole === "ED" || userRole === "Head of Operations"
+  const canDelete = userRole === "MD" || userRole === "ED"
+  const canDisapprove = displayBooking.status === "Open" && (userRole === "MD" || userRole === "ED")
   const canMarkAsPaid =
     displayBooking.status === "Completed" &&
     displayBooking.payment_status === "Unpaid" &&
@@ -313,11 +325,29 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
     setUpdatingStatus(false)
   }
 
-  const handleDeleteBooking = async () => {
-    if (!confirm("Are you sure you want to delete this booking? This action cannot be undone.")) {
+  const handleDisapproveBooking = async () => {
+    if (!confirm("Disapprove this booking? The requester will be notified.")) {
       return
     }
 
+    setUpdatingStatus(true)
+    const { updateBookingStatus } = await import("@/app/actions/bookings")
+    const result = await updateBookingStatus(booking.id, "Closed")
+
+    if (result.success) {
+      await mutateBooking()
+      onUpdate()
+      const { toast } = await import("sonner")
+      toast.success("Booking disapproved")
+    } else {
+      const { toast } = await import("sonner")
+      toast.error(result.error || "Failed to disapprove booking")
+    }
+
+    setUpdatingStatus(false)
+  }
+
+  const handleDeleteBooking = async () => {
     const { deleteBooking } = await import("@/app/actions/bookings")
     const result = await deleteBooking(booking.id)
 
@@ -326,6 +356,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
       toast.success("Booking deleted successfully")
       onUpdate()
       setOpen(false) // Close the sheet after deletion
+      setShowDeleteDialog(false)
     } else {
       const { toast } = await import("sonner")
       toast.error(result.error || "Failed to delete booking")
@@ -387,9 +418,16 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
               })}
 
               {canDelete && (
-                <Button onClick={handleDeleteBooking} variant="destructive" size="sm">
+                <Button onClick={() => setShowDeleteDialog(true)} variant="destructive" size="sm">
                   <Trash2 className="h-3 w-3 mr-1" />
                   Delete Job
+                </Button>
+              )}
+
+              {canDisapprove && (
+                <Button onClick={handleDisapproveBooking} variant="outline" size="sm" disabled={updatingStatus}>
+                  <X className="h-3 w-3 mr-1" />
+                  Disapprove
                 </Button>
               )}
 
@@ -1229,6 +1267,22 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
           }}
         />
       )}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove {displayBooking.job_id}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updatingStatus}>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeleteBooking}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

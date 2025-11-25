@@ -20,6 +20,7 @@ import {
   Eye,
   Download,
   Wallet,
+  X,
 } from "lucide-react"
 import { AssignDriverDialog } from "./assign-driver-dialog"
 import { UpdateJobStatusDialog } from "./update-job-status-dialog"
@@ -273,10 +274,33 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
       userRole === "ED" ||
       userRole === "Head of Operations" ||
       userRole === "Operations and Fleet Officer")
+  const canDisapprove = displayBooking.status === "Open" && (userRole === "MD" || userRole === "ED")
   const canMarkAsPaid =
     displayBooking.status === "Completed" &&
     displayBooking.payment_status === "Unpaid" &&
     (userRole === "Accountant" || userRole === "MD" || userRole === "ED")
+
+  const handleDisapproveBooking = async () => {
+    if (!confirm("Disapprove this booking? The requester will be notified.")) {
+      return
+    }
+
+    setUpdatingStatus(true)
+    const { updateBookingStatus } = await import("@/app/actions/bookings")
+    const result = await updateBookingStatus(booking.id, "Closed")
+
+    const { toast } = await import("sonner")
+
+    if (result.success) {
+      await mutateBooking()
+      onUpdate()
+      toast.success("Booking disapproved")
+    } else {
+      toast.error(result.error || "Failed to disapprove booking")
+    }
+
+    setUpdatingStatus(false)
+  }
 
   return (
     <>
@@ -351,6 +375,12 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
                 >
                   <Wallet className="h-4 w-4 mr-2" />
                   Mark as Paid
+                </Button>
+              )}
+              {canDisapprove && (
+                <Button onClick={handleDisapproveBooking} variant="outline" disabled={updatingStatus}>
+                  <X className="h-4 w-4 mr-2" />
+                  Disapprove
                 </Button>
               )}
             </div>

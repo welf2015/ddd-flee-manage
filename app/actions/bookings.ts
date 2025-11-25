@@ -786,11 +786,11 @@ export async function deleteBooking(bookingId: string) {
     return { success: false, error: "Not authenticated" }
   }
 
-  // Check user role - only MD, ED, and Head of Operations can delete
+  // Check user role - only MD and ED can delete
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
 
-  if (!profile || !["MD", "ED", "Head of Operations"].includes(profile.role)) {
-    return { success: false, error: "Unauthorized: Only MD, ED, and Head of Operations can delete bookings" }
+  if (!profile || !["MD", "ED"].includes(profile.role)) {
+    return { success: false, error: "Unauthorized: Only MD and ED can delete bookings" }
   }
 
   // Get booking info before deleting
