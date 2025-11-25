@@ -7,12 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
-import { useState, useTransition } from "react"
-import { SYSTEM_ROLES, type SystemRole } from "@/lib/roles"
-import { createUserFromLogin } from "@/app/actions/public-users"
+import { useState } from "react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -20,13 +16,6 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isAuthenticating, setIsAuthenticating] = useState(false)
-  const [fullName, setFullName] = useState("")
-  const [newUserEmail, setNewUserEmail] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [newRole, setNewRole] = useState<SystemRole>("Staff")
-  const [createUserMessage, setCreateUserMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  const [isPending, startTransition] = useTransition()
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -68,39 +57,6 @@ export default function LoginPage() {
     }
   }
 
-  const handleCreateUser = (event: React.FormEvent) => {
-    event.preventDefault()
-    setCreateUserMessage(null)
-
-    if (newPassword !== confirmPassword) {
-      setCreateUserMessage({ type: "error", text: "Passwords do not match" })
-      return
-    }
-
-    startTransition(async () => {
-      const result = await createUserFromLogin({
-        fullName,
-        email: newUserEmail,
-        role: newRole,
-        password: newPassword,
-      })
-
-      if (result.success) {
-        setCreateUserMessage({
-          type: "success",
-          text: "User created successfully. They can now log in with the credentials provided.",
-        })
-        setFullName("")
-        setNewUserEmail("")
-        setNewPassword("")
-        setConfirmPassword("")
-        setNewRole("Staff")
-      } else {
-        setCreateUserMessage({ type: "error", text: result.error || "Failed to create user" })
-      }
-    })
-  }
-
   return (
     <div className="flex min-h-screen w-full bg-black">
       {/* Left side - FULL IMAGE */}
@@ -133,142 +89,47 @@ export default function LoginPage() {
             <div className="mb-6 flex justify-center lg:hidden">
               <img src="/logo.png" alt="Voltaa" className="h-12" />
             </div>
-            <Tabs defaultValue="login" className="space-y-4">
-              <TabsList className="grid grid-cols-2">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="create">Add User</TabsTrigger>
-              </TabsList>
-              <TabsContent value="login">
-                <Card className="bg-background/50 backdrop-blur border-border">
-                  <CardHeader>
-                    <CardTitle className="text-2xl">Login</CardTitle>
-                    <p className="text-sm text-muted-foreground">Enter your credentials to access your account</p>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleLogin}>
-                      <div className="flex flex-col gap-6">
-                        <div className="grid gap-2">
-                          <Label htmlFor="email">Email</Label>
-                          <Input
-                            id="email"
-                            type="email"
-                            placeholder="name@company.com"
-                            required
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="bg-background/50"
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="password">Password</Label>
-                          <Input
-                            id="password"
-                            type="password"
-                            required
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="bg-background/50"
-                            disabled={isLoading}
-                          />
-                        </div>
-                        {error && <p className="text-sm text-red-500">{error}</p>}
-                        <Button type="submit" className="w-full bg-accent hover:bg-accent/90" disabled={isLoading}>
-                          {isLoading ? "Logging in..." : "Login"}
-                        </Button>
-                      </div>
-                    </form>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              <TabsContent value="create">
-                <Card className="bg-background/50 backdrop-blur border-border">
-                  <CardHeader>
-                    <CardTitle className="text-2xl">Add User</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      Create a platform user by entering their details and selecting a role.
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleCreateUser} className="flex flex-col gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="fullName">Full Name</Label>
-                        <Input
-                          id="fullName"
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          placeholder="Jane Doe"
-                          required
-                          disabled={isPending}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="newUserEmail">Email</Label>
-                        <Input
-                          id="newUserEmail"
-                          type="email"
-                          value={newUserEmail}
-                          onChange={(e) => setNewUserEmail(e.target.value)}
-                          placeholder="user@voltaamobility.com"
-                          required
-                          disabled={isPending}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>Role</Label>
-                        <Select value={newRole} onValueChange={(value) => setNewRole(value as SystemRole)} disabled={isPending}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SYSTEM_ROLES.map((role) => (
-                              <SelectItem key={role} value={role}>
-                                {role}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="newPassword">Password</Label>
-                        <Input
-                          id="newPassword"
-                          type="password"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          placeholder="At least 8 characters"
-                          required
-                          disabled={isPending}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="confirmPassword">Confirm Password</Label>
-                        <Input
-                          id="confirmPassword"
-                          type="password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          required
-                          disabled={isPending}
-                        />
-                      </div>
-                      {createUserMessage && (
-                        <p
-                          className={`text-sm ${
-                            createUserMessage.type === "success" ? "text-green-500" : "text-red-500"
-                          }`}
-                        >
-                          {createUserMessage.text}
-                        </p>
-                      )}
-                      <Button type="submit" className="w-full bg-accent hover:bg-accent/90" disabled={isPending}>
-                        {isPending ? "Creating..." : "Create User"}
-                      </Button>
-                    </form>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+            <Card className="bg-background/50 backdrop-blur border-border">
+              <CardHeader>
+                <CardTitle className="text-2xl">Login</CardTitle>
+                <p className="text-sm text-muted-foreground">Enter your credentials to access your account</p>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleLogin}>
+                  <div className="flex flex-col gap-6">
+                    <div className="grid gap-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="name@company.com"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="bg-background/50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="password">Password</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="bg-background/50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    {error && <p className="text-sm text-red-500">{error}</p>}
+                    <Button type="submit" className="w-full bg-accent hover:bg-accent/90" disabled={isLoading}>
+                      {isLoading ? "Logging in..." : "Login"}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>
