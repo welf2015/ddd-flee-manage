@@ -655,16 +655,29 @@ export async function updateBooking(bookingId: string, formData: FormData) {
     company_name: formData.get("company_name") as string,
     client_name: formData.get("client_name") as string,
     client_contact: formData.get("client_contact") as string,
+    client_email: formData.get("client_email") as string,
     client_address: formData.get("client_address") as string,
     destination_contact_name: formData.get("destination_contact_name") as string,
     destination_contact_phone: formData.get("destination_contact_phone") as string,
+    pickup_address: formData.get("pickup_address") as string,
+    delivery_address: formData.get("delivery_address") as string,
     route: formData.get("route") as string,
     number_of_loads: Number.parseInt(formData.get("number_of_loads") as string),
-    proposed_client_budget: Number.parseFloat(formData.get("proposed_client_budget") as string),
     timeline: formData.get("timeline") as string,
     request_details: formData.get("request_details") as string,
     updated_at: new Date().toISOString(),
   }
+
+  // Add coordinates if provided
+  const pickupLat = formData.get("pickup_lat")
+  const pickupLng = formData.get("pickup_lng")
+  const deliveryLat = formData.get("delivery_lat")
+  const deliveryLng = formData.get("delivery_lng")
+
+  if (pickupLat) updateData.pickup_lat = Number.parseFloat(pickupLat as string)
+  if (pickupLng) updateData.pickup_lng = Number.parseFloat(pickupLng as string)
+  if (deliveryLat) updateData.delivery_lat = Number.parseFloat(deliveryLat as string)
+  if (deliveryLng) updateData.delivery_lng = Number.parseFloat(deliveryLng as string)
 
   const { error } = await supabase.from("bookings").update(updateData).eq("id", bookingId)
 
