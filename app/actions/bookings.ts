@@ -836,14 +836,24 @@ export async function deleteBooking(bookingId: string) {
 
   // Delete the booking
   console.log("🗑️ [Server Action] Deleting main booking record...")
-  const { error } = await supabase.from("bookings").delete().eq("id", bookingId)
+  const { error, data } = await supabase.from("bookings").delete().eq("id", bookingId).select()
 
   if (error) {
     console.error("🗑️ [Server Action] Error deleting booking:", error)
     return { success: false, error: error.message }
   }
 
-  console.log("🗑️ [Server Action] Booking deleted successfully! Revalidating path...")
+  console.log("🗑️ [Server Action] Delete query result:", { data, error })
+
+  // Verify deletion
+  const { data: verifyBooking } = await supabase.from("bookings").select("id").eq("id", bookingId).single()
+  
+  if (verifyBooking) {
+    console.error("🗑️ [Server Action] WARNING: Booking still exists after deletion attempt!", { bookingId })
+    return { success: false, error: "Booking deletion failed - record still exists" }
+  }
+
+  console.log("🗑️ [Server Action] Booking deleted successfully! Verified deletion. Revalidating path...")
   revalidatePath("/dashboard/bookings")
   return { success: true }
 }

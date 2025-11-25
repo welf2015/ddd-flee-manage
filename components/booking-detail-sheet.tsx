@@ -49,6 +49,7 @@ import { Label } from "@/components/ui/label"
 import useSWR from "swr"
 import cn from "classnames"
 import { formatRelativeTime } from "@/lib/utils"
+import { useRouter } from "next/navigation"
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiZGFtaWxvbGFqYW1lcyIsImEiOiJjbWk3bzRuZXUwMmx6MndyMWduZmcwNG9pIn0.lTWQddjYoQjt3w-CUEc81w"
 
@@ -71,6 +72,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [userRole, setUserRole] = useState<string>("")
   const supabase = createClient()
+  const router = useRouter()
   const [openSheet, setOpen] = useState(open) // State to control sheet visibility
 
   useEffect(() => {
@@ -371,9 +373,10 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
       if (result.success) {
         console.log("🗑️ [Delete Booking] Success! Closing sheet and updating...")
         toast.success("Booking deleted successfully")
-        onUpdate()
         setOpen(false) // Close the sheet after deletion
         onOpenChange(false) // Also call parent's onOpenChange
+        onUpdate() // Call parent update callback
+        router.refresh() // Force page refresh to reload bookings from server
       } else {
         console.error("🗑️ [Delete Booking] Failed:", result.error)
         toast.error(result.error || "Failed to delete booking")
