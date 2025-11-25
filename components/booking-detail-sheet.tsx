@@ -429,8 +429,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
       if (result.success) {
         console.log("🗑️ [Delete Booking] Success! Closing sheet and updating...")
         toast.success("Booking deleted successfully")
-        setOpen(false) // Close the sheet after deletion
-        onOpenChange(false) // Also call parent's onOpenChange
+        onOpenChange(false) // Close the sheet after deletion
         onUpdate() // Call parent update callback
         router.refresh() // Force page refresh to reload bookings from server
       } else {
