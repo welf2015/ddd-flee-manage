@@ -467,7 +467,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                   <SheetTitle className="text-2xl">{displayBooking.job_id}</SheetTitle>
                   <p className="text-sm text-muted-foreground">Job Details & Management</p>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setOpen(false)} className="h-8 w-8">
+                <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="h-8 w-8">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
