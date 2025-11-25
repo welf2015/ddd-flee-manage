@@ -386,6 +386,23 @@ export function UpdateJobDetailsDialog({
     setSaving(true)
 
     try {
+      // Ensure route is constructed from destinations
+      const routeString = destinations
+        .filter((d) => d.from || d.to)
+        .map((d) => `${d.from} → ${d.to}`)
+        .join(" → ")
+      
+      // Update pickup/delivery addresses from first/last destination
+      const firstDest = destinations[0]
+      const lastDest = destinations[destinations.length - 1]
+      
+      const finalPickupAddress = firstDest?.from || formData.pickup_address
+      const finalDeliveryAddress = lastDest?.to || formData.delivery_address
+      const finalPickupLat = firstDest?.fromLat || formData.pickup_lat
+      const finalPickupLng = firstDest?.fromLng || formData.pickup_lng
+      const finalDeliveryLat = lastDest?.toLat || formData.delivery_lat
+      const finalDeliveryLng = lastDest?.toLng || formData.delivery_lng
+
       const form = new FormData()
       form.append("company_name", formData.company_name)
       form.append("client_name", formData.client_name)
@@ -394,16 +411,26 @@ export function UpdateJobDetailsDialog({
       form.append("client_email", formData.client_email)
       form.append("destination_contact_name", formData.destination_contact_name)
       form.append("destination_contact_phone", formData.destination_contact_phone)
-      form.append("pickup_address", formData.pickup_address)
-      form.append("delivery_address", formData.delivery_address)
-      if (formData.pickup_lat !== null) form.append("pickup_lat", formData.pickup_lat.toString())
-      if (formData.pickup_lng !== null) form.append("pickup_lng", formData.pickup_lng.toString())
-      if (formData.delivery_lat !== null) form.append("delivery_lat", formData.delivery_lat.toString())
-      if (formData.delivery_lng !== null) form.append("delivery_lng", formData.delivery_lng.toString())
+      form.append("pickup_address", finalPickupAddress)
+      form.append("delivery_address", finalDeliveryAddress)
+      if (finalPickupLat !== null) form.append("pickup_lat", finalPickupLat.toString())
+      if (finalPickupLng !== null) form.append("pickup_lng", finalPickupLng.toString())
+      if (finalDeliveryLat !== null) form.append("delivery_lat", finalDeliveryLat.toString())
+      if (finalDeliveryLng !== null) form.append("delivery_lng", finalDeliveryLng.toString())
       form.append("request_details", formData.request_details)
-      form.append("route", formData.route)
+      form.append("route", routeString || formData.route)
       form.append("timeline", formData.timeline)
       form.append("number_of_loads", formData.number_of_loads)
+
+      console.log("📝 [Update Job Details] Submitting:", {
+        route: routeString || formData.route,
+        pickup: finalPickupAddress,
+        delivery: finalDeliveryAddress,
+        coordinates: {
+          pickup: { lat: finalPickupLat, lng: finalPickupLng },
+          delivery: { lat: finalDeliveryLat, lng: finalDeliveryLng },
+        },
+      })
 
       const result = await updateBooking(booking.id, form)
 
