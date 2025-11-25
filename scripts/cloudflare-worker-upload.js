@@ -16,20 +16,30 @@ export default {
 
     // CORS Headers
     const corsHeaders = {
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": "*", // Or specific domain: "https://fleet.voltaamobility.com"
       "Access-Control-Allow-Methods": "GET, PUT, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Folder",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Auth-Key, X-Folder",
+      "Access-Control-Max-Age": "86400",
     }
 
     if (method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders })
     }
 
-    // Authorization Check
+    // Authorization Check - Support both X-Auth-Key and Authorization header
+    const authKey = request.headers.get("X-Auth-Key")
     const authHeader = request.headers.get("Authorization")
-    if (!authHeader || authHeader !== `Bearer ${env.AUTH_KEY}`) {
-      // Allow optional public access if needed, otherwise block
-      // return new Response('Unauthorized', { status: 401, headers: corsHeaders });
+    
+    // Check if either header matches the AUTH_KEY
+    const isValidAuth = 
+      (authKey && authKey === env.AUTH_KEY) ||
+      (authHeader && authHeader === `Bearer ${env.AUTH_KEY}`)
+    
+    if (!isValidAuth) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { 
+        status: 401, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      })
     }
 
     // Handle Upload (PUT)

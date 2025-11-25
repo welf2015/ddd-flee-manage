@@ -4,36 +4,27 @@
 CORS error when uploading files: `Request header field x-auth-key is not allowed by Access-Control-Allow-Headers`
 
 ## Solution
-The Cloudflare Worker needs to be updated to allow the `X-Auth-Key` header in CORS responses.
+The Cloudflare Worker has been updated to allow the `X-Auth-Key` header in CORS responses.
 
-## Required Worker Changes
+## Worker Code Location
+The worker code is located at: `scripts/cloudflare-worker-upload.js`
 
-Update your Cloudflare Worker (`worker.js`) to include `X-Auth-Key` in the CORS headers:
+## Deployment Instructions
 
-```javascript
-// Handle CORS preflight requests
-if (request.method === 'OPTIONS') {
-  return new Response(null, {
-    headers: {
-      'Access-Control-Allow-Origin': '*', // Or your specific domain
-      'Access-Control-Allow-Methods': 'PUT, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'X-Auth-Key, Content-Type, Authorization',
-      'Access-Control-Max-Age': '86400',
-    },
-  })
-}
+1. **Copy the updated worker code** from `scripts/cloudflare-worker-upload.js`
+2. **Go to Cloudflare Dashboard** → Workers & Pages → Your Worker
+3. **Paste the updated code** into the worker editor
+4. **Deploy** the updated worker
 
-// In your main response, also include CORS headers:
-const headers = {
-  'Access-Control-Allow-Origin': '*', // Or your specific domain: 'https://fleet.voltaamobility.com'
-  'Access-Control-Allow-Methods': 'PUT, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'X-Auth-Key, Content-Type, Authorization',
-  'Content-Type': 'application/json',
-}
-```
+## What Was Fixed
+
+✅ Added `X-Auth-Key` to `Access-Control-Allow-Headers`  
+✅ Updated authorization check to support both `X-Auth-Key` and `Authorization` headers  
+✅ Added `Access-Control-Max-Age` header for better CORS caching  
+✅ Proper error response with CORS headers for unauthorized requests  
 
 ## Important Notes
-- Replace `*` with your specific domain (`https://fleet.voltaamobility.com`) for better security
-- Make sure `X-Auth-Key` is included in both `Access-Control-Allow-Headers` for OPTIONS and regular responses
-- The code has been updated to use `X-Auth-Key` header instead of `Authorization: Bearer`
+- The worker now accepts both `X-Auth-Key` header (new) and `Authorization: Bearer` header (legacy support)
+- Replace `*` in `Access-Control-Allow-Origin` with your specific domain (`https://fleet.voltaamobility.com`) for better security in production
+- All frontend code has been updated to use `X-Auth-Key` header consistently
 
