@@ -1156,6 +1156,148 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                     </Card>
                   </TabsContent>
 
+                  <TabsContent value="expenses" className="space-y-4 mt-4">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Wallet className="h-5 w-5 text-accent" />
+                          Expense Breakdown
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {expenseTransactions && expenseTransactions.length > 0 ? (
+                          <div className="space-y-4">
+                            {/* Summary Cards */}
+                            <div className="grid grid-cols-3 gap-4">
+                              <Card className="border-blue-500/20 bg-blue-500/5">
+                                <CardContent className="pt-6">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Fuel className="h-4 w-4 text-blue-500" />
+                                    <Label className="text-sm font-medium text-muted-foreground">Fuel</Label>
+                                  </div>
+                                  <p className="text-2xl font-bold">
+                                    {formatCurrency(
+                                      expenseTransactions
+                                        .filter((t: any) => t.expense_type === "Fuel")
+                                        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0)
+                                    )}
+                                  </p>
+                                </CardContent>
+                              </Card>
+                              <Card className="border-purple-500/20 bg-purple-500/5">
+                                <CardContent className="pt-6">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Ticket className="h-4 w-4 text-purple-500" />
+                                    <Label className="text-sm font-medium text-muted-foreground">Ticketing</Label>
+                                  </div>
+                                  <p className="text-2xl font-bold">
+                                    {formatCurrency(
+                                      expenseTransactions
+                                        .filter((t: any) => t.expense_type === "Ticketing")
+                                        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0)
+                                    )}
+                                  </p>
+                                </CardContent>
+                              </Card>
+                              <Card className="border-green-500/20 bg-green-500/5">
+                                <CardContent className="pt-6">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Wallet className="h-4 w-4 text-green-500" />
+                                    <Label className="text-sm font-medium text-muted-foreground">Allowance</Label>
+                                  </div>
+                                  <p className="text-2xl font-bold">
+                                    {formatCurrency(
+                                      expenseTransactions
+                                        .filter((t: any) => t.expense_type === "Allowance")
+                                        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0)
+                                    )}
+                                  </p>
+                                </CardContent>
+                              </Card>
+                            </div>
+
+                            {/* Total Expense */}
+                            <div className="border-t pt-4">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-base font-semibold">Total Expenses</Label>
+                                <p className="text-2xl font-bold text-green-600">
+                                  {formatCurrency(
+                                    expenseTransactions.reduce(
+                                      (sum: number, t: any) => sum + parseFloat(t.amount || 0),
+                                      0
+                                    )
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Expense Transactions Table */}
+                            <div className="border-t pt-4">
+                              <Label className="text-sm font-semibold mb-3 block">Transaction Details</Label>
+                              <div className="overflow-x-auto">
+                                <table className="w-full">
+                                  <thead>
+                                    <tr className="border-b">
+                                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">Type</th>
+                                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">Account</th>
+                                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">Quantity</th>
+                                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">Date</th>
+                                      <th className="text-right p-3 text-sm font-medium text-muted-foreground">Amount</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {expenseTransactions.map((transaction: any) => (
+                                      <tr key={transaction.id} className="border-b hover:bg-muted/50">
+                                        <td className="p-3">
+                                          <Badge
+                                            variant="outline"
+                                            className={
+                                              transaction.expense_type === "Fuel"
+                                                ? "bg-blue-100 text-blue-700 border-blue-300"
+                                                : transaction.expense_type === "Ticketing"
+                                                  ? "bg-purple-100 text-purple-700 border-purple-300"
+                                                  : "bg-green-100 text-green-700 border-green-300"
+                                            }
+                                          >
+                                            {transaction.expense_type}
+                                          </Badge>
+                                        </td>
+                                        <td className="p-3 text-sm">
+                                          {transaction.account?.account_name || "N/A"}
+                                        </td>
+                                        <td className="p-3 text-sm">
+                                          {transaction.quantity
+                                            ? `${transaction.quantity} ${transaction.unit || ""}`
+                                            : "-"}
+                                        </td>
+                                        <td className="p-3 text-sm text-muted-foreground">
+                                          {formatRelativeTime(transaction.transaction_date)}
+                                        </td>
+                                        <td className="p-3 text-right font-medium">
+                                          {formatCurrency(parseFloat(transaction.amount || 0))}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <Wallet className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                            <p className="text-sm text-muted-foreground">No expenses recorded for this job</p>
+                            {displayBooking.assigned_driver_id && (
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Expenses are logged when a driver is assigned
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
                   {["Completed", "Closed"].includes(displayBooking.status) && (
                     <TabsContent value="feedback" className="space-y-4 mt-4">
                       <Card>
