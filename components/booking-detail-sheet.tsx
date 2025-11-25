@@ -42,6 +42,7 @@ import { RateDriverDialog } from "./rate-driver-dialog"
 import { NegotiateBookingDialog } from "./negotiate-booking-dialog"
 import { TripExpenseDialog } from "./trip-expense-dialog"
 import { TripHoldDialog } from "./trip-hold-dialog"
+import { UpdateJobDetailsDialog } from "./update-job-details-dialog"
 import { AnimatedRoute } from "./booking/animated-route"
 import { createClient } from "@/lib/supabase/client"
 import { useState, useEffect } from "react"
@@ -69,6 +70,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const [showNegotiate, setShowNegotiate] = useState(false)
   const [showTripExpenses, setShowTripExpenses] = useState(false)
   const [showTripHold, setShowTripHold] = useState(false)
+  const [showUpdateJobDetails, setShowUpdateJobDetails] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [userRole, setUserRole] = useState<string>("")
   const supabase = createClient()
@@ -163,10 +165,11 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
     setUpdatingStatus(false)
   }
 
-  const handleWaybillUpload = async (file: File) => {
+  const handleDocumentUpload = async (file: File, documentType: "Waybill" | "Fuel Receipt") => {
     try {
+      const folder = documentType === "Waybill" ? "waybills" : "fuel-receipts"
       const response = await fetch(
-        `/api/upload?filename=${encodeURIComponent(file.name)}&folder=waybills/${booking.id}&contentType=${encodeURIComponent(file.type)}`,
+        `/api/upload?filename=${encodeURIComponent(file.name)}&folder=${folder}/${booking.id}&contentType=${encodeURIComponent(file.type)}`,
       )
 
       if (!response.ok) throw new Error("Failed to get upload config")
@@ -176,7 +179,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
       if (config.workerUrl) {
         const workerUrl = new URL(config.workerUrl)
         workerUrl.searchParams.set("filename", file.name)
-        workerUrl.searchParams.set("folder", `waybills/${booking.id}`)
+        workerUrl.searchParams.set("folder", `${folder}/${booking.id}`)
 
         const uploadResponse = await fetch(workerUrl.toString(), {
           method: "PUT",
@@ -192,12 +195,13 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
         publicUrl = result.url
       }
 
-      // Save to Supabase table instead of Storage bucket
+      // Save to Supabase table
       const { error } = await supabase.from("waybill_uploads").insert({
         booking_id: booking.id,
         file_name: file.name,
         file_url: publicUrl,
         file_type: file.type,
+        document_type: documentType,
         uploaded_by: (await supabase.auth.getUser()).data.user?.id,
       })
 
@@ -205,11 +209,33 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
 
       await mutateBooking()
       const { toast } = await import("sonner")
-      toast.success("Waybill uploaded successfully")
+      toast.success(`${documentType} uploaded successfully`)
     } catch (error) {
       console.error("Upload error:", error)
       const { toast } = await import("sonner")
-      toast.error("Waybill upload failed")
+      toast.error(`${documentType} upload failed`)
+    }
+  }
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!canDeleteDocuments) {
+      const { toast } = await import("sonner")
+      toast.error("Only MD/ED can delete documents")
+      return
+    }
+
+    try {
+      const { error } = await supabase.from("waybill_uploads").delete().eq("id", documentId)
+
+      if (error) throw error
+
+      await mutateBooking()
+      const { toast } = await import("sonner")
+      toast.success("Document deleted successfully")
+    } catch (error) {
+      console.error("Delete error:", error)
+      const { toast } = await import("sonner")
+      toast.error("Failed to delete document")
     }
   }
 
@@ -262,6 +288,8 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
     displayBooking.status === "Completed" &&
     displayBooking.payment_status === "Unpaid" &&
     (userRole === "Accountant" || userRole === "MD" || userRole === "ED")
+  const canUpdateJobDetails = userRole !== "Accountant" && (userRole === "MD" || userRole === "ED" || userRole === "Head of Operations" || userRole === "Operations and Fleet Officer")
+  const canDeleteDocuments = userRole === "MD" || userRole === "ED"
 
   const handleApproveBooking = async () => {
     setUpdatingStatus(true)
@@ -550,10 +578,12 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                   <Button onClick={() => setShowTripHold(true)} variant="outline" size="sm">
                     Report Hold-Up
                   </Button>
-                  <Button onClick={() => setShowTripExpenses(true)} variant="outline" size="sm">
-                    Log Expenses
-                  </Button>
                 </>
+              )}
+              {canUpdateJobDetails && (
+                <Button onClick={() => setShowUpdateJobDetails(true)} variant="outline" size="sm">
+                  Update Job Details
+                </Button>
               )}
               {canMarkAsPaid && (
                 <Button
@@ -910,44 +940,53 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                         )}
 
                         {displayBooking.status === "In Transit" && displayBooking.requires_waybill && (
-                          <div className="space-y-2 border-t pt-3">
-                            <Label>Waybill</Label>
-                            <div className="border-2 border-dashed rounded p-3 hover:bg-muted/50">
-                              <input
-                                type="file"
-                                id="waybill"
-                                accept=".pdf,.jpg,.png"
-                                onChange={(e) => {
-                                  if (e.target.files?.[0]) {
-                                    handleWaybillUpload(e.target.files[0])
-                                  }
-                                }}
-                                className="hidden"
-                              />
-                              <label
-                                htmlFor="waybill"
-                                className="flex flex-col items-center gap-2 cursor-pointer text-sm"
-                              >
-                                <Upload className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-muted-foreground">Upload waybill</span>
-                              </label>
-                            </div>
-                            {waybills.length > 0 && (
-                              <div className="space-y-2">
-                                <p className="text-xs font-medium">Uploaded waybills:</p>
-                                {waybills.map((w) => (
-                                  <a
-                                    key={w.id}
-                                    href={w.file_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-xs text-accent hover:underline block"
-                                  >
-                                    {formatRelativeTime(w.uploaded_at)}
-                                  </a>
-                                ))}
+                          <div className="space-y-4 border-t pt-3">
+                            <div className="space-y-2">
+                              <Label>Waybill *</Label>
+                              <div className="border-2 border-dashed rounded p-3 hover:bg-muted/50">
+                                <input
+                                  type="file"
+                                  id="waybill"
+                                  accept=".pdf,.jpg,.png"
+                                  onChange={(e) => {
+                                    if (e.target.files?.[0]) {
+                                      handleDocumentUpload(e.target.files[0], "Waybill")
+                                    }
+                                  }}
+                                  className="hidden"
+                                />
+                                <label
+                                  htmlFor="waybill"
+                                  className="flex flex-col items-center gap-2 cursor-pointer text-sm"
+                                >
+                                  <Upload className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-muted-foreground">Upload waybill</span>
+                                </label>
                               </div>
-                            )}
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Fuel Receipt *</Label>
+                              <div className="border-2 border-dashed rounded p-3 hover:bg-muted/50">
+                                <input
+                                  type="file"
+                                  id="fuel-receipt"
+                                  accept=".pdf,.jpg,.png"
+                                  onChange={(e) => {
+                                    if (e.target.files?.[0]) {
+                                      handleDocumentUpload(e.target.files[0], "Fuel Receipt")
+                                    }
+                                  }}
+                                  className="hidden"
+                                />
+                                <label
+                                  htmlFor="fuel-receipt"
+                                  className="flex flex-col items-center gap-2 cursor-pointer text-sm"
+                                >
+                                  <Upload className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-muted-foreground">Upload fuel receipt</span>
+                                </label>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </CardContent>
@@ -985,35 +1024,52 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                       <CardContent>
                         {waybills && waybills.length > 0 ? (
                           <div className="space-y-3">
-                            {waybills.map((waybill: any) => (
+                            {waybills.map((doc: any) => (
                               <div
-                                key={waybill.id}
+                                key={doc.id}
                                 className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                               >
                                 <div className="flex items-center gap-3 flex-1 min-w-0">
                                   <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate">
-                                      {waybill.file_name || "Waybill Document"}
-                                    </p>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-sm font-medium truncate">
+                                        {doc.file_name || `${doc.document_type || "Document"}`}
+                                      </p>
+                                      {doc.document_type && (
+                                        <Badge variant="outline" className="text-xs">
+                                          {doc.document_type}
+                                        </Badge>
+                                      )}
+                                    </div>
                                     <p className="text-xs text-muted-foreground">
-                                      Uploaded {formatRelativeTime(waybill.uploaded_at)}
+                                      Uploaded {formatRelativeTime(doc.uploaded_at)}
                                     </p>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
-                                  {waybill.file_url && (
+                                  {doc.file_url && (
                                     <>
                                       <Button variant="ghost" size="sm" asChild className="flex-shrink-0">
-                                        <a href={waybill.file_url} target="_blank" rel="noopener noreferrer">
+                                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
                                           <Eye className="h-4 w-4" />
                                         </a>
                                       </Button>
                                       <Button variant="ghost" size="sm" asChild className="flex-shrink-0">
-                                        <a href={waybill.file_url} target="_blank" rel="noopener noreferrer" download>
+                                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer" download>
                                           <Download className="h-4 w-4" />
                                         </a>
                                       </Button>
+                                      {canDeleteDocuments && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="flex-shrink-0 text-destructive hover:text-destructive"
+                                          onClick={() => handleDeleteDocument(doc.id)}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      )}
                                     </>
                                   )}
                                 </div>
@@ -1331,6 +1387,18 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
           open={showTripHold}
           onOpenChange={setShowTripHold}
           bookingId={displayBooking.id}
+          onSuccess={() => {
+            mutateBooking()
+            onUpdate()
+          }}
+        />
+      )}
+
+      {showUpdateJobDetails && (
+        <UpdateJobDetailsDialog
+          open={showUpdateJobDetails}
+          onOpenChange={setShowUpdateJobDetails}
+          booking={displayBooking}
           onSuccess={() => {
             mutateBooking()
             onUpdate()
