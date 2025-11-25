@@ -137,14 +137,14 @@ SELECT
   CONCAT('Maintenance: ', ml.maintenance_type) as action,
   v.vehicle_number as reference_id,
   ml.description,
-  ml.performed_by_user_id as user_id,
+  ml.logged_by as user_id,
   prof.full_name as user_name,
   prof.email as user_email,
   NULL as old_value,
-  ml.status as new_value
+  ml.service_centre as new_value
 FROM maintenance_logs ml
 LEFT JOIN vehicles v ON ml.vehicle_id = v.id
-LEFT JOIN profiles prof ON ml.performed_by_user_id = prof.id
+LEFT JOIN profiles prof ON ml.logged_by = prof.id
 
 UNION ALL
 
