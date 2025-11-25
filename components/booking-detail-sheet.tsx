@@ -83,6 +83,16 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const [documentType, setDocumentType] = useState<"Waybill" | "Fuel Receipt">("Waybill")
   const supabase = createClient()
   const router = useRouter()
+  const [openSheet, setOpenSheet] = useState(open)
+  const handleSheetToggle = (isOpen: boolean) => {
+    setOpenSheet(isOpen)
+    onOpenChange(isOpen)
+  }
+
+
+  useEffect(() => {
+    setOpenSheet(open)
+  }, [open])
 
   useEffect(() => {
     setUserRole(localStorage.getItem("userRole") || "") // Get role from localStorage on mount
@@ -429,7 +439,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
       if (result.success) {
         console.log("🗑️ [Delete Booking] Success! Closing sheet and updating...")
         toast.success("Booking deleted successfully")
-        onOpenChange(false) // Close the sheet after deletion
+        handleSheetToggle(false) // Close the sheet after deletion
         onUpdate() // Call parent update callback
         router.refresh() // Force page refresh to reload bookings from server
       } else {
@@ -448,8 +458,8 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   return (
     <>
       <Sheet
-        open={open}
-        onOpenChange={onOpenChange}
+        open={openSheet}
+        onOpenChange={handleSheetToggle}
       >
         <SheetContent
           side="right"
