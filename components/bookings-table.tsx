@@ -23,7 +23,7 @@ type Booking = {
   created_by_profile: { full_name: string | null } | null
   assigned_driver_id: string | null
   assigned_vehicle_id: string | null
-  driver?: any
+  driver?: { full_name: string | null } | null
   vehicle?: any
   started_at?: string | null
   completed_at?: string | null
@@ -34,6 +34,9 @@ type Booking = {
   number_of_loads?: number
   request_details?: string
   negotiation_notes?: string
+  fuel_amount?: number | null
+  ticketing_amount?: number | null
+  allowance_amount?: number | null
 }
 
 type BookingsTableProps = {
@@ -155,56 +158,77 @@ export function BookingsTable({ bookings, onUpdate }: BookingsTableProps) {
                 : "No bookings match your filters."}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Job ID</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Budget</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Officer</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredBookings.map((booking) => (
-                  <TableRow key={booking.id}>
-                    <TableCell className="font-medium">{booking.job_id}</TableCell>
-                    <TableCell>{booking.client_name}</TableCell>
-                    <TableCell>{formatCurrency(booking.proposed_client_budget)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={getStatusColor(booking.status)}>
-                          {booking.status}
-                        </Badge>
-                        {booking.status === "Completed" && booking.payment_status && (
-                          <Badge
-                            variant="outline"
-                            className={
-                              booking.payment_status === "Paid"
-                                ? "bg-green-500/10 text-green-500 border-green-500/20"
-                                : "bg-orange-500/10 text-orange-500 border-orange-500/20"
-                            }
-                          >
-                            {booking.payment_status === "Paid" ? "Paid" : "Payment Pending"}
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatRelativeTime(booking.created_at)}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {booking.created_by_profile?.full_name || "Unknown"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setSelectedBooking(booking)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="text-xs">
+                    <TableHead className="text-xs">Job ID</TableHead>
+                    <TableHead className="text-xs">Client</TableHead>
+                    <TableHead className="text-xs">Budget</TableHead>
+                    <TableHead className="text-xs">Driver</TableHead>
+                    <TableHead className="text-xs">Total Expense</TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs">Date</TableHead>
+                    <TableHead className="text-xs">Officer</TableHead>
+                    <TableHead className="text-right text-xs">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredBookings.map((booking) => {
+                    const totalExpense = 
+                      (booking.fuel_amount || 0) + 
+                      (booking.ticketing_amount || 0) + 
+                      (booking.allowance_amount || 0)
+                    
+                    return (
+                      <TableRow key={booking.id} className="text-xs">
+                        <TableCell className="font-medium text-xs">{booking.job_id}</TableCell>
+                        <TableCell className="text-xs">{booking.client_name}</TableCell>
+                        <TableCell className="text-xs">{formatCurrency(booking.proposed_client_budget)}</TableCell>
+                        <TableCell className="text-xs">
+                          {booking.driver?.full_name || (
+                            <span className="text-muted-foreground">Not assigned</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {totalExpense > 0 ? formatCurrency(totalExpense) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <Badge variant="outline" className={`text-xs ${getStatusColor(booking.status)}`}>
+                              {booking.status}
+                            </Badge>
+                            {booking.status === "Completed" && booking.payment_status && (
+                              <Badge
+                                variant="outline"
+                                className={`text-xs ${
+                                  booking.payment_status === "Paid"
+                                    ? "bg-green-500/10 text-green-500 border-green-500/20"
+                                    : "bg-orange-500/10 text-orange-500 border-orange-500/20"
+                                }`}
+                              >
+                                {booking.payment_status === "Paid" ? "Paid" : "Pending"}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs">{formatRelativeTime(booking.created_at)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {booking.created_by_profile?.full_name || "Unknown"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setSelectedBooking(booking)}>
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
