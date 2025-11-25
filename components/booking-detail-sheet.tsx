@@ -136,6 +136,16 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
     { refreshInterval: 2000 },
   )
 
+  // Fetch expense transactions for this booking
+  const { data: expenseTransactions = [] } = useSWR(
+    open && booking?.id ? `expense-transactions-${booking.id}` : null,
+    async () => {
+      const { getExpenseTransactions } = await import("@/app/actions/expenses")
+      const { data } = await getExpenseTransactions({ bookingId: booking.id })
+      return data || []
+    },
+  )
+
   const displayBooking = currentBooking || booking
 
   const handleStatusChange = async (newStatus: string) => {
