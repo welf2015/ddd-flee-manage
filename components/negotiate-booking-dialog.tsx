@@ -57,7 +57,10 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
     setLoadingThreads(false)
   }
 
-  const triggerNegotiationNotification = async (eventType: "proposed" | "counter" | "approved", amountValue: number) => {
+  const triggerNegotiationNotification = async (
+    eventType: "proposed" | "counter" | "approved",
+    amountValue: number,
+  ) => {
     try {
       await fetch("/api/notifications/negotiations", {
         method: "POST",
@@ -218,6 +221,11 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
   }
 
   const isAdmin = userRole === "MD" || userRole === "ED"
+  const canSendNegotiation =
+    userRole === "MD" ||
+    userRole === "ED" ||
+    userRole === "Head of Operations" ||
+    userRole === "Operations and Fleet Officer"
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -305,7 +313,7 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
                         )}
 
                         {/* Close Deal Button */}
-                        {thread.status !== "Accepted" && !isAdmin && (
+                        {thread.status !== "Accepted" && !isAdmin && canSendNegotiation && (
                           <div className="flex gap-2 mt-2">
                             <Button
                               size="sm"
@@ -333,8 +341,7 @@ export function NegotiateBookingDialog({ open, onOpenChange, booking, onSuccess 
             </Button>
           )}
 
-          {/* New Negotiation Input */}
-          {!threads.some((t) => t.status === "Accepted") && (
+          {!threads.some((t) => t.status === "Accepted") && canSendNegotiation && (
             <Card className="border-accent/30">
               <CardHeader>
                 <CardTitle className="text-base">

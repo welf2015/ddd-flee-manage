@@ -32,11 +32,11 @@ import { TripExpenseDialog } from "./trip-expense-dialog"
 import { TripHoldDialog } from "./trip-hold-dialog"
 import { AnimatedRoute } from "./booking/animated-route"
 import { createClient } from "@/lib/supabase/client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Label } from "@/components/ui/label"
 import useSWR from "swr"
 import cn from "classnames"
-import { formatRelativeTime, formatDateTime } from "@/lib/utils"
+import { formatRelativeTime } from "@/lib/utils"
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiZGFtaWxvbGFqYW1lcyIsImEiOiJjbWk3bzRuZXUwMmx6MndyMWduZmcwNG9pIn0.lTWQddjYoQjt3w-CUEc81w"
 
@@ -57,7 +57,22 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const [showTripExpenses, setShowTripExpenses] = useState(false)
   const [showTripHold, setShowTripHold] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [userRole, setUserRole] = useState<string>("")
   const supabase = createClient()
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+        setUserRole(profile?.role || "")
+      }
+    }
+    fetchUserRole()
+  }, [])
 
   const { data: currentBooking, mutate: mutateBooking } = useSWR(
     open && booking?.id ? `booking-${booking.id}` : null,
@@ -103,7 +118,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const handleStatusChange = async (newStatus: string) => {
     setUpdatingStatus(true)
     const { updateBookingStatus } = await import("@/app/actions/bookings")
-    
+
     // Optimistic update
     if (currentBooking) {
       mutateBooking(
@@ -111,10 +126,10 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
           ...currentBooking,
           status: newStatus,
         },
-        false
+        false,
       )
     }
-    
+
     const result = await updateBookingStatus(booking.id, newStatus)
 
     if (result.success) {
@@ -218,18 +233,22 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
     ["Assigned", "In Progress", "In Transit", "On Hold"].includes(displayBooking.status)
   const canCloseJob = displayBooking.status === "In Transit"
   const canRateDriver = displayBooking.status === "Closed" && displayBooking.assigned_driver_id
-  const canApprove = ["Open", "Negotiation"].includes(displayBooking.status) && isAdmin
+  const canApprove = ["Open", "Negotiation"].includes(displayBooking.status) && (userRole === "MD" || userRole === "ED")
   const canNegotiate =
-    (displayBooking.status === "Open" && isAdmin) || (isAdmin && displayBooking.status === "Negotiation")
+    (displayBooking.status === "Open" || displayBooking.status === "Negotiation") &&
+    (userRole === "MD" ||
+      userRole === "ED" ||
+      userRole === "Head of Operations" ||
+      userRole === "Operations and Fleet Officer")
   const canMarkAsPaid =
     displayBooking.status === "Completed" &&
     displayBooking.payment_status === "Unpaid" &&
-    isAdmin
+    (userRole === "Accountant" || userRole === "MD" || userRole === "ED")
 
   const handleApproveBooking = async () => {
     setUpdatingStatus(true)
     const { updateBookingStatus } = await import("@/app/actions/bookings")
-    
+
     // Optimistic update
     if (currentBooking) {
       mutateBooking(
@@ -237,10 +256,10 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
           ...currentBooking,
           status: "Approved",
         },
-        false
+        false,
       )
     }
-    
+
     const result = await updateBookingStatus(booking.id, "Approved")
 
     if (result.success) {
@@ -261,7 +280,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const handleMarkAsPaid = async () => {
     setUpdatingStatus(true)
     const { markBookingAsPaid } = await import("@/app/actions/bookings")
-    
+
     // Optimistic update
     if (currentBooking) {
       mutateBooking(
@@ -269,10 +288,10 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
           ...currentBooking,
           payment_status: "Paid",
         },
-        false
+        false,
       )
     }
-    
+
     const result = await markBookingAsPaid(booking.id)
 
     if (result.success) {
@@ -512,7 +531,9 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                   <span className="text-xs text-muted-foreground mt-1">From</span>
                                 </div>
                                 <div className="flex-1">
-                                  <p className="font-medium">{displayBooking.route.split("→")[0]?.trim() || "Origin"}</p>
+                                  <p className="font-medium">
+                                    {displayBooking.route.split("→")[0]?.trim() || "Origin"}
+                                  </p>
                                 </div>
                               </div>
                               <ArrowRight className="h-6 w-6 text-muted-foreground flex-shrink-0" />
@@ -800,8 +821,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                 <p className="font-medium text-xs">{event.action_type}</p>
                                 {event.notes && <p className="text-xs mt-1">{event.notes}</p>}
                                 <p className="text-xs text-muted-foreground">
-                                  By {event.action_by?.full_name || "System"} •{" "}
-                                  {formatRelativeTime(event.created_at)}
+                                  By {event.action_by?.full_name || "System"} • {formatRelativeTime(event.created_at)}
                                 </p>
                               </div>
                             </div>
@@ -919,6 +939,74 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                       </svg>
                                     ))}
                                     <span className="ml-2 text-sm">{displayBooking.punctuality_rating || 0}/5</span>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium">Vehicle Condition</Label>
+                                  <div className="flex items-center gap-2">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <svg
+                                        key={star}
+                                        className={cn(
+                                          "h-5 w-5",
+                                          star <= (displayBooking.vehicle_condition_rating || 0)
+                                            ? "fill-yellow-400 text-yellow-400"
+                                            : "fill-gray-200 text-gray-200",
+                                        )}
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                      </svg>
+                                    ))}
+                                    <span className="ml-2 text-sm">
+                                      {displayBooking.vehicle_condition_rating || 0}/5
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium">Communication</Label>
+                                  <div className="flex items-center gap-2">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <svg
+                                        key={star}
+                                        className={cn(
+                                          "h-5 w-5",
+                                          star <= (displayBooking.communication_rating || 0)
+                                            ? "fill-yellow-400 text-yellow-400"
+                                            : "fill-gray-200 text-gray-200",
+                                        )}
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                      </svg>
+                                    ))}
+                                    <span className="ml-2 text-sm">{displayBooking.communication_rating || 0}/5</span>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium">Rating</Label>
+                                  <div className="flex items-center gap-2">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <svg
+                                        key={star}
+                                        className={cn(
+                                          "h-5 w-5",
+                                          star <= (displayBooking.driver_rating || 0)
+                                            ? "fill-yellow-400 text-yellow-400"
+                                            : "fill-gray-200 text-gray-200",
+                                        )}
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                      </svg>
+                                    ))}
+                                    <span className="ml-2 text-sm">{displayBooking.driver_rating || 0}/5</span>
                                   </div>
                                 </div>
 

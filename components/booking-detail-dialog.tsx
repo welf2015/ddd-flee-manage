@@ -7,7 +7,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Clock, DollarSign, FileText, MapPin, Truck, User, AlertCircle, CheckCircle2, Upload, Eye, Download, Wallet } from "lucide-react"
+import {
+  Clock,
+  DollarSign,
+  FileText,
+  MapPin,
+  Truck,
+  User,
+  AlertCircle,
+  CheckCircle2,
+  Upload,
+  Eye,
+  Download,
+  Wallet,
+} from "lucide-react"
 import { AssignDriverDialog } from "./assign-driver-dialog"
 import { UpdateJobStatusDialog } from "./update-job-status-dialog"
 import { CloseJobDialog } from "./close-job-dialog"
@@ -18,7 +31,7 @@ import { useState, useEffect } from "react"
 import { Label } from "@/components/ui/label"
 import useSWR from "swr"
 import { uploadWaybill } from "@/app/actions/bookings" // Added import
-import { formatRelativeTime, formatDateTime } from "@/lib/utils"
+import { formatRelativeTime } from "@/lib/utils"
 
 type BookingDetailDialogProps = {
   booking: any
@@ -37,6 +50,7 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
   const [isUploading, setIsUploading] = useState(false) // Added upload state
   const [workerUrl, setWorkerUrl] = useState("") // Added worker config state
   const [authKey, setAuthKey] = useState("") // Added worker config state
+  const [userRole, setUserRole] = useState<string>("") // Added userRole state
   const supabase = createClient()
 
   useEffect(() => {
@@ -56,6 +70,19 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
       fetchConfig()
     }
   }, [open])
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+        setUserRole(profile?.role || "")
+      }
+    }
+    fetchUserRole()
+  }, [])
 
   const { data: currentBooking, mutate: mutateBooking } = useSWR(
     open && booking?.id ? `booking-${booking.id}` : null,
@@ -102,7 +129,7 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
   const handleStatusChange = async (newStatus: string) => {
     setUpdatingStatus(true)
     const { updateBookingStatus } = await import("@/app/actions/bookings")
-    
+
     // Optimistic update
     if (currentBooking) {
       mutateBooking(
@@ -110,10 +137,10 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
           ...currentBooking,
           status: newStatus,
         },
-        false
+        false,
       )
     }
-    
+
     const result = await updateBookingStatus(booking.id, newStatus)
 
     if (result.success) {
@@ -134,7 +161,7 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
   const handleMarkAsPaid = async () => {
     setUpdatingStatus(true)
     const { markBookingAsPaid } = await import("@/app/actions/bookings")
-    
+
     // Optimistic update
     if (currentBooking) {
       mutateBooking(
@@ -142,10 +169,10 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
           ...currentBooking,
           payment_status: "Paid",
         },
-        false
+        false,
       )
     }
-    
+
     const result = await markBookingAsPaid(booking.id)
 
     if (result.success) {
@@ -239,10 +266,17 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
     displayBooking.assigned_driver_id && ["Assigned", "In Progress", "In Transit"].includes(displayBooking.status)
   const canCloseJob = displayBooking.status === "In Transit"
   const canRateDriver = displayBooking.status === "Closed" && displayBooking.assigned_driver_id
-  const canApprove = ["Open", "Negotiation"].includes(displayBooking.status)
-  const canNegotiate = displayBooking.status === "Open"
+  const canApprove = ["Open", "Negotiation"].includes(displayBooking.status) && (userRole === "MD" || userRole === "ED")
+  const canNegotiate =
+    (displayBooking.status === "Open" || displayBooking.status === "Negotiation") &&
+    (userRole === "MD" ||
+      userRole === "ED" ||
+      userRole === "Head of Operations" ||
+      userRole === "Operations and Fleet Officer")
   const canMarkAsPaid =
-    displayBooking.status === "Completed" && displayBooking.payment_status === "Unpaid"
+    displayBooking.status === "Completed" &&
+    displayBooking.payment_status === "Unpaid" &&
+    (userRole === "Accountant" || userRole === "MD" || userRole === "ED")
 
   return (
     <>
@@ -624,8 +658,7 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
                             <p className="text-sm font-medium">{event.action_type}</p>
                             {event.notes && <p className="text-xs text-muted-foreground mt-1">{event.notes}</p>}
                             <p className="text-xs text-muted-foreground mt-1">
-                              By {event.action_by?.full_name || "System"} •{" "}
-                              {formatRelativeTime(event.created_at)}
+                              By {event.action_by?.full_name || "System"} • {formatRelativeTime(event.created_at)}
                             </p>
                           </div>
                         </div>

@@ -23,25 +23,28 @@ export async function createDriver(formData: FormData) {
   const password = formData.get("password") as string
   const fullName = formData.get("full_name") as string
 
-  if (!email || !password) {
-    return { success: false, error: "Email and password are required for driver accounts" }
-  }
+  let authUserId = null
 
-  // Create Auth User using Admin Client
-  const adminClient = createAdminClient()
-  const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: {
-      full_name: fullName,
-      role: 'driver'
+  // Only create auth user if email and password are provided
+  if (email && password) {
+    // Create Auth User using Admin Client
+    const adminClient = createAdminClient()
+    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: fullName,
+        role: "driver",
+      },
+    })
+
+    if (authError) {
+      console.error("[v0] Error creating auth user:", authError)
+      return { success: false, error: `Auth Error: ${authError.message}` }
     }
-  })
 
-  if (authError) {
-    console.error("[v0] Error creating auth user:", authError)
-    return { success: false, error: `Auth Error: ${authError.message}` }
+    authUserId = authData.user.id
   }
 
   const assignedVehicleId = formData.get("assigned_vehicle_id") as string
@@ -49,8 +52,8 @@ export async function createDriver(formData: FormData) {
 
   const driver = {
     full_name: fullName,
-    email: email,
-    user_id: authData.user.id, // Link to Auth User
+    email: email || null,
+    user_id: authUserId, // Will be null if no auth account created
     phone: formData.get("phone") as string,
     address: (formData.get("address") as string) || null,
     license_number: formData.get("license_number") as string,
@@ -69,8 +72,11 @@ export async function createDriver(formData: FormData) {
 
   if (error) {
     console.error("[v0] Error creating driver:", error)
-    // Try to clean up the auth user if DB insert fails
-    await adminClient.auth.admin.deleteUser(authData.user.id)
+    // Try to clean up the auth user if DB insert fails and auth user was created
+    if (authUserId) {
+      const adminClient = createAdminClient()
+      await adminClient.auth.admin.deleteUser(authUserId)
+    }
     return { success: false, error: error.message }
   }
 
@@ -130,10 +136,7 @@ export async function updateDriverVehicle(driverId: string, vehicleId: string | 
     return { success: false, error: "Not authenticated" }
   }
 
-  const { error } = await supabase
-    .from("drivers")
-    .update({ assigned_vehicle_id: vehicleId })
-    .eq("id", driverId)
+  const { error } = await supabase.from("drivers").update({ assigned_vehicle_id: vehicleId }).eq("id", driverId)
 
   if (error) {
     console.error("Error updating driver vehicle:", error)
