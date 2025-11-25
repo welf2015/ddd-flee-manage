@@ -12,7 +12,6 @@ import { BookingDetailSheet } from "./booking-detail-sheet"
 import { createClient } from "@/lib/supabase/client"
 import { formatRelativeTime } from "@/lib/utils"
 import { useRouter } from "next/navigation"
-import useSWR from "swr"
 
 type Booking = {
   id: string
@@ -52,35 +51,6 @@ export function BookingsTable({ bookings, onUpdate }: BookingsTableProps) {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
-  
-  // Fetch bookings with SWR to keep data fresh
-  const { data: freshBookings = bookings, mutate: mutateBookings } = useSWR(
-    "bookings-list",
-    async () => {
-      const { data } = await supabase
-        .from("bookings")
-        .select(
-          `
-          *,
-          created_by_profile:profiles!bookings_created_by_fkey(full_name),
-          driver:drivers!bookings_assigned_driver_id_fkey(
-            id, full_name, phone, license_number, status, photo_url, 
-            address, emergency_contact_name, emergency_contact_phone, 
-            emergency_contact_relationship
-          ),
-          vehicle:vehicles!bookings_assigned_vehicle_id_fkey(id, vehicle_number, vehicle_type, make, model, status)
-        `,
-        )
-        .order("created_at", { ascending: false })
-      return data || []
-    },
-    {
-      fallbackData: bookings,
-      refreshInterval: 5000, // Refresh every 5 seconds
-      revalidateOnFocus: true,
-    }
-  )
 
   useEffect(() => {
     const checkUserRole = async () => {
@@ -280,8 +250,7 @@ export function BookingsTable({ bookings, onUpdate }: BookingsTableProps) {
           open={!!selectedBooking}
           onOpenChange={(open) => !open && setSelectedBooking(null)}
           onUpdate={() => {
-            mutateBookings() // Refresh bookings data
-            router.refresh() // Force server-side refresh
+            router.refresh() // Force server-side refresh to get latest bookings
             onUpdate?.() // Call parent callback
           }}
           isAdmin={isAdmin}
