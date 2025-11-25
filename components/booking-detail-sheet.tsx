@@ -77,6 +77,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [userRole, setUserRole] = useState<string>("")
   const [viewingDocument, setViewingDocument] = useState<{ url: string; name: string; type: string } | null>(null)
+  const [documentType, setDocumentType] = useState<"Waybill" | "Fuel Receipt">("Waybill")
   const supabase = createClient()
   const router = useRouter()
   const [openSheet, setOpen] = useState(open) // State to control sheet visibility
@@ -1076,82 +1077,142 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                       <CardHeader>
                         <CardTitle className="text-lg">Documents</CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        {waybills && waybills.length > 0 ? (
+                      <CardContent className="space-y-4">
+                        {/* Upload Form - Always visible */}
+                        <div className="border-t pt-4">
+                          <Label className="text-sm font-semibold mb-3 block">Upload Document</Label>
                           <div className="space-y-3">
-                            {waybills.map((doc: any) => (
-                              <div
-                                key={doc.id}
-                                className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                            <div className="grid gap-2">
+                              <Label htmlFor="doc-type-select">Document Type</Label>
+                              <Select
+                                id="doc-type-select"
+                                value={documentType}
+                                onValueChange={(value) => setDocumentType(value as "Waybill" | "Fuel Receipt")}
                               >
-                                <div className="flex items-center gap-3 flex-1 min-w-0">
-                                  <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-sm font-medium truncate">
-                                        {doc.file_name || `${doc.document_type || "Document"}`}
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select document type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Waybill">Waybill</SelectItem>
+                                  <SelectItem value="Fuel Receipt">Fuel Receipt</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="doc-upload">File</Label>
+                              <div className="border-2 border-dashed rounded p-3 hover:bg-muted/50">
+                                <input
+                                  type="file"
+                                  id="doc-upload"
+                                  accept=".pdf,.jpg,.jpeg,.png"
+                                  onChange={(e) => {
+                                    if (e.target.files?.[0]) {
+                                      if (!documentType) {
+                                        const { toast } = require("sonner")
+                                        toast.error("Please select a document type first")
+                                        return
+                                      }
+                                      handleDocumentUpload(e.target.files[0], documentType)
+                                      // Reset input to allow re-uploading the same file
+                                      e.target.value = ""
+                                    }
+                                  }}
+                                  className="hidden"
+                                />
+                                <label
+                                  htmlFor="doc-upload"
+                                  className="flex flex-col items-center gap-2 cursor-pointer text-sm"
+                                >
+                                  <Upload className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-muted-foreground">
+                                    Click to upload {documentType || "document"}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">PDF, JPG, or PNG</span>
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Existing Documents */}
+                        <div className="border-t pt-4">
+                          <Label className="text-sm font-semibold mb-3 block">Uploaded Documents</Label>
+                          {waybills && waybills.length > 0 ? (
+                            <div className="space-y-3">
+                              {waybills.map((doc: any) => (
+                                <div
+                                  key={doc.id}
+                                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                                >
+                                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <p className="text-sm font-medium truncate">
+                                          {doc.file_name || `${doc.document_type || "Document"}`}
+                                        </p>
+                                        {doc.document_type && (
+                                          <Badge variant="outline" className="text-xs">
+                                            {doc.document_type}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">
+                                        Uploaded {formatRelativeTime(doc.uploaded_at)}
                                       </p>
-                                      {doc.document_type && (
-                                        <Badge variant="outline" className="text-xs">
-                                          {doc.document_type}
-                                        </Badge>
-                                      )}
                                     </div>
-                                    <p className="text-xs text-muted-foreground">
-                                      Uploaded {formatRelativeTime(doc.uploaded_at)}
-                                    </p>
                                   </div>
-                                </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  {doc.file_url && (
-                                    <>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="flex-shrink-0"
-                                        onClick={() => {
-                                          setViewingDocument({
-                                            url: doc.file_url,
-                                            name: doc.file_name || "Document",
-                                            type: doc.file_type || "",
-                                          })
-                                        }}
-                                      >
-                                        <Eye className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="flex-shrink-0"
-                                        onClick={() => {
-                                          const proxyUrl = `/api/waybill?url=${encodeURIComponent(doc.file_url)}&bookingId=${booking.id}`
-                                          const link = document.createElement("a")
-                                          link.href = proxyUrl
-                                          link.download = doc.file_name || "document"
-                                          link.click()
-                                        }}
-                                      >
-                                        <Download className="h-4 w-4" />
-                                      </Button>
-                                      {canDeleteDocuments && (
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    {doc.file_url && (
+                                      <>
                                         <Button
                                           variant="ghost"
                                           size="sm"
-                                          className="flex-shrink-0 text-destructive hover:text-destructive"
-                                          onClick={() => handleDeleteDocument(doc.id)}
+                                          className="flex-shrink-0"
+                                          onClick={() => {
+                                            setViewingDocument({
+                                              url: doc.file_url,
+                                              name: doc.file_name || "Document",
+                                              type: doc.file_type || "",
+                                            })
+                                          }}
                                         >
-                                          <Trash2 className="h-4 w-4" />
+                                          <Eye className="h-4 w-4" />
                                         </Button>
-                                      )}
-                                    </>
-                                  )}
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="flex-shrink-0"
+                                          onClick={() => {
+                                            const proxyUrl = `/api/waybill?url=${encodeURIComponent(doc.file_url)}&bookingId=${booking.id}`
+                                            const link = document.createElement("a")
+                                            link.href = proxyUrl
+                                            link.download = doc.file_name || "document"
+                                            link.click()
+                                          }}
+                                        >
+                                          <Download className="h-4 w-4" />
+                                        </Button>
+                                        {canDeleteDocuments && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="flex-shrink-0 text-destructive hover:text-destructive"
+                                            onClick={() => handleDeleteDocument(doc.id)}
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">No documents uploaded yet</p>
-                        )}
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No documents uploaded yet</p>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   </TabsContent>
