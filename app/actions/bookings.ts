@@ -792,7 +792,11 @@ export async function deleteBooking(bookingId: string) {
   }
 
   // Check user role - only MD and ED can delete
-  const { data: profile, error: profileError } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("role, full_name, email")
+    .eq("id", user.id)
+    .single()
 
   console.log("🗑️ [Server Action] Profile check:", { profile, profileError, role: profile?.role })
 
@@ -815,6 +819,24 @@ export async function deleteBooking(bookingId: string) {
     console.error("🗑️ [Server Action] Booking not found:", bookingFetchError)
     return { success: false, error: "Booking not found" }
   }
+
+  // Log the deletion action in deletion_log table (persists even after booking is deleted)
+  const { error: logError } = await supabase.from("deletion_log").insert({
+    module: "Booking",
+    reference_id: booking.job_id,
+    reference_uuid: bookingId,
+    deleted_by: user.id,
+    deleted_by_role: profile.role,
+    deleted_by_name: profile.full_name || user.email || "Unknown",
+    deleted_by_email: profile.email || user.email || null,
+    description: `Booking ${booking.job_id} (${booking.client_name}) deleted by ${profile.full_name || profile.role}`,
+    metadata: {
+      booking_id: bookingId,
+      job_id: booking.job_id,
+      client_name: booking.client_name,
+    },
+  })
+  console.log("🗑️ [Server Action] Logged deletion action:", { error: logError })
 
   console.log("🗑️ [Server Action] Starting deletion of related records...")
 
