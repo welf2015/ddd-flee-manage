@@ -246,27 +246,36 @@ export async function closeBooking(
     actualCost: number | null
   },
 ) {
+  console.log("🔒 [closeBooking] Called with:", { bookingId, data })
+  
   const supabase = await createClient()
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
+  console.log("🔒 [closeBooking] User check:", { userId: user?.id, authenticated: !!user })
+
   if (!user) {
+    console.error("🔒 [closeBooking] Not authenticated")
     return { success: false, error: "Not authenticated" }
   }
 
-  const { data: existingBooking } = await supabase
+  const { data: existingBooking, error: bookingFetchError } = await supabase
     .from("bookings")
     .select("job_id, client_name, status")
     .eq("id", bookingId)
     .single()
 
-  if (!existingBooking) {
+  console.log("🔒 [closeBooking] Booking fetch:", { existingBooking, bookingFetchError })
+
+  if (bookingFetchError || !existingBooking) {
+    console.error("🔒 [closeBooking] Booking not found:", bookingFetchError)
     return { success: false, error: "Booking not found" }
   }
 
   // Update booking to Completed status with Unpaid payment status
+  console.log("🔒 [closeBooking] Updating booking status...")
   const { error: bookingError } = await supabase
     .from("bookings")
     .update({
@@ -279,37 +288,60 @@ export async function closeBooking(
     .eq("id", bookingId)
 
   if (bookingError) {
-    console.error("Error closing booking:", bookingError)
+    console.error("🔒 [closeBooking] Error updating booking:", bookingError)
     return { success: false, error: bookingError.message }
   }
 
+  console.log("🔒 [closeBooking] Booking updated successfully")
+
   // Upload waybill if provided
   if (data.waybillUrl) {
-    await supabase.from("waybill_uploads").insert({
+    console.log("🔒 [closeBooking] Inserting waybill:", { waybillUrl: data.waybillUrl })
+    // Extract filename from URL if possible
+    const urlParts = data.waybillUrl.split("/")
+    const filename = urlParts[urlParts.length - 1] || "waybill"
+    
+    const { error: waybillError } = await supabase.from("waybill_uploads").insert({
       booking_id: bookingId,
       file_url: data.waybillUrl,
+      file_name: filename,
+      document_type: "Waybill",
       uploaded_by: user.id,
     })
 
+    if (waybillError) {
+      console.error("🔒 [closeBooking] Error inserting waybill:", waybillError)
+      // Don't fail the entire operation if waybill insert fails, but log it
+    } else {
+      console.log("🔒 [closeBooking] Waybill inserted successfully")
+    }
+
     // Add to timeline
-    await supabase.from("job_timeline").insert({
+    const { error: timelineError } = await supabase.from("job_timeline").insert({
       booking_id: bookingId,
       action_type: "Waybill Uploaded",
       action_by: user.id,
       notes: "Waybill document uploaded",
     })
+
+    if (timelineError) {
+      console.error("🔒 [closeBooking] Error inserting timeline:", timelineError)
+    }
   }
 
   // Create incident if reported
   if (data.incidentReport) {
-    const { data: booking } = await supabase
+    console.log("🔒 [closeBooking] Creating incident report...")
+    const { data: booking, error: bookingFetchError } = await supabase
       .from("bookings")
       .select("assigned_vehicle_id, assigned_driver_id")
       .eq("id", bookingId)
       .single()
 
-    if (booking) {
-      await supabase.from("incidents").insert({
+    if (bookingFetchError) {
+      console.error("🔒 [closeBooking] Error fetching booking for incident:", bookingFetchError)
+    } else if (booking) {
+      const { error: incidentError } = await supabase.from("incidents").insert({
         incident_number: `INC-${Date.now()}`,
         vehicle_id: booking.assigned_vehicle_id,
         driver_id: booking.assigned_driver_id,
@@ -318,21 +350,36 @@ export async function closeBooking(
         severity: "Medium",
         status: "Open",
       })
+
+      if (incidentError) {
+        console.error("🔒 [closeBooking] Error creating incident:", incidentError)
+      } else {
+        console.log("🔒 [closeBooking] Incident created successfully")
+      }
     }
   }
 
-  await notifyStatusChange({
-    jobId: existingBooking.job_id,
-    clientName: existingBooking.client_name,
-    oldStatus: existingBooking.status,
-    newStatus: "Completed",
-    changedBy: user.id,
-    notifyRoles: ["MD", "ED", "Head of Operations"],
-    bookingId,
-  })
+  console.log("🔒 [closeBooking] Sending notifications...")
+  try {
+    await notifyStatusChange({
+      jobId: existingBooking.job_id,
+      clientName: existingBooking.client_name,
+      oldStatus: existingBooking.status,
+      newStatus: "Completed",
+      changedBy: user.id,
+      notifyRoles: ["MD", "ED", "Head of Operations"],
+      bookingId,
+    })
+  } catch (notifyError) {
+    console.error("🔒 [closeBooking] Error sending notifications:", notifyError)
+    // Don't fail the operation if notification fails
+  }
 
+  console.log("🔒 [closeBooking] Revalidating paths...")
   revalidatePath("/dashboard/bookings")
   revalidatePath("/dashboard/drivers")
+  
+  console.log("🔒 [closeBooking] Success!")
   return { success: true }
 }
 

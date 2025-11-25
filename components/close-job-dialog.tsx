@@ -27,6 +27,7 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
   const [loading, setLoading] = useState(false)
   const [workerUrl, setWorkerUrl] = useState("")
   const [authKey, setAuthKey] = useState("")
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   useEffect(() => {
     if (open) {
@@ -67,25 +68,38 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
           throw new Error("Upload service not available")
         }
 
-        const formData = new FormData()
-        formData.append("file", waybillFile)
-        formData.append("folder", `waybills/${booking.id}`)
+        // Construct worker URL with query parameters
+        const workerUrlObj = new URL(workerUrl)
+        workerUrlObj.searchParams.set("filename", waybillFile.name)
+        workerUrlObj.searchParams.set("folder", `waybills/${booking.id}`)
 
-        const uploadRes = await fetch(workerUrl, {
-          method: "POST",
+        // Upload using PUT method with file body directly
+        const uploadRes = await fetch(workerUrlObj.toString(), {
+          method: "PUT",
           headers: {
             "X-Auth-Key": authKey,
+            "Content-Type": waybillFile.type,
           },
-          body: formData,
+          body: waybillFile,
         })
 
         if (!uploadRes.ok) {
+          const errorText = await uploadRes.text()
+          console.error("Upload error response:", errorText)
           throw new Error("Failed to upload waybill")
         }
 
         const data = await uploadRes.json()
-        uploadedWaybillUrl = data.url
+        uploadedWaybillUrl = data.url || data.key || workerUrlObj.toString()
+        console.log("Upload successful:", { url: uploadedWaybillUrl, data })
       }
+
+      console.log("Calling closeBooking with:", {
+        bookingId: booking.id,
+        waybillUrl: uploadedWaybillUrl,
+        hasIncident,
+        incidentReport: hasIncident ? incidentReport : null,
+      })
 
       const result = await closeBooking(booking.id, {
         waybillUrl: uploadedWaybillUrl,
@@ -93,6 +107,8 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
         additionalCosts: "",
         actualCost: null,
       })
+
+      console.log("closeBooking result:", result)
 
       if (result.success) {
         toast.success("Job closed successfully")
@@ -103,7 +119,8 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
       }
     } catch (error: any) {
       console.error("Close job error:", error)
-      toast.error(error.message || "An error occurred")
+      setUploadError(error.message || "An error occurred")
+      toast.error(error.message || "An error occurred while closing the job")
     } finally {
       setLoading(false)
     }
