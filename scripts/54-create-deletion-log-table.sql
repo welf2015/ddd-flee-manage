@@ -182,4 +182,3 @@ SELECT
   NULL as new_value
 FROM inventory_collections ic
 LEFT JOIN profiles prof ON ic.created_by = prof.id;
-

@@ -27,4 +27,3 @@ The worker code is located at: `scripts/cloudflare-worker-upload.js`
 - The worker now accepts both `X-Auth-Key` header (new) and `Authorization: Bearer` header (legacy support)
 - Replace `*` in `Access-Control-Allow-Origin` with your specific domain (`https://fleet.voltaamobility.com`) for better security in production
 - All frontend code has been updated to use `X-Auth-Key` header consistently
-

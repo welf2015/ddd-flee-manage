@@ -10,4 +10,3 @@ ADD COLUMN IF NOT EXISTS file_name TEXT;
 -- Add file_type column if it doesn't exist
 ALTER TABLE waybill_uploads
 ADD COLUMN IF NOT EXISTS file_type TEXT;
-

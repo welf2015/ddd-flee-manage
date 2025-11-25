@@ -52,4 +52,3 @@ CREATE POLICY "Enable delete for authenticated users"
 ON waybill_uploads FOR DELETE
 TO authenticated
 USING (true);
-

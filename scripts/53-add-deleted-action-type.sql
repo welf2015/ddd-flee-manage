@@ -18,4 +18,3 @@ CHECK (action_type IN (
   'Updated',
   'Payment Marked as Paid'
 ));
-

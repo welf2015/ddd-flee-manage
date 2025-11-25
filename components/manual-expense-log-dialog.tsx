@@ -380,4 +380,3 @@ export function ManualExpenseLogDialog({
     </Dialog>
   )
 }
-

@@ -16,4 +16,3 @@ bucket_name = "fleetm"
 
 [env.production]
 name = "fleet-r2-upload"
-
