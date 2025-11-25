@@ -141,21 +141,9 @@ export async function createExpenseTransaction(
 
   console.log("Expense transaction created successfully:", transaction.id)
 
-  // Update booking with expense amounts if bookingId exists
-  if (data.bookingId) {
-    const updateData: any = {}
-    if (data.expenseType === "Fuel") {
-      updateData.fuel_amount = data.amount
-      updateData.fuel_account_id = accountId
-    } else if (data.expenseType === "Ticketing") {
-      updateData.ticketing_amount = data.amount
-      updateData.ticketing_account_id = accountId
-    } else if (data.expenseType === "Allowance") {
-      updateData.allowance_amount = data.amount
-    }
-
-    await supabase.from("bookings").update(updateData).eq("id", data.bookingId)
-  }
+  // Note: Booking expense amounts are updated by assignDriverWithExpenses
+  // We don't update here to avoid race conditions when multiple transactions are created
+  // The booking is already updated with all expense amounts before transactions are created
 
   revalidatePath("/dashboard/expenses")
   revalidatePath("/dashboard/bookings")

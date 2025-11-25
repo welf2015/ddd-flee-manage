@@ -725,15 +725,18 @@ export async function assignDriverWithExpenses(
   }
 
   if (expenses) {
-    if (expenses.fuelAmount && expenses.fuelAccountId) {
-      updateData.fuel_amount = expenses.fuelAmount
+    // Always set fuel_amount (even if 0) for accounting purposes
+    if (expenses.fuelAccountId !== undefined) {
+      updateData.fuel_amount = expenses.fuelAmount ?? 0
       updateData.fuel_account_id = expenses.fuelAccountId
     }
-    if (expenses.ticketingAmount && expenses.ticketingAccountId) {
+    // Set ticketing amount if provided
+    if (expenses.ticketingAccountId !== undefined && expenses.ticketingAmount !== undefined) {
       updateData.ticketing_amount = expenses.ticketingAmount
       updateData.ticketing_account_id = expenses.ticketingAccountId
     }
-    if (expenses.allowanceAmount) {
+    // Set allowance amount if provided
+    if (expenses.allowanceAmount !== undefined) {
       updateData.allowance_amount = expenses.allowanceAmount
     }
   }
