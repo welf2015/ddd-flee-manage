@@ -15,9 +15,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus } from 'lucide-react'
+import { Plus } from "lucide-react"
 import { useState, useEffect } from "react"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { createDriver } from "@/app/actions/drivers"
 import { createClient } from "@/lib/supabase/client"
 
@@ -51,6 +51,10 @@ export function CreateDriverDialog() {
     setLoading(true)
 
     const formData = new FormData(e.currentTarget)
+
+    const tempLicenseNumber = `TEMP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+    formData.set("license_number", tempLicenseNumber)
+
     const result = await createDriver(formData)
 
     if (result.success) {
@@ -100,8 +104,6 @@ export function CreateDriverDialog() {
               </Select>
             </div>
 
-            {/* Hidden fields with default values */}
-            <input type="hidden" name="license_number" value="TBD" />
             <input type="hidden" name="phone" value="N/A" />
           </div>
 
