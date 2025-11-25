@@ -118,7 +118,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
     { refreshInterval: 1000, revalidateOnFocus: true },
   )
 
-  const { data: waybills = [] } = useSWR(
+  const { data: waybills = [], mutate: mutateWaybills } = useSWR(
     open && booking?.id ? `waybills-${booking.id}` : null,
     async () => {
       const { data } = await supabase
@@ -207,7 +207,9 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
 
       if (error) throw error
 
+      // Invalidate both booking and waybills cache
       await mutateBooking()
+      await mutateWaybills()
       const { toast } = await import("sonner")
       toast.success(`${documentType} uploaded successfully`)
     } catch (error) {
@@ -229,7 +231,9 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
 
       if (error) throw error
 
+      // Invalidate both booking and waybills cache
       await mutateBooking()
+      await mutateWaybills()
       const { toast } = await import("sonner")
       toast.success("Document deleted successfully")
     } catch (error) {
@@ -951,6 +955,8 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                   onChange={(e) => {
                                     if (e.target.files?.[0]) {
                                       handleDocumentUpload(e.target.files[0], "Waybill")
+                                      // Reset input to allow re-uploading the same file
+                                      e.target.value = ""
                                     }
                                   }}
                                   className="hidden"
@@ -960,7 +966,11 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                   className="flex flex-col items-center gap-2 cursor-pointer text-sm"
                                 >
                                   <Upload className="h-4 w-4 text-muted-foreground" />
-                                  <span className="text-muted-foreground">Upload waybill</span>
+                                  <span className="text-muted-foreground">
+                                    {waybills.some((w: any) => w.document_type === "Waybill")
+                                      ? "Replace waybill"
+                                      : "Upload waybill"}
+                                  </span>
                                 </label>
                               </div>
                             </div>
@@ -974,6 +984,8 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                   onChange={(e) => {
                                     if (e.target.files?.[0]) {
                                       handleDocumentUpload(e.target.files[0], "Fuel Receipt")
+                                      // Reset input to allow re-uploading the same file
+                                      e.target.value = ""
                                     }
                                   }}
                                   className="hidden"
@@ -983,7 +995,11 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                   className="flex flex-col items-center gap-2 cursor-pointer text-sm"
                                 >
                                   <Upload className="h-4 w-4 text-muted-foreground" />
-                                  <span className="text-muted-foreground">Upload fuel receipt</span>
+                                  <span className="text-muted-foreground">
+                                    {waybills.some((w: any) => w.document_type === "Fuel Receipt")
+                                      ? "Replace fuel receipt"
+                                      : "Upload fuel receipt"}
+                                  </span>
                                 </label>
                               </div>
                             </div>
