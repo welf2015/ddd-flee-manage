@@ -48,7 +48,18 @@ export function ManualExpenseLogDialog({
 
   const fetchAccounts = async () => {
     try {
-      const accounts = await getPrepaidAccounts()
+      const { data: accounts, error } = await getPrepaidAccounts()
+      
+      if (error) {
+        console.error("Error fetching accounts:", error)
+        toast.error("Failed to load accounts")
+        return
+      }
+
+      if (!accounts || accounts.length === 0) {
+        console.warn("No accounts found")
+        return
+      }
       
       // Filter and select best accounts
       const fuelOnly = accounts.filter((a: any) => a.vendor?.vendor_type === "Fuel")
@@ -62,34 +73,51 @@ export function ManualExpenseLogDialog({
         const withData = accounts.find((a: any) => 
           parseFloat(a.total_deposited || 0) > 0 || parseFloat(a.total_spent || 0) > 0
         )
-        if (withData) return withData
+        if (withData) {
+          return {
+            ...withData,
+            current_balance: parseFloat(withData.current_balance || 0),
+          }
+        }
         
         // If all are zero, prefer the one with most recent update
         const sorted = accounts.sort((a: any, b: any) => 
           new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
         )
-        return sorted[0]
+        return {
+          ...sorted[0],
+          current_balance: parseFloat(sorted[0].current_balance || 0),
+        }
       }
 
       if (fuelOnly.length > 0) {
         const selected = selectBestAccount(fuelOnly)
         if (selected) {
-          setFuelAccount({ ...selected, current_balance: parseFloat(selected.current_balance || 0) })
+          console.log("⛽ [Manual Expense] Setting fuel account:", selected.account_name, "Balance:", selected.current_balance)
+          setFuelAccount(selected)
         }
+      } else {
+        console.warn("⚠️ [Manual Expense] No fuel account found")
       }
 
       if (ticketingOnly.length > 0) {
         const selected = selectBestAccount(ticketingOnly)
         if (selected) {
-          setTicketingAccount({ ...selected, current_balance: parseFloat(selected.current_balance || 0) })
+          console.log("🎫 [Manual Expense] Setting ticketing account:", selected.account_name, "Balance:", selected.current_balance)
+          setTicketingAccount(selected)
         }
+      } else {
+        console.warn("⚠️ [Manual Expense] No ticketing account found")
       }
 
       if (allowanceOnly.length > 0) {
         const selected = selectBestAccount(allowanceOnly)
         if (selected) {
-          setAllowanceAccount({ ...selected, current_balance: parseFloat(selected.current_balance || 0) })
+          console.log("💰 [Manual Expense] Setting allowance account:", selected.account_name, "Balance:", selected.current_balance)
+          setAllowanceAccount(selected)
         }
+      } else {
+        console.warn("⚠️ [Manual Expense] No allowance account found")
       }
     } catch (error) {
       console.error("Error fetching accounts:", error)
