@@ -29,6 +29,7 @@ export function ManualExpenseLogDialog({
   onSuccess,
 }: ManualExpenseLogDialogProps) {
   const [saving, setSaving] = useState(false)
+  const [loadingAccounts, setLoadingAccounts] = useState(false)
   const [fuelAccount, setFuelAccount] = useState<any>(null)
   const [ticketingAccount, setTicketingAccount] = useState<any>(null)
   const [allowanceAccount, setAllowanceAccount] = useState<any>(null)
@@ -42,7 +43,13 @@ export function ManualExpenseLogDialog({
 
   useEffect(() => {
     if (open) {
-      fetchAccounts()
+      setLoadingAccounts(true)
+      fetchAccounts().finally(() => setLoadingAccounts(false))
+    } else {
+      // Reset accounts when dialog closes
+      setFuelAccount(null)
+      setTicketingAccount(null)
+      setAllowanceAccount(null)
     }
   }, [open])
 
@@ -251,19 +258,25 @@ export function ManualExpenseLogDialog({
                     />
                   </div>
                 </div>
-                {fuelAccount && (
-                  <div className="pt-2 border-t">
-                    <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
-                    <p
-                      className={`text-sm font-medium ${
-                        (fuelAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
-                      }`}
-                    >
-                      {formatCurrency(fuelAccount.current_balance || 0, "NGN")}
-                      {(fuelAccount.current_balance || 0) < 0 && " (Overdrawn)"}
-                    </p>
-                  </div>
-                )}
+                <div className="pt-2 border-t">
+                  {loadingAccounts ? (
+                    <p className="text-xs text-muted-foreground">Loading account balance...</p>
+                  ) : fuelAccount ? (
+                    <>
+                      <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
+                      <p
+                        className={`text-sm font-medium ${
+                          (fuelAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
+                        }`}
+                      >
+                        {formatCurrency(fuelAccount.current_balance || 0, "NGN")}
+                        {(fuelAccount.current_balance || 0) < 0 && " (Overdrawn)"}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No fuel account found</p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -288,19 +301,25 @@ export function ManualExpenseLogDialog({
                     placeholder="0.00"
                   />
                 </div>
-                {ticketingAccount && (
-                  <div className="pt-2 border-t">
-                    <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
-                    <p
-                      className={`text-sm font-medium ${
-                        (ticketingAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
-                      }`}
-                    >
-                      {formatCurrency(ticketingAccount.current_balance || 0, "NGN")}
-                      {(ticketingAccount.current_balance || 0) < 0 && " (Overdrawn)"}
-                    </p>
-                  </div>
-                )}
+                <div className="pt-2 border-t">
+                  {loadingAccounts ? (
+                    <p className="text-xs text-muted-foreground">Loading account balance...</p>
+                  ) : ticketingAccount ? (
+                    <>
+                      <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
+                      <p
+                        className={`text-sm font-medium ${
+                          (ticketingAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
+                        }`}
+                      >
+                        {formatCurrency(ticketingAccount.current_balance || 0, "NGN")}
+                        {(ticketingAccount.current_balance || 0) < 0 && " (Overdrawn)"}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No ticketing account found</p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -325,19 +344,25 @@ export function ManualExpenseLogDialog({
                     placeholder="0.00"
                   />
                 </div>
-                {allowanceAccount && (
-                  <div className="pt-2 border-t">
-                    <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
-                    <p
-                      className={`text-sm font-medium ${
-                        (allowanceAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
-                      }`}
-                    >
-                      {formatCurrency(allowanceAccount.current_balance || 0, "NGN")}
-                      {(allowanceAccount.current_balance || 0) < 0 && " (Overdrawn)"}
-                    </p>
-                  </div>
-                )}
+                <div className="pt-2 border-t">
+                  {loadingAccounts ? (
+                    <p className="text-xs text-muted-foreground">Loading account balance...</p>
+                  ) : allowanceAccount ? (
+                    <>
+                      <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
+                      <p
+                        className={`text-sm font-medium ${
+                          (allowanceAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
+                        }`}
+                      >
+                        {formatCurrency(allowanceAccount.current_balance || 0, "NGN")}
+                        {(allowanceAccount.current_balance || 0) < 0 && " (Overdrawn)"}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No allowance account found</p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
