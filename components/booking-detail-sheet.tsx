@@ -1086,7 +1086,6 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                             <div className="grid gap-2">
                               <Label htmlFor="doc-type-select">Document Type</Label>
                               <Select
-                                id="doc-type-select"
                                 value={documentType}
                                 onValueChange={(value) => setDocumentType(value as "Waybill" | "Fuel Receipt")}
                               >
