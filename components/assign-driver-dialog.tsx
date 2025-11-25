@@ -220,27 +220,37 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
     const expenses: any = {}
     
     // Fuel is always required (defaults to 0 if not entered)
-    if (fuelAccount) {
-      const fuelAmt = fuelAmount ? Number.parseFloat(fuelAmount) : 0
-      expenses.fuelAmount = fuelAmt
-      expenses.fuelLiters = fuelLiters ? Number.parseFloat(fuelLiters) : undefined
-      expenses.fuelAccountId = fuelAccount.id
-    } else {
+    if (!fuelAccount) {
       toast.error("Fuel account not found. Please contact administrator.")
       setLoading(false)
       return
     }
     
+    // Always set fuel expense (required for accounting)
+    const fuelAmt = fuelAmount ? Number.parseFloat(fuelAmount) : 0
+    expenses.fuelAmount = fuelAmt
+    expenses.fuelLiters = fuelLiters ? Number.parseFloat(fuelLiters) : undefined
+    expenses.fuelAccountId = fuelAccount.id
+    
+    // Set ticketing expense if provided
     if (ticketingAmount && ticketingAccount) {
       expenses.ticketingAmount = Number.parseFloat(ticketingAmount)
       expenses.ticketingAccountId = ticketingAccount.id
     }
     
+    // Set allowance expense if provided
     if (allowanceAmount && allowanceAccount) {
       expenses.allowanceAmount = Number.parseFloat(allowanceAmount)
     }
 
+    console.log("📊 [Assign Driver] Submitting expenses:", expenses)
     const result = await assignDriverWithExpenses(bookingId, selectedDriver, expenses)
+    
+    if (result.success) {
+      console.log("✅ [Assign Driver] Expenses saved successfully")
+    } else {
+      console.error("❌ [Assign Driver] Failed to save expenses:", result.error)
+    }
     setLoading(false)
 
     if (result.success) {
