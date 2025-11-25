@@ -74,7 +74,7 @@ export function BookingsTable({ bookings, onUpdate }: BookingsTableProps) {
   }, [])
 
   const filteredBookings = useMemo(() => {
-    return freshBookings.filter((booking) => {
+    return bookings.filter((booking) => {
       const matchesStatus = statusFilter === "all" || booking.status === statusFilter
       const matchesSearch =
         searchQuery === "" ||
@@ -82,7 +82,7 @@ export function BookingsTable({ bookings, onUpdate }: BookingsTableProps) {
         booking.client_name.toLowerCase().includes(searchQuery.toLowerCase())
       return matchesStatus && matchesSearch
     })
-  }, [freshBookings, statusFilter, searchQuery])
+  }, [bookings, statusFilter, searchQuery])
   
   // Auto-refresh bookings periodically and on focus
   useEffect(() => {
