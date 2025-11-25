@@ -1,14 +1,8 @@
-/**
- * Cloudflare Worker for Secure R2 Uploads
- *
- * Deployment Instructions:
- * 1. Create a new Worker in Cloudflare Dashboard
- * 2. Copy this code into the worker.js file
- * 3. Bind your R2 Bucket to the worker with variable name: BUCKET
- * 4. Add an Environment Variable: AUTH_KEY (a secure random string you choose)
- * 5. Deploy
- */
+# Cloudflare Worker - Ready to Deploy
 
+Copy this code and paste it into your Cloudflare Worker editor:
+
+```javascript
 export default {
   async fetch(request, env) {
     const url = new URL(request.url)
@@ -50,7 +44,7 @@ export default {
       )
     }
 
-    // Handle Upload (PUT)
+    // Handle Upload (PUT or POST)
     if (method === "PUT" || method === "POST") {
       try {
         const folder = url.searchParams.get("folder") || "uploads"
@@ -59,10 +53,7 @@ export default {
 
         await env.BUCKET.put(key, request.body)
 
-        // Construct Public URL (Assumes bucket is connected to custom domain or public access enabled)
-        // If you have a custom domain for R2, use it here.
-        // Otherwise, you might need to return the S3 compatible URL or just the key.
-        const publicUrl = `https://${url.hostname}/${key}` // This assumes worker handles download too, or replace with R2 public domain
+        const publicUrl = `https://${url.hostname}/${key}`
 
         return new Response(
           JSON.stringify({
@@ -72,14 +63,17 @@ export default {
           }),
           {
             headers: { "Content-Type": "application/json", ...corsHeaders },
-          },
+          }
         )
       } catch (err) {
-        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders })
+        return new Response(JSON.stringify({ error: err.message }), { 
+          status: 500, 
+          headers: corsHeaders 
+        })
       }
     }
 
-    // Handle Download (GET) - Optional if you want the worker to serve files
+    // Handle Download (GET)
     if (method === "GET") {
       const key = url.pathname.slice(1) // Remove leading slash
       if (!key) return new Response("File not found", { status: 404, headers: corsHeaders })
@@ -97,3 +91,22 @@ export default {
     return new Response("Method not allowed", { status: 405, headers: corsHeaders })
   },
 }
+```
+
+## Key Changes from Current Deployed Version:
+
+1. ✅ Added `X-Auth-Key` to `Access-Control-Allow-Headers` (fixes CORS error)
+2. ✅ Added `Access-Control-Max-Age` header
+3. ✅ Fixed authorization check to actually block unauthorized requests (was empty before)
+4. ✅ Support for both `X-Auth-Key` header (new) and `Authorization: Bearer` header (legacy)
+
+## Deployment Steps:
+
+1. Go to Cloudflare Dashboard → Workers & Pages
+2. Select your worker: `fleet-r2-upload`
+3. Click "Edit code"
+4. Replace the entire worker code with the code above
+5. Click "Save and deploy"
+
+After deployment, file uploads should work without CORS errors!
+
