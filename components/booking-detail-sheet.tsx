@@ -22,6 +22,7 @@ import {
   Check,
   Eye,
   Download,
+  Trash2,
 } from "lucide-react"
 import { AssignDriverDialog } from "./assign-driver-dialog"
 import { UpdateJobStatusDialog } from "./update-job-status-dialog"
@@ -59,16 +60,18 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [userRole, setUserRole] = useState<string>("")
   const supabase = createClient()
+  const [openSheet, setOpen] = useState(open) // State to control sheet visibility
 
   useEffect(() => {
+    setUserRole(localStorage.getItem("userRole") || "") // Get role from localStorage on mount
     const fetchUserRole = async () => {
-      const supabase = createClient()
       const {
         data: { user },
       } = await supabase.auth.getUser()
       if (user) {
         const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
         setUserRole(profile?.role || "")
+        localStorage.setItem("userRole", profile?.role || "") // Store role in localStorage
       }
     }
     fetchUserRole()
@@ -240,6 +243,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
       userRole === "ED" ||
       userRole === "Head of Operations" ||
       userRole === "Operations and Fleet Officer")
+  const canDelete = userRole === "MD" || userRole === "ED" || userRole === "Head of Operations"
   const canMarkAsPaid =
     displayBooking.status === "Completed" &&
     displayBooking.payment_status === "Unpaid" &&
@@ -309,9 +313,34 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
     setUpdatingStatus(false)
   }
 
+  const handleDeleteBooking = async () => {
+    if (!confirm("Are you sure you want to delete this booking? This action cannot be undone.")) {
+      return
+    }
+
+    const { deleteBooking } = await import("@/app/actions/bookings")
+    const result = await deleteBooking(booking.id)
+
+    if (result.success) {
+      const { toast } = await import("sonner")
+      toast.success("Booking deleted successfully")
+      onUpdate()
+      setOpen(false) // Close the sheet after deletion
+    } else {
+      const { toast } = await import("sonner")
+      toast.error(result.error || "Failed to delete booking")
+    }
+  }
+
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
+      <Sheet
+        open={openSheet}
+        onOpenChange={(isOpen) => {
+          onOpenChange(isOpen)
+          setOpen(isOpen)
+        }}
+      >
         <SheetContent
           side="right"
           className="w-full sm:w-full md:w-1/2 lg:w-1/2 xl:w-1/2 p-0 bg-background overflow-y-auto"
@@ -324,7 +353,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                   <SheetTitle className="text-2xl">{displayBooking.job_id}</SheetTitle>
                   <p className="text-sm text-muted-foreground">Job Details & Management</p>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="h-8 w-8">
+                <Button variant="ghost" size="icon" onClick={() => setOpen(false)} className="h-8 w-8">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -356,6 +385,13 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                 canApprove,
                 canAssignDriver,
               })}
+
+              {canDelete && (
+                <Button onClick={handleDeleteBooking} variant="destructive" size="sm">
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Delete Job
+                </Button>
+              )}
 
               {canApprove && (
                 <Button
@@ -1151,7 +1187,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
           onSuccess={() => {
             onUpdate()
             setShowCloseJob(false)
-            onOpenChange(false)
+            onOpenChange(false) // Close the detail sheet as well
             mutateBooking()
           }}
         />

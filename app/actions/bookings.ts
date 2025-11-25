@@ -674,7 +674,7 @@ export async function assignDriverWithExpenses(
     if (expenses.fuelAccountId) {
       const fuelAmount = expenses.fuelAmount ?? 0
       const fuelLiters = expenses.fuelLiters ?? 0
-      
+
       const fuelResult = await createExpenseTransaction(expenses.fuelAccountId, {
         bookingId,
         driverId,
@@ -685,48 +685,46 @@ export async function assignDriverWithExpenses(
         unit: "Liters",
         notes: fuelAmount > 0 ? `Fuel for trip ${bookingId}` : `No fuel expense for trip ${bookingId}`,
       })
-      
+
       if (!fuelResult.success) {
         console.error("Failed to create fuel transaction:", fuelResult.error)
       } else if (fuelResult.data && (fuelAmount > 0 || fuelLiters > 0)) {
         // Directly create fuel log since we have all the data
         // This is more reliable than relying on triggers
         const supabase = await createClient()
-        
+
         // Get vendor name for station
         const { data: accountData } = await supabase
           .from("prepaid_accounts")
           .select("vendor:expense_vendors(vendor_name)")
           .eq("id", expenses.fuelAccountId)
           .single()
-        
+
         const stationName = accountData?.vendor?.vendor_name || "Total Energies"
-        
+
         // Get vehicle fuel type (default to Petrol as user specified)
         const { data: vehicleData } = await supabase
           .from("vehicles")
           .select("fuel_type")
           .eq("id", driver.assigned_vehicle_id)
           .single()
-        
+
         const fuelType = vehicleData?.fuel_type || "Petrol"
-        
+
         // Create fuel log directly
-        const { error: fuelLogError } = await supabase
-          .from("fuel_logs")
-          .insert({
-            vehicle_id: driver.assigned_vehicle_id,
-            driver_id: driverId,
-            booking_id: bookingId,
-            fuel_type: fuelType,
-            quantity: fuelLiters,
-            unit: "Liters",
-            cost: fuelAmount,
-            station_name: stationName,
-            logged_at: new Date().toISOString(),
-            expense_transaction_id: fuelResult.data.id,
-          })
-        
+        const { error: fuelLogError } = await supabase.from("fuel_logs").insert({
+          vehicle_id: driver.assigned_vehicle_id,
+          driver_id: driverId,
+          booking_id: bookingId,
+          fuel_type: fuelType,
+          quantity: fuelLiters,
+          unit: "Liters",
+          cost: fuelAmount,
+          station_name: stationName,
+          logged_at: new Date().toISOString(),
+          expense_transaction_id: fuelResult.data.id,
+        })
+
         if (fuelLogError) {
           console.error("Failed to create fuel log:", fuelLogError)
           // Don't fail the assignment, just log the error
@@ -774,5 +772,49 @@ export async function assignDriverWithExpenses(
 
   revalidatePath("/dashboard/bookings")
   revalidatePath("/dashboard/expenses")
+  return { success: true }
+}
+
+export async function deleteBooking(bookingId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  // Check user role - only MD, ED, and Head of Operations can delete
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+
+  if (!profile || !["MD", "ED", "Head of Operations"].includes(profile.role)) {
+    return { success: false, error: "Unauthorized: Only MD, ED, and Head of Operations can delete bookings" }
+  }
+
+  // Get booking info before deleting
+  const { data: booking } = await supabase.from("bookings").select("job_id, client_name").eq("id", bookingId).single()
+
+  if (!booking) {
+    return { success: false, error: "Booking not found" }
+  }
+
+  // Delete related records first (due to foreign keys)
+  await supabase.from("booking_files").delete().eq("booking_id", bookingId)
+  await supabase.from("negotiation_threads").delete().eq("booking_id", bookingId)
+  await supabase.from("job_timeline").delete().eq("booking_id", bookingId)
+  await supabase.from("job_costs").delete().eq("booking_id", bookingId)
+  await supabase.from("notifications").delete().eq("booking_id", bookingId)
+
+  // Delete the booking
+  const { error } = await supabase.from("bookings").delete().eq("id", bookingId)
+
+  if (error) {
+    console.error("Error deleting booking:", error)
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath("/dashboard/bookings")
   return { success: true }
 }
