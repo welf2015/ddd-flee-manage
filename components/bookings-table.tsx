@@ -83,15 +83,6 @@ export function BookingsTable({ bookings, onUpdate }: BookingsTableProps) {
       return matchesStatus && matchesSearch
     })
   }, [bookings, statusFilter, searchQuery])
-  
-  // Auto-refresh bookings periodically and on focus
-  useEffect(() => {
-    const interval = setInterval(() => {
-      mutateBookings()
-    }, 5000) // Refresh every 5 seconds
-    
-    return () => clearInterval(interval)
-  }, [mutateBookings])
 
   const getStatusColor = (status: string) => {
     switch (status) {
