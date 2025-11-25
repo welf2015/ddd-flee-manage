@@ -83,7 +83,6 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const [documentType, setDocumentType] = useState<"Waybill" | "Fuel Receipt">("Waybill")
   const supabase = createClient()
   const router = useRouter()
-  const [openSheet, setOpen] = useState(open) // State to control sheet visibility
 
   useEffect(() => {
     setUserRole(localStorage.getItem("userRole") || "") // Get role from localStorage on mount
@@ -286,10 +285,17 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
     }
   }
 
-  const formatCurrency = (amount: number | null) => {
-    if (!amount) return "N/A"
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined || isNaN(amount)) return "₦0.00"
     return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(amount)
   }
+  
+  // Check if expenses are valid (have actual amounts, not null/0/N/A)
+  const hasValidExpenses = expenseTransactions && expenseTransactions.length > 0 && 
+    expenseTransactions.some((t: any) => {
+      const amount = parseFloat(t.amount || 0)
+      return !isNaN(amount) && amount > 0
+    })
 
   const canAssignDriver = displayBooking.status === "Approved" && !displayBooking.assigned_driver_id
   const canUpdateStatus =
@@ -1349,8 +1355,12 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                         ) : (
                           <div className="text-center py-8">
                             <Wallet className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                            <p className="text-sm text-muted-foreground">No expenses recorded for this job</p>
-                            {displayBooking.assigned_driver_id && (
+                            <p className="text-sm text-muted-foreground">
+                              {expenseTransactions && expenseTransactions.length > 0
+                                ? "No valid expenses recorded (all amounts are zero or invalid)"
+                                : "No expenses recorded for this job"}
+                            </p>
+                            {displayBooking.assigned_driver_id && expenseTransactions && expenseTransactions.length === 0 && (
                               <p className="text-xs text-muted-foreground mt-2">
                                 Expenses are logged when a driver is assigned
                               </p>
