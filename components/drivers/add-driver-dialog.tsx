@@ -54,7 +54,7 @@ export function AddDriverDialog({ vehicles }: AddDriverDialogProps) {
           method: "PUT",
           body: file,
           headers: {
-            Authorization: `Bearer ${config.authKey}`,
+            "X-Auth-Key": config.authKey,
             "Content-Type": file.type,
           },
         })

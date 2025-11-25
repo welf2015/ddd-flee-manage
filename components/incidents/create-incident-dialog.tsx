@@ -76,7 +76,7 @@ export function CreateIncidentDialog({ open, onOpenChange, onSuccess }: any) {
           method: "PUT",
           body: file,
           headers: {
-            Authorization: `Bearer ${config.authKey}`,
+            "X-Auth-Key": config.authKey,
             "Content-Type": file.type,
           },
         })

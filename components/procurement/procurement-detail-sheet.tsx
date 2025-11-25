@@ -194,7 +194,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
             method: "PUT",
             body: file,
             headers: {
-              Authorization: `Bearer ${currentAuthKey}`,
+              "X-Auth-Key": currentAuthKey,
               "Content-Type": file.type,
             },
           })

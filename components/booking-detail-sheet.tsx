@@ -185,7 +185,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
           method: "PUT",
           body: file,
           headers: {
-            Authorization: `Bearer ${config.authKey}`,
+            "X-Auth-Key": config.authKey,
             "Content-Type": file.type,
           },
         })
