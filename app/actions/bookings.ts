@@ -241,6 +241,7 @@ export async function closeBooking(
   bookingId: string,
   data: {
     waybillUrl: string | null
+    fuelReceiptUrl: string | null
     incidentReport: string | null
     additionalCosts: string
     actualCost: number | null
@@ -297,7 +298,6 @@ export async function closeBooking(
   // Upload waybill if provided
   if (data.waybillUrl) {
     console.log("🔒 [closeBooking] Inserting waybill:", { waybillUrl: data.waybillUrl })
-    // Extract filename from URL if possible
     const urlParts = data.waybillUrl.split("/")
     const filename = urlParts[urlParts.length - 1] || "waybill"
     
@@ -305,23 +305,55 @@ export async function closeBooking(
       booking_id: bookingId,
       file_url: data.waybillUrl,
       file_name: filename,
+      file_type: filename.includes(".pdf") ? "application/pdf" : "image/jpeg",
       document_type: "Waybill",
       uploaded_by: user.id,
     })
 
     if (waybillError) {
       console.error("🔒 [closeBooking] Error inserting waybill:", waybillError)
-      // Don't fail the entire operation if waybill insert fails, but log it
     } else {
       console.log("🔒 [closeBooking] Waybill inserted successfully")
     }
 
-    // Add to timeline
     const { error: timelineError } = await supabase.from("job_timeline").insert({
       booking_id: bookingId,
       action_type: "Waybill Uploaded",
       action_by: user.id,
       notes: "Waybill document uploaded",
+    })
+
+    if (timelineError) {
+      console.error("🔒 [closeBooking] Error inserting timeline:", timelineError)
+    }
+  }
+
+  // Upload fuel receipt if provided
+  if (data.fuelReceiptUrl) {
+    console.log("🔒 [closeBooking] Inserting fuel receipt:", { fuelReceiptUrl: data.fuelReceiptUrl })
+    const urlParts = data.fuelReceiptUrl.split("/")
+    const filename = urlParts[urlParts.length - 1] || "fuel-receipt"
+    
+    const { error: fuelReceiptError } = await supabase.from("waybill_uploads").insert({
+      booking_id: bookingId,
+      file_url: data.fuelReceiptUrl,
+      file_name: filename,
+      file_type: filename.includes(".pdf") ? "application/pdf" : "image/jpeg",
+      document_type: "Fuel Receipt",
+      uploaded_by: user.id,
+    })
+
+    if (fuelReceiptError) {
+      console.error("🔒 [closeBooking] Error inserting fuel receipt:", fuelReceiptError)
+    } else {
+      console.log("🔒 [closeBooking] Fuel receipt inserted successfully")
+    }
+
+    const { error: timelineError } = await supabase.from("job_timeline").insert({
+      booking_id: bookingId,
+      action_type: "Fuel Receipt Uploaded",
+      action_by: user.id,
+      notes: "Fuel receipt document uploaded",
     })
 
     if (timelineError) {

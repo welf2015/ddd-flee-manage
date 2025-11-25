@@ -1,6 +1,7 @@
 "use client"
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -73,6 +74,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const [showUpdateJobDetails, setShowUpdateJobDetails] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [userRole, setUserRole] = useState<string>("")
+  const [viewingDocument, setViewingDocument] = useState<{ url: string; name: string; type: string } | null>(null)
   const supabase = createClient()
   const router = useRouter()
   const [openSheet, setOpen] = useState(open) // State to control sheet visibility
@@ -679,6 +681,28 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                             </div>
                           </>
                         )}
+                        {(displayBooking.destination_contact_name || displayBooking.destination_contact_phone) && (
+                          <>
+                            <Separator />
+                            <div>
+                              <Label className="text-sm font-medium text-muted-foreground">Destination Contact</Label>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                {displayBooking.destination_contact_name && (
+                                  <div>
+                                    <Label className="text-muted-foreground text-xs">Contact Name</Label>
+                                    <p className="mt-1 font-medium">{displayBooking.destination_contact_name}</p>
+                                  </div>
+                                )}
+                                {displayBooking.destination_contact_phone && (
+                                  <div>
+                                    <Label className="text-muted-foreground text-xs">Contact Phone</Label>
+                                    <p className="mt-1">{displayBooking.destination_contact_phone}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </CardContent>
                     </Card>
 
@@ -1066,15 +1090,33 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                   {doc.file_url && (
                                     <>
-                                      <Button variant="ghost" size="sm" asChild className="flex-shrink-0">
-                                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-                                          <Eye className="h-4 w-4" />
-                                        </a>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="flex-shrink-0"
+                                        onClick={() => {
+                                          setViewingDocument({
+                                            url: doc.file_url,
+                                            name: doc.file_name || "Document",
+                                            type: doc.file_type || "",
+                                          })
+                                        }}
+                                      >
+                                        <Eye className="h-4 w-4" />
                                       </Button>
-                                      <Button variant="ghost" size="sm" asChild className="flex-shrink-0">
-                                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer" download>
-                                          <Download className="h-4 w-4" />
-                                        </a>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="flex-shrink-0"
+                                        onClick={() => {
+                                          const proxyUrl = `/api/waybill?url=${encodeURIComponent(doc.file_url)}&bookingId=${booking.id}`
+                                          const link = document.createElement("a")
+                                          link.href = proxyUrl
+                                          link.download = doc.file_name || "document"
+                                          link.click()
+                                        }}
+                                      >
+                                        <Download className="h-4 w-4" />
                                       </Button>
                                       {canDeleteDocuments && (
                                         <Button

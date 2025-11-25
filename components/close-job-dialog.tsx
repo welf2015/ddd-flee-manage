@@ -22,6 +22,7 @@ type CloseJobDialogProps = {
 
 export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: CloseJobDialogProps) {
   const [waybillFile, setWaybillFile] = useState<File | null>(null)
+  const [fuelReceiptFile, setFuelReceiptFile] = useState<File | null>(null)
   const [incidentReport, setIncidentReport] = useState("")
   const [hasIncident, setHasIncident] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -47,9 +48,15 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
     }
   }, [open])
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleWaybillChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setWaybillFile(e.target.files[0])
+    }
+  }
+
+  const handleFuelReceiptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFuelReceiptFile(e.target.files[0])
     }
   }
 
@@ -58,22 +65,26 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
       toast.error("Please upload the waybill document")
       return
     }
+    if (booking.requires_waybill && !fuelReceiptFile) {
+      toast.error("Please upload the fuel receipt document")
+      return
+    }
 
     setLoading(true)
     let uploadedWaybillUrl: string | null = null
+    let uploadedFuelReceiptUrl: string | null = null
 
     try {
-      if (waybillFile) {
-        if (!workerUrl || !authKey) {
-          throw new Error("Upload service not available")
-        }
+      if (!workerUrl || !authKey) {
+        throw new Error("Upload service not available")
+      }
 
-        // Construct worker URL with query parameters
+      // Upload waybill
+      if (waybillFile) {
         const workerUrlObj = new URL(workerUrl)
         workerUrlObj.searchParams.set("filename", waybillFile.name)
         workerUrlObj.searchParams.set("folder", `waybills/${booking.id}`)
 
-        // Upload using PUT method with file body directly
         const uploadRes = await fetch(workerUrlObj.toString(), {
           method: "PUT",
           headers: {
@@ -91,7 +102,31 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
 
         const data = await uploadRes.json()
         uploadedWaybillUrl = data.url || data.key || workerUrlObj.toString()
-        console.log("Upload successful:", { url: uploadedWaybillUrl, data })
+      }
+
+      // Upload fuel receipt
+      if (fuelReceiptFile) {
+        const workerUrlObj = new URL(workerUrl)
+        workerUrlObj.searchParams.set("filename", fuelReceiptFile.name)
+        workerUrlObj.searchParams.set("folder", `fuel-receipts/${booking.id}`)
+
+        const uploadRes = await fetch(workerUrlObj.toString(), {
+          method: "PUT",
+          headers: {
+            "X-Auth-Key": authKey,
+            "Content-Type": fuelReceiptFile.type,
+          },
+          body: fuelReceiptFile,
+        })
+
+        if (!uploadRes.ok) {
+          const errorText = await uploadRes.text()
+          console.error("Upload error response:", errorText)
+          throw new Error("Failed to upload fuel receipt")
+        }
+
+        const data = await uploadRes.json()
+        uploadedFuelReceiptUrl = data.url || data.key || workerUrlObj.toString()
       }
 
       console.log("Calling closeBooking with:", {
@@ -103,6 +138,7 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
 
       const result = await closeBooking(booking.id, {
         waybillUrl: uploadedWaybillUrl,
+        fuelReceiptUrl: uploadedFuelReceiptUrl,
         incidentReport: hasIncident ? incidentReport : null,
         additionalCosts: "",
         actualCost: null,
@@ -146,24 +182,44 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
 
           <TabsContent value="completion" className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 scrollbar-hide">
             {booking.requires_waybill && (
-              <div className="space-y-2">
-                <Label>Waybill Document *</Label>
-                <div className="border-2 border-dashed rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                  <input
-                    type="file"
-                    id="waybill"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <label htmlFor="waybill" className="flex flex-col items-center gap-2 cursor-pointer">
-                    <Upload className="h-8 w-8 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
-                      {waybillFile ? waybillFile.name : "Click to upload waybill"}
-                    </span>
-                  </label>
+              <>
+                <div className="space-y-2">
+                  <Label>Waybill Document *</Label>
+                  <div className="border-2 border-dashed rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                    <input
+                      type="file"
+                      id="waybill"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={handleWaybillChange}
+                      className="hidden"
+                    />
+                    <label htmlFor="waybill" className="flex flex-col items-center gap-2 cursor-pointer">
+                      <Upload className="h-8 w-8 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">
+                        {waybillFile ? waybillFile.name : "Click to upload waybill"}
+                      </span>
+                    </label>
+                  </div>
                 </div>
-              </div>
+                <div className="space-y-2">
+                  <Label>Fuel Receipt *</Label>
+                  <div className="border-2 border-dashed rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                    <input
+                      type="file"
+                      id="fuel-receipt"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={handleFuelReceiptChange}
+                      className="hidden"
+                    />
+                    <label htmlFor="fuel-receipt" className="flex flex-col items-center gap-2 cursor-pointer">
+                      <Upload className="h-8 w-8 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">
+                        {fuelReceiptFile ? fuelReceiptFile.name : "Click to upload fuel receipt"}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </>
             )}
 
             <div className="flex items-center space-x-2">

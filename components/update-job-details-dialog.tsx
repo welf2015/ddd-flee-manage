@@ -27,6 +27,8 @@ export function UpdateJobDetailsDialog({
     client_address: "",
     pickup_address: "",
     delivery_address: "",
+    destination_contact_name: "",
+    destination_contact_phone: "",
     request_details: "",
     route: "",
     timeline: "",
@@ -39,6 +41,8 @@ export function UpdateJobDetailsDialog({
         client_address: booking.client_address || "",
         pickup_address: booking.pickup_address || "",
         delivery_address: booking.delivery_address || "",
+        destination_contact_name: booking.destination_contact_name || "",
+        destination_contact_phone: booking.destination_contact_phone || "",
         request_details: booking.request_details || "",
         route: booking.route || "",
         timeline: booking.timeline || "",
@@ -56,6 +60,8 @@ export function UpdateJobDetailsDialog({
       form.append("client_address", formData.client_address)
       form.append("pickup_address", formData.pickup_address)
       form.append("delivery_address", formData.delivery_address)
+      form.append("destination_contact_name", formData.destination_contact_name)
+      form.append("destination_contact_phone", formData.destination_contact_phone)
       form.append("request_details", formData.request_details)
       form.append("route", formData.route)
       form.append("timeline", formData.timeline)
@@ -126,6 +132,27 @@ export function UpdateJobDetailsDialog({
               onChange={(e) => setFormData({ ...formData, delivery_address: e.target.value })}
               placeholder="Enter delivery address"
             />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="destination_contact_name">Destination Contact Name</Label>
+              <Input
+                id="destination_contact_name"
+                value={formData.destination_contact_name}
+                onChange={(e) => setFormData({ ...formData, destination_contact_name: e.target.value })}
+                placeholder="Recipient name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="destination_contact_phone">Destination Contact Phone</Label>
+              <Input
+                id="destination_contact_phone"
+                value={formData.destination_contact_phone}
+                onChange={(e) => setFormData({ ...formData, destination_contact_phone: e.target.value })}
+                placeholder="Recipient phone"
+              />
+            </div>
           </div>
 
           <div>
