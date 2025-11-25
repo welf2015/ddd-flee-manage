@@ -10,6 +10,10 @@ bucket_name = "fleetm"
 # Secret (set via: wrangler secret put AUTH_KEY)
 # AUTH_KEY is a secret_text binding - set this value to match R2_AUTH_KEY from your environment
 
+# Optional: R2 Public URL (for custom domains)
+# If you have a custom domain for R2, set it via: wrangler secret put R2_PUBLIC_URL
+# Otherwise, the worker will construct the URL using the account ID and bucket name
+
 [env.production]
 name = "fleet-r2-upload"
 

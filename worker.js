@@ -80,7 +80,14 @@ export default {
 
         await env.BUCKET.put(key, request.body)
 
-        const publicUrl = `https://${url.hostname}/${key}`
+        // Use R2 public URL instead of worker URL
+        // Format: https://{account-id}.r2.cloudflarestorage.com/{bucket-name}/{key}
+        // Or use R2_PUBLIC_URL env var if set (for custom domains)
+        const bucketName = "fleetm" // From wrangler.toml
+        const accountId = "62bdb1736e32df066a3014665f294d04" // R2 Account ID
+        const publicUrl = env.R2_PUBLIC_URL 
+          ? `${env.R2_PUBLIC_URL}/${key}`
+          : `https://${accountId}.r2.cloudflarestorage.com/${bucketName}/${key}`
 
         return new Response(
           JSON.stringify({
