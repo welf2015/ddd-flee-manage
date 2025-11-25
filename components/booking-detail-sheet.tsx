@@ -1463,6 +1463,49 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
           }}
         />
       )}
+
+      {viewingDocument && (
+        <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle>{viewingDocument.name}</DialogTitle>
+            </DialogHeader>
+            <div className="flex items-center justify-center w-full h-[70vh] overflow-auto bg-muted/50 rounded-lg p-4">
+              {viewingDocument.type?.startsWith("image/") ? (
+                <img
+                  src={`/api/waybill?url=${encodeURIComponent(viewingDocument.url)}&bookingId=${booking.id}`}
+                  alt={viewingDocument.name}
+                  className="max-w-full max-h-full object-contain"
+                />
+              ) : (
+                <iframe
+                  src={`/api/waybill?url=${encodeURIComponent(viewingDocument.url)}&bookingId=${booking.id}`}
+                  className="w-full h-full border-0"
+                  title={viewingDocument.name}
+                />
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const proxyUrl = `/api/waybill?url=${encodeURIComponent(viewingDocument.url)}&bookingId=${booking.id}`
+                  const link = document.createElement("a")
+                  link.href = proxyUrl
+                  link.download = viewingDocument.name
+                  link.click()
+                }}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
+              <Button variant="outline" onClick={() => setViewingDocument(null)}>
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   )
 }
