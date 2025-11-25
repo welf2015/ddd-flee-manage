@@ -1232,6 +1232,20 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                       <CardContent>
                         {expenseTransactions && expenseTransactions.length > 0 ? (
                           <div className="space-y-4">
+                            {/* Show manual log button for MD/ED - always available to log/update expenses */}
+                            {(userRole === "MD" || userRole === "ED") && (
+                              <div className="flex justify-end mb-4">
+                                <Button
+                                  onClick={() => setShowManualExpenseLog(true)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                                >
+                                  <Wallet className="h-4 w-4 mr-2" />
+                                  Log/Update Expenses
+                                </Button>
+                              </div>
+                            )}
                             {/* Summary Cards */}
                             <div className="grid grid-cols-3 gap-4">
                               <Card className="border-blue-500/20 bg-blue-500/5">
