@@ -31,7 +31,6 @@ import {
   Wallet,
   Fuel,
   Ticket,
-  Wallet,
   FileText,
   ArrowRight,
   Check,
