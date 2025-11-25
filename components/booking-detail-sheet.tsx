@@ -1339,7 +1339,9 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                           {formatRelativeTime(transaction.transaction_date)}
                                         </td>
                                         <td className="p-3 text-right font-medium">
-                                          {formatCurrency(parseFloat(transaction.amount || 0))}
+                                          {transaction.amount && !isNaN(parseFloat(transaction.amount)) && parseFloat(transaction.amount) > 0
+                                            ? formatCurrency(parseFloat(transaction.amount))
+                                            : "₦0.00"}
                                         </td>
                                       </tr>
                                     ))}
