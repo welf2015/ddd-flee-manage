@@ -16,6 +16,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
   Truck,
@@ -71,7 +72,6 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const [userRole, setUserRole] = useState<string>("")
   const supabase = createClient()
   const [openSheet, setOpen] = useState(open) // State to control sheet visibility
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   useEffect(() => {
     setUserRole(localStorage.getItem("userRole") || "") // Get role from localStorage on mount
@@ -348,19 +348,21 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   }
 
   const handleDeleteBooking = async () => {
+    setUpdatingStatus(true)
     const { deleteBooking } = await import("@/app/actions/bookings")
     const result = await deleteBooking(booking.id)
 
+    const { toast } = await import("sonner")
+
     if (result.success) {
-      const { toast } = await import("sonner")
       toast.success("Booking deleted successfully")
       onUpdate()
       setOpen(false) // Close the sheet after deletion
-      setShowDeleteDialog(false)
     } else {
-      const { toast } = await import("sonner")
       toast.error(result.error || "Failed to delete booking")
     }
+
+    setUpdatingStatus(false)
   }
 
   return (
@@ -418,10 +420,32 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
               })}
 
               {canDelete && (
-                <Button onClick={() => setShowDeleteDialog(true)} variant="destructive" size="sm">
-                  <Trash2 className="h-3 w-3 mr-1" />
-                  Delete Job
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm">
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Delete Job
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete booking</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently remove {displayBooking.job_id}. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={updatingStatus}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={handleDeleteBooking}
+                        disabled={updatingStatus}
+                      >
+                        {updatingStatus ? "Deleting..." : "Delete"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
 
               {canDisapprove && (
@@ -1267,22 +1291,6 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
           }}
         />
       )}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete booking</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove {displayBooking.job_id}. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={updatingStatus}>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeleteBooking}>
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }
