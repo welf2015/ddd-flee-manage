@@ -27,7 +27,22 @@ export default {
       return new Response(null, { headers: corsHeaders })
     }
 
-    // Authorization Check - Support both X-Auth-Key (new) and Authorization (legacy)
+    // Handle Download (GET) - Allow without authentication for file access
+    if (method === "GET") {
+      const key = url.pathname.slice(1) // Remove leading slash
+      if (!key) return new Response("File not found", { status: 404, headers: corsHeaders })
+
+      const object = await env.BUCKET.get(key)
+      if (!object) return new Response("File not found", { status: 404, headers: corsHeaders })
+
+      const headers = new Headers(object.httpMetadata)
+      headers.set("etag", object.httpEtag)
+      Object.keys(corsHeaders).forEach((k) => headers.set(k, corsHeaders[k]))
+
+      return new Response(object.body, { headers })
+    }
+
+    // Authorization Check for PUT/POST - Support both X-Auth-Key (new) and Authorization (legacy)
     const authKey = request.headers.get("X-Auth-Key")
     const authHeader = request.headers.get("Authorization")
     
@@ -50,7 +65,7 @@ export default {
       (authKey && authKey === env.AUTH_KEY) ||
       (authHeader && authHeader === `Bearer ${env.AUTH_KEY}`)
     
-    // Block unauthorized requests
+    // Block unauthorized requests for PUT/POST
     if (!isValidAuth) {
       return new Response(
         JSON.stringify({ 
@@ -94,21 +109,6 @@ export default {
       } catch (err) {
         return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders })
       }
-    }
-
-    // Handle Download (GET) - Optional if you want the worker to serve files
-    if (method === "GET") {
-      const key = url.pathname.slice(1) // Remove leading slash
-      if (!key) return new Response("File not found", { status: 404, headers: corsHeaders })
-
-      const object = await env.BUCKET.get(key)
-      if (!object) return new Response("File not found", { status: 404, headers: corsHeaders })
-
-      const headers = new Headers(object.httpMetadata)
-      headers.set("etag", object.httpEtag)
-      Object.keys(corsHeaders).forEach((k) => headers.set(k, corsHeaders[k]))
-
-      return new Response(object.body, { headers })
     }
 
     return new Response("Method not allowed", { status: 405, headers: corsHeaders })
