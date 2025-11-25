@@ -117,15 +117,15 @@ SELECT
   i.created_at,
   'Incident' as module,
   'Incident Reported' as action,
-  CONCAT('INC-', TO_CHAR(i.created_at, 'YYYY-MM-DD'), '-', SUBSTRING(i.id::text, 1, 8)) as reference_id,
-  CONCAT('Incident: ', i.incident_type, ' - ', COALESCE(i.description, 'No description')) as description,
-  i.reported_by as user_id,
+  COALESCE(i.incident_number, CONCAT('INC-', TO_CHAR(i.created_at, 'YYYY-MM-DD'), '-', SUBSTRING(i.id::text, 1, 8))) as reference_id,
+  CONCAT('Incident: ', COALESCE(i.incident_type, 'Unknown'), ' - ', COALESCE(i.description, 'No description')) as description,
+  i.report_prepared_by as user_id,
   prof.full_name as user_name,
   prof.email as user_email,
   NULL as old_value,
   i.status as new_value
 FROM incidents i
-LEFT JOIN profiles prof ON i.reported_by = prof.id
+LEFT JOIN profiles prof ON i.report_prepared_by = prof.id
 
 UNION ALL
 

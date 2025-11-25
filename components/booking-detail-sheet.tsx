@@ -609,33 +609,37 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <Label className="text-muted-foreground text-xs">Client Name</Label>
-                            <p className="font-semibold text-lg mt-1">{displayBooking.client?.name}</p>
+                            <p className="font-semibold text-lg mt-1">
+                              {displayBooking.client?.name || displayBooking.client_name || "N/A"}
+                            </p>
                           </div>
                           <div>
                             <Label className="text-muted-foreground text-xs">Contact</Label>
-                            <p className="text-sm mt-1">{displayBooking.client?.contact || "N/A"}</p>
+                            <p className="text-sm mt-1">
+                              {displayBooking.client?.contact || displayBooking.client?.phone || displayBooking.client_contact || "N/A"}
+                            </p>
                           </div>
                         </div>
-                        {displayBooking.client && (
+                        {(displayBooking.client || displayBooking.client_email || displayBooking.client_address) && (
                           <>
                             <Separator />
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                              {displayBooking.client.email && (
+                              {(displayBooking.client?.email || displayBooking.client_email) && (
                                 <div>
                                   <Label className="text-muted-foreground text-xs">Email</Label>
-                                  <p className="mt-1">{displayBooking.client.email}</p>
+                                  <p className="mt-1">{displayBooking.client?.email || displayBooking.client_email}</p>
                                 </div>
                               )}
-                              {displayBooking.client.phone && (
+                              {(displayBooking.client?.phone || displayBooking.client_contact) && (
                                 <div>
                                   <Label className="text-muted-foreground text-xs">Phone</Label>
-                                  <p className="mt-1">{displayBooking.client.phone}</p>
+                                  <p className="mt-1">{displayBooking.client?.phone || displayBooking.client_contact}</p>
                                 </div>
                               )}
-                              {displayBooking.client.address && (
+                              {(displayBooking.client?.address || displayBooking.client_address) && (
                                 <div>
                                   <Label className="text-muted-foreground text-xs">Address</Label>
-                                  <p className="mt-1">{displayBooking.client.address}</p>
+                                  <p className="mt-1">{displayBooking.client?.address || displayBooking.client_address}</p>
                                 </div>
                               )}
                             </div>

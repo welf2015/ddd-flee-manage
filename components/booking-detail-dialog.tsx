@@ -403,12 +403,26 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
                   <CardContent className="space-y-3">
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{displayBooking.client?.name}</span>
+                      <span className="font-medium">
+                        {displayBooking.client?.name || displayBooking.client_name || "N/A"}
+                      </span>
                     </div>
-                    {displayBooking.client?.contact && (
+                    {(displayBooking.client?.contact || displayBooking.client?.phone || displayBooking.client_contact) && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <FileText className="h-4 w-4" />
-                        <span>{displayBooking.client.contact}</span>
+                        <span>{displayBooking.client?.contact || displayBooking.client?.phone || displayBooking.client_contact}</span>
+                      </div>
+                    )}
+                    {(displayBooking.client?.email || displayBooking.client_email) && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <FileText className="h-4 w-4" />
+                        <span>{displayBooking.client?.email || displayBooking.client_email}</span>
+                      </div>
+                    )}
+                    {(displayBooking.client?.address || displayBooking.client_address) && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <FileText className="h-4 w-4" />
+                        <span>{displayBooking.client?.address || displayBooking.client_address}</span>
                       </div>
                     )}
                   </CardContent>
