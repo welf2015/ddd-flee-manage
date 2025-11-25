@@ -750,12 +750,23 @@ export async function assignDriverWithExpenses(
   
   console.log("📝 [assignDriverWithExpenses] Update data:", updateData)
 
-  const { error } = await supabase.from("bookings").update(updateData).eq("id", bookingId)
+  const { error, data: updatedBooking } = await supabase
+    .from("bookings")
+    .update(updateData)
+    .eq("id", bookingId)
+    .select("fuel_amount, ticketing_amount, allowance_amount")
+    .single()
 
   if (error) {
-    console.error("Error assigning driver:", error)
+    console.error("❌ [assignDriverWithExpenses] Error updating booking:", error)
     return { success: false, error: error.message }
   }
+  
+  console.log("✅ [assignDriverWithExpenses] Booking updated successfully:", {
+    fuel_amount: updatedBooking?.fuel_amount,
+    ticketing_amount: updatedBooking?.ticketing_amount,
+    allowance_amount: updatedBooking?.allowance_amount,
+  })
 
   // Create expense transactions - fuel is always required for accounting
   if (expenses) {
