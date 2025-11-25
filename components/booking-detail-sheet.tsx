@@ -448,11 +448,8 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   return (
     <>
       <Sheet
-        open={openSheet}
-        onOpenChange={(isOpen) => {
-          onOpenChange(isOpen)
-          setOpen(isOpen)
-        }}
+        open={open}
+        onOpenChange={onOpenChange}
       >
         <SheetContent
           side="right"
