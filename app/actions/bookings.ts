@@ -840,6 +840,50 @@ export async function deleteBooking(bookingId: string) {
 
   console.log("🗑️ [Server Action] Starting deletion of related records...")
 
+  // Refund expenses if booking has expenses (for jobs that were in transit or had expenses)
+  const { data: expenseTransactions, error: expensesFetchError } = await supabase
+    .from("expense_transactions")
+    .select("id, account_id, expense_type, amount, notes")
+    .eq("booking_id", bookingId)
+
+  console.log("🗑️ [Server Action] Found expense transactions:", { 
+    count: expenseTransactions?.length || 0, 
+    error: expensesFetchError 
+  })
+
+  if (expenseTransactions && expenseTransactions.length > 0) {
+    console.log("🗑️ [Server Action] Processing refunds for expenses...")
+    
+    // Group expenses by account_id to create refund top-ups
+    const refundsByAccount = new Map<string, { amount: number; types: string[] }>()
+    
+    for (const transaction of expenseTransactions) {
+      const accountId = transaction.account_id
+      const existing = refundsByAccount.get(accountId) || { amount: 0, types: [] }
+      refundsByAccount.set(accountId, {
+        amount: existing.amount + parseFloat(transaction.amount.toString()),
+        types: [...existing.types, transaction.expense_type],
+      })
+    }
+
+    // Create refund top-ups for each account
+    for (const [accountId, refund] of refundsByAccount.entries()) {
+      const { error: refundError } = await supabase.from("account_topups").insert({
+        account_id: accountId,
+        amount: refund.amount,
+        deposited_by: user.id,
+        notes: `Refund for deleted booking ${booking.job_id} - Expenses: ${refund.types.join(", ")}`,
+        receipt_number: `REFUND-${booking.job_id}-${Date.now()}`,
+      })
+      
+      console.log("🗑️ [Server Action] Created refund top-up:", { 
+        accountId, 
+        amount: refund.amount, 
+        error: refundError 
+      })
+    }
+  }
+
   // Delete related records first (due to foreign keys)
   const { error: filesError } = await supabase.from("booking_files").delete().eq("booking_id", bookingId)
   console.log("🗑️ [Server Action] Deleted booking_files:", { error: filesError })

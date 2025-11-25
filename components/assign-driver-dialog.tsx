@@ -282,7 +282,7 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                       disabled={!vehicleAvailable}
                       className={!vehicleAvailable ? "opacity-50" : ""}
                     >
-                      {driver.full_name} - {driver.license_number}
+                      {driver.full_name}
                       {!hasVehicle && " (No Vehicle)"}
                       {hasVehicle && !vehicleAvailable && " (Vehicle Unavailable)"}
                     </SelectItem>
