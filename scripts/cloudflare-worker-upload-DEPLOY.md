@@ -25,6 +25,20 @@ export default {
     const authKey = request.headers.get("X-Auth-Key")
     const authHeader = request.headers.get("Authorization")
     
+    // Check if AUTH_KEY is configured
+    if (!env.AUTH_KEY) {
+      return new Response(
+        JSON.stringify({ error: "Server configuration error: AUTH_KEY not set" }), 
+        { 
+          status: 500, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders 
+          }
+        }
+      )
+    }
+    
     // Validate authentication - check both header formats
     const isValidAuth = 
       (authKey && authKey === env.AUTH_KEY) ||
@@ -33,7 +47,10 @@ export default {
     // Block unauthorized requests
     if (!isValidAuth) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }), 
+        JSON.stringify({ 
+          error: "Unauthorized",
+          hint: "Check that X-Auth-Key header matches AUTH_KEY environment variable in Cloudflare Worker"
+        }), 
         { 
           status: 401, 
           headers: { 
@@ -99,6 +116,20 @@ export default {
 2. ✅ Added `Access-Control-Max-Age` header
 3. ✅ Fixed authorization check to actually block unauthorized requests (was empty before)
 4. ✅ Support for both `X-Auth-Key` header (new) and `Authorization: Bearer` header (legacy)
+5. ✅ Better error messages for debugging
+
+## ⚠️ IMPORTANT: Environment Variable Setup
+
+**The Cloudflare Worker MUST have an environment variable named `AUTH_KEY`**
+
+1. Go to Cloudflare Dashboard → Workers & Pages → `fleet-r2-upload`
+2. Click on **Settings** → **Variables**
+3. Add/Update environment variable:
+   - **Variable name**: `AUTH_KEY` (exactly this name)
+   - **Value**: Must match your `R2_AUTH_KEY` value from Vercel/environment variables
+4. **Save** the environment variable
+
+**The `AUTH_KEY` value in Cloudflare Worker MUST match `R2_AUTH_KEY` in your Next.js environment!**
 
 ## Deployment Steps:
 
@@ -107,6 +138,14 @@ export default {
 3. Click "Edit code"
 4. Replace the entire worker code with the code above
 5. Click "Save and deploy"
+6. **Verify** the `AUTH_KEY` environment variable is set correctly (Settings → Variables)
+
+## Troubleshooting 401 Unauthorized:
+
+If you get 401 errors after deployment:
+1. Check that `AUTH_KEY` environment variable exists in Cloudflare Worker
+2. Verify the value matches `R2_AUTH_KEY` from your Vercel/environment config
+3. Make sure you saved and redeployed the worker after setting the variable
 
 After deployment, file uploads should work without CORS errors!
 

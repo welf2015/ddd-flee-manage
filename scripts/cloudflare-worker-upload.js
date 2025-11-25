@@ -31,6 +31,20 @@ export default {
     const authKey = request.headers.get("X-Auth-Key")
     const authHeader = request.headers.get("Authorization")
     
+    // Check if AUTH_KEY is configured
+    if (!env.AUTH_KEY) {
+      return new Response(
+        JSON.stringify({ error: "Server configuration error: AUTH_KEY not set" }), 
+        { 
+          status: 500, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders 
+          }
+        }
+      )
+    }
+    
     // Validate authentication - check both header formats
     const isValidAuth = 
       (authKey && authKey === env.AUTH_KEY) ||
@@ -39,7 +53,10 @@ export default {
     // Block unauthorized requests
     if (!isValidAuth) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }), 
+        JSON.stringify({ 
+          error: "Unauthorized",
+          hint: "Check that X-Auth-Key header matches AUTH_KEY environment variable in Cloudflare Worker"
+        }), 
         { 
           status: 401, 
           headers: { 
