@@ -348,21 +348,43 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   }
 
   const handleDeleteBooking = async () => {
+    console.log("🗑️ [Delete Booking] handleDeleteBooking called", {
+      bookingId: booking.id,
+      jobId: displayBooking.job_id,
+      userRole,
+      canDelete,
+    })
+
     setUpdatingStatus(true)
-    const { deleteBooking } = await import("@/app/actions/bookings")
-    const result = await deleteBooking(booking.id)
+    
+    try {
+      console.log("🗑️ [Delete Booking] Importing deleteBooking action...")
+      const { deleteBooking } = await import("@/app/actions/bookings")
+      
+      console.log("🗑️ [Delete Booking] Calling deleteBooking with bookingId:", booking.id)
+      const result = await deleteBooking(booking.id)
+      
+      console.log("🗑️ [Delete Booking] Result received:", result)
 
-    const { toast } = await import("sonner")
+      const { toast } = await import("sonner")
 
-    if (result.success) {
-      toast.success("Booking deleted successfully")
-      onUpdate()
-      setOpen(false) // Close the sheet after deletion
-    } else {
-      toast.error(result.error || "Failed to delete booking")
+      if (result.success) {
+        console.log("🗑️ [Delete Booking] Success! Closing sheet and updating...")
+        toast.success("Booking deleted successfully")
+        onUpdate()
+        setOpen(false) // Close the sheet after deletion
+        onOpenChange(false) // Also call parent's onOpenChange
+      } else {
+        console.error("🗑️ [Delete Booking] Failed:", result.error)
+        toast.error(result.error || "Failed to delete booking")
+      }
+    } catch (error) {
+      console.error("🗑️ [Delete Booking] Exception caught:", error)
+      const { toast } = await import("sonner")
+      toast.error("An error occurred while deleting the booking")
+    } finally {
+      setUpdatingStatus(false)
     }
-
-    setUpdatingStatus(false)
   }
 
   return (
@@ -422,7 +444,11 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
               {canDelete && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm">
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => console.log("🗑️ [Delete Button] Delete button clicked, opening dialog...")}
+                    >
                       <Trash2 className="h-3 w-3 mr-1" />
                       Delete Job
                     </Button>
@@ -435,10 +461,23 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel disabled={updatingStatus}>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel 
+                        disabled={updatingStatus}
+                        onClick={() => console.log("🗑️ [Delete Dialog] Cancel clicked")}
+                      >
+                        Cancel
+                      </AlertDialogCancel>
                       <AlertDialogAction
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        onClick={handleDeleteBooking}
+                        onClick={(e) => {
+                          console.log("🗑️ [Delete Dialog] Delete action clicked", {
+                            event: e,
+                            bookingId: booking.id,
+                            updatingStatus,
+                          })
+                          e.preventDefault()
+                          handleDeleteBooking()
+                        }}
                         disabled={updatingStatus}
                       >
                         {updatingStatus ? "Deleting..." : "Delete"}

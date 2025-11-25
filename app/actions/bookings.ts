@@ -776,45 +776,74 @@ export async function assignDriverWithExpenses(
 }
 
 export async function deleteBooking(bookingId: string) {
+  console.log("🗑️ [Server Action] deleteBooking called with bookingId:", bookingId)
+  
   const supabase = await createClient()
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
+  console.log("🗑️ [Server Action] User check:", { userId: user?.id, authenticated: !!user })
+
   if (!user) {
+    console.error("🗑️ [Server Action] Not authenticated")
     return { success: false, error: "Not authenticated" }
   }
 
   // Check user role - only MD and ED can delete
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+  const { data: profile, error: profileError } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+
+  console.log("🗑️ [Server Action] Profile check:", { profile, profileError, role: profile?.role })
+
+  if (profileError) {
+    console.error("🗑️ [Server Action] Error fetching profile:", profileError)
+    return { success: false, error: `Failed to fetch user profile: ${profileError.message}` }
+  }
 
   if (!profile || !["MD", "ED"].includes(profile.role)) {
+    console.warn("🗑️ [Server Action] Unauthorized - role check failed:", { role: profile?.role, allowed: ["MD", "ED"] })
     return { success: false, error: "Unauthorized: Only MD and ED can delete bookings" }
   }
 
   // Get booking info before deleting
-  const { data: booking } = await supabase.from("bookings").select("job_id, client_name").eq("id", bookingId).single()
+  const { data: booking, error: bookingFetchError } = await supabase.from("bookings").select("job_id, client_name").eq("id", bookingId).single()
 
-  if (!booking) {
+  console.log("🗑️ [Server Action] Booking fetch:", { booking, bookingFetchError })
+
+  if (bookingFetchError || !booking) {
+    console.error("🗑️ [Server Action] Booking not found:", bookingFetchError)
     return { success: false, error: "Booking not found" }
   }
 
+  console.log("🗑️ [Server Action] Starting deletion of related records...")
+
   // Delete related records first (due to foreign keys)
-  await supabase.from("booking_files").delete().eq("booking_id", bookingId)
-  await supabase.from("negotiation_threads").delete().eq("booking_id", bookingId)
-  await supabase.from("job_timeline").delete().eq("booking_id", bookingId)
-  await supabase.from("job_costs").delete().eq("booking_id", bookingId)
-  await supabase.from("notifications").delete().eq("booking_id", bookingId)
+  const { error: filesError } = await supabase.from("booking_files").delete().eq("booking_id", bookingId)
+  console.log("🗑️ [Server Action] Deleted booking_files:", { error: filesError })
+
+  const { error: negotiationsError } = await supabase.from("negotiation_threads").delete().eq("booking_id", bookingId)
+  console.log("🗑️ [Server Action] Deleted negotiation_threads:", { error: negotiationsError })
+
+  const { error: timelineError } = await supabase.from("job_timeline").delete().eq("booking_id", bookingId)
+  console.log("🗑️ [Server Action] Deleted job_timeline:", { error: timelineError })
+
+  const { error: costsError } = await supabase.from("job_costs").delete().eq("booking_id", bookingId)
+  console.log("🗑️ [Server Action] Deleted job_costs:", { error: costsError })
+
+  const { error: notificationsError } = await supabase.from("notifications").delete().eq("booking_id", bookingId)
+  console.log("🗑️ [Server Action] Deleted notifications:", { error: notificationsError })
 
   // Delete the booking
+  console.log("🗑️ [Server Action] Deleting main booking record...")
   const { error } = await supabase.from("bookings").delete().eq("id", bookingId)
 
   if (error) {
-    console.error("Error deleting booking:", error)
+    console.error("🗑️ [Server Action] Error deleting booking:", error)
     return { success: false, error: error.message }
   }
 
+  console.log("🗑️ [Server Action] Booking deleted successfully! Revalidating path...")
   revalidatePath("/dashboard/bookings")
   return { success: true }
 }
