@@ -889,14 +889,37 @@ export async function deleteBooking(bookingId: string) {
     return { success: false, error: "Unauthorized: Only MD and ED can delete bookings" }
   }
 
-  // Get booking info before deleting
-  const { data: booking, error: bookingFetchError } = await supabase.from("bookings").select("job_id, client_name").eq("id", bookingId).single()
+  // Get booking info before deleting (including assigned driver)
+  const { data: booking, error: bookingFetchError } = await supabase
+    .from("bookings")
+    .select("job_id, client_name, assigned_driver_id")
+    .eq("id", bookingId)
+    .single()
 
   console.log("🗑️ [Server Action] Booking fetch:", { booking, bookingFetchError })
 
   if (bookingFetchError || !booking) {
     console.error("🗑️ [Server Action] Booking not found:", bookingFetchError)
     return { success: false, error: "Booking not found" }
+  }
+
+  // Update driver status to Active before deleting booking
+  if (booking.assigned_driver_id) {
+    console.log("🗑️ [Server Action] Updating driver status to Active:", { driverId: booking.assigned_driver_id })
+    const { error: driverUpdateError } = await supabase
+      .from("drivers")
+      .update({
+        status: "Active",
+        current_job_id: null,
+      })
+      .eq("id", booking.assigned_driver_id)
+
+    if (driverUpdateError) {
+      console.error("🗑️ [Server Action] Error updating driver status:", driverUpdateError)
+      // Don't fail the deletion if driver update fails, but log it
+    } else {
+      console.log("🗑️ [Server Action] Driver status updated successfully")
+    }
   }
 
   // Log the deletion action in deletion_log table (persists even after booking is deleted)
