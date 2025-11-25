@@ -1693,6 +1693,21 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
         />
       )}
 
+      {showManualExpenseLog && (
+        <ManualExpenseLogDialog
+          open={showManualExpenseLog}
+          onOpenChange={setShowManualExpenseLog}
+          bookingId={displayBooking.id}
+          vehicleId={displayBooking.assigned_vehicle_id}
+          onSuccess={() => {
+            // Refresh expense transactions
+            mutateExpenseTransactions()
+            mutateBooking()
+            onUpdate()
+          }}
+        />
+      )}
+
       {viewingDocument && (
         <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
