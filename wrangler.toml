@@ -1,0 +1,15 @@
+name = "fleet-r2-upload"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# R2 Bucket Binding
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "fleetm"
+
+# Secret (set via: wrangler secret put AUTH_KEY)
+# AUTH_KEY is a secret_text binding - set this value to match R2_AUTH_KEY from your environment
+
+[env.production]
+name = "fleet-r2-upload"
+

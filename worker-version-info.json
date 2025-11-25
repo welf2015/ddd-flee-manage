@@ -1,0 +1,43 @@
+{
+  "latestVersion": {
+    "id": "1072f45c-8963-4d8b-a894-e83aae84aea2",
+    "number": 1,
+    "metadata": {
+      "created_on": "2025-11-23T08:35:15.225994Z",
+      "source": "wrangler",
+      "author_id": "a4bf1ded5275c749c26af220c9329a17",
+      "author_email": "mrolabola@gmail.com",
+      "has_preview": true
+    },
+    "annotations": {
+      "workers/triggered_by": "upload"
+    }
+  },
+  "details": {
+    "id": "1072f45c-8963-4d8b-a894-e83aae84aea2",
+    "number": 1,
+    "metadata": {
+      "created_on": "2025-11-23T08:35:15.225994Z",
+      "source": "wrangler",
+      "author_id": "a4bf1ded5275c749c26af220c9329a17",
+      "author_email": "mrolabola@gmail.com",
+      "has_preview": true
+    },
+    "annotations": {
+      "workers/triggered_by": "upload"
+    },
+    "resources": {
+      "script": {
+        "etag": "661242f30804e5866827a846e770be336a123fa2aec98e9c278f79d5d3570acf",
+        "handlers": [
+          "fetch"
+        ],
+        "last_deployed_from": "wrangler"
+      },
+      "script_runtime": {
+        "usage_model": "standard"
+      },
+      "bindings": []
+    }
+  }
+}
