@@ -48,6 +48,7 @@ import { TripExpenseDialog } from "./trip-expense-dialog"
 import { TripHoldDialog } from "./trip-hold-dialog"
 import { UpdateJobDetailsDialog } from "./update-job-details-dialog"
 import { AnimatedRoute } from "./booking/animated-route"
+import { ManualExpenseLogDialog } from "./manual-expense-log-dialog"
 import { createClient } from "@/lib/supabase/client"
 import { useState, useEffect } from "react"
 import { Label } from "@/components/ui/label"
@@ -75,6 +76,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const [showTripExpenses, setShowTripExpenses] = useState(false)
   const [showTripHold, setShowTripHold] = useState(false)
   const [showUpdateJobDetails, setShowUpdateJobDetails] = useState(false)
+  const [showManualExpenseLog, setShowManualExpenseLog] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [userRole, setUserRole] = useState<string>("")
   const [viewingDocument, setViewingDocument] = useState<{ url: string; name: string; type: string } | null>(null)
@@ -138,7 +140,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   )
 
   // Fetch expense transactions for this booking
-  const { data: expenseTransactions = [] } = useSWR(
+  const { data: expenseTransactions = [], mutate: mutateExpenseTransactions } = useSWR(
     open && booking?.id ? `expense-transactions-${booking.id}` : null,
     async () => {
       const { getExpenseTransactions } = await import("@/app/actions/expenses")
@@ -1352,6 +1354,15 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                               <p className="text-xs text-muted-foreground mt-2">
                                 Expenses are logged when a driver is assigned
                               </p>
+                            )}
+                            {(userRole === "MD" || userRole === "ED") && (
+                              <Button
+                                onClick={() => setShowManualExpenseLog(true)}
+                                className="mt-4 bg-green-600 hover:bg-green-700"
+                              >
+                                <Wallet className="h-4 w-4 mr-2" />
+                                Log Expenses Manually
+                              </Button>
                             )}
                           </div>
                         )}
