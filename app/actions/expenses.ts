@@ -141,44 +141,9 @@ export async function createExpenseTransaction(
 
   console.log("Expense transaction created successfully:", transaction.id)
 
-  // Update booking table with expense amounts if bookingId is provided
-  if (data.bookingId) {
-    const bookingUpdate: any = {}
-    
-    // Update the appropriate expense field based on expense type
-    if (data.expenseType === "Fuel") {
-      bookingUpdate.fuel_amount = data.amount
-      bookingUpdate.fuel_account_id = accountId
-    } else if (data.expenseType === "Ticketing") {
-      bookingUpdate.ticketing_amount = data.amount
-      bookingUpdate.ticketing_account_id = accountId
-    } else if (data.expenseType === "Allowance") {
-      bookingUpdate.allowance_amount = data.amount
-    }
-
-    // Update driver and vehicle if provided (for manual expense logging)
-    if (data.driverId) {
-      bookingUpdate.assigned_driver_id = data.driverId
-    }
-    if (data.vehicleId) {
-      bookingUpdate.assigned_vehicle_id = data.vehicleId
-    }
-
-    // Only update if there are fields to update
-    if (Object.keys(bookingUpdate).length > 0) {
-      const { error: updateError } = await supabase
-        .from("bookings")
-        .update(bookingUpdate)
-        .eq("id", data.bookingId)
-
-      if (updateError) {
-        console.error("Error updating booking with expense amounts:", updateError)
-        // Don't fail the transaction if booking update fails, but log it
-      } else {
-        console.log("✅ Booking updated with expense amounts:", bookingUpdate)
-      }
-    }
-  }
+  // Note: Booking expense amounts are updated by assignDriverWithExpenses
+  // We don't update here to avoid race conditions when multiple transactions are created
+  // The booking is already updated with all expense amounts before transactions are created
 
   revalidatePath("/dashboard/expenses")
   revalidatePath("/dashboard/bookings")
