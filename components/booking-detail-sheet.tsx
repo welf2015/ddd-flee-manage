@@ -89,7 +89,6 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
     onOpenChange(isOpen)
   }
 
-
   useEffect(() => {
     setOpenSheet(open)
   }, [open])
@@ -299,11 +298,13 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
     if (amount === null || amount === undefined || isNaN(amount)) return "₦0.00"
     return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(amount)
   }
-  
+
   // Check if expenses are valid (have actual amounts, not null/0/N/A)
-  const hasValidExpenses = expenseTransactions && expenseTransactions.length > 0 && 
+  const hasValidExpenses =
+    expenseTransactions &&
+    expenseTransactions.length > 0 &&
     expenseTransactions.some((t: any) => {
-      const amount = parseFloat(t.amount || 0)
+      const amount = Number.parseFloat(t.amount || 0)
       return !isNaN(amount) && amount > 0
     })
 
@@ -326,7 +327,12 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
     displayBooking.status === "Completed" &&
     displayBooking.payment_status === "Unpaid" &&
     (userRole === "Accountant" || userRole === "MD" || userRole === "ED")
-  const canUpdateJobDetails = userRole !== "Accountant" && (userRole === "MD" || userRole === "ED" || userRole === "Head of Operations" || userRole === "Operations and Fleet Officer")
+  const canUpdateJobDetails =
+    userRole !== "Accountant" &&
+    (userRole === "MD" ||
+      userRole === "ED" ||
+      userRole === "Head of Operations" ||
+      userRole === "Operations and Fleet Officer")
   const canDeleteDocuments = userRole === "MD" || userRole === "ED"
 
   const handleApproveBooking = async () => {
@@ -424,14 +430,14 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
     })
 
     setUpdatingStatus(true)
-    
+
     try {
       console.log("🗑️ [Delete Booking] Importing deleteBooking action...")
       const { deleteBooking } = await import("@/app/actions/bookings")
-      
+
       console.log("🗑️ [Delete Booking] Calling deleteBooking with bookingId:", booking.id)
       const result = await deleteBooking(booking.id)
-      
+
       console.log("🗑️ [Delete Booking] Result received:", result)
 
       const { toast } = await import("sonner")
@@ -457,10 +463,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
 
   return (
     <>
-      <Sheet
-        open={openSheet}
-        onOpenChange={handleSheetToggle}
-      >
+      <Sheet open={openSheet} onOpenChange={handleSheetToggle}>
         <SheetContent
           side="right"
           className="w-full sm:w-full md:w-1/2 lg:w-1/2 xl:w-1/2 p-0 bg-background overflow-y-auto"
@@ -509,8 +512,8 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
               {canDelete && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button 
-                      variant="destructive" 
+                    <Button
+                      variant="destructive"
                       size="sm"
                       onClick={() => console.log("🗑️ [Delete Button] Delete button clicked, opening dialog...")}
                     >
@@ -526,7 +529,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel 
+                      <AlertDialogCancel
                         disabled={updatingStatus}
                         onClick={() => console.log("🗑️ [Delete Dialog] Cancel clicked")}
                       >
@@ -683,7 +686,10 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                           <div>
                             <Label className="text-muted-foreground text-xs">Contact</Label>
                             <p className="text-sm mt-1">
-                              {displayBooking.client?.contact || displayBooking.client?.phone || displayBooking.client_contact || "N/A"}
+                              {displayBooking.client?.contact ||
+                                displayBooking.client?.phone ||
+                                displayBooking.client_contact ||
+                                "N/A"}
                             </p>
                           </div>
                         </div>
@@ -700,13 +706,17 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                               {(displayBooking.client?.phone || displayBooking.client_contact) && (
                                 <div>
                                   <Label className="text-muted-foreground text-xs">Phone</Label>
-                                  <p className="mt-1">{displayBooking.client?.phone || displayBooking.client_contact}</p>
+                                  <p className="mt-1">
+                                    {displayBooking.client?.phone || displayBooking.client_contact}
+                                  </p>
                                 </div>
                               )}
                               {(displayBooking.client?.address || displayBooking.client_address) && (
                                 <div>
                                   <Label className="text-muted-foreground text-xs">Address</Label>
-                                  <p className="mt-1">{displayBooking.client?.address || displayBooking.client_address}</p>
+                                  <p className="mt-1">
+                                    {displayBooking.client?.address || displayBooking.client_address}
+                                  </p>
                                 </div>
                               )}
                             </div>
@@ -1240,22 +1250,22 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
+                        {(userRole === "MD" || userRole === "ED") && (
+                          <div className="flex justify-end mb-4">
+                            <Button
+                              onClick={() => setShowManualExpenseLog(true)}
+                              variant="outline"
+                              size="sm"
+                              className="bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                            >
+                              <Wallet className="h-4 w-4 mr-2" />
+                              Log/Update Expenses
+                            </Button>
+                          </div>
+                        )}
+
                         {expenseTransactions && expenseTransactions.length > 0 ? (
                           <div className="space-y-4">
-                            {/* Show manual log button for MD/ED - always available to log/update expenses */}
-                            {(userRole === "MD" || userRole === "ED") && (
-                              <div className="flex justify-end mb-4">
-                                <Button
-                                  onClick={() => setShowManualExpenseLog(true)}
-                                  variant="outline"
-                                  size="sm"
-                                  className="bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
-                                >
-                                  <Wallet className="h-4 w-4 mr-2" />
-                                  Log/Update Expenses
-                                </Button>
-                              </div>
-                            )}
                             {/* Summary Cards */}
                             <div className="grid grid-cols-3 gap-4">
                               <Card className="border-blue-500/20 bg-blue-500/5">
@@ -1268,7 +1278,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                     {formatCurrency(
                                       expenseTransactions
                                         .filter((t: any) => t.expense_type === "Fuel")
-                                        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0)
+                                        .reduce((sum: number, t: any) => sum + Number.parseFloat(t.amount || 0), 0),
                                     )}
                                   </p>
                                 </CardContent>
@@ -1283,7 +1293,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                     {formatCurrency(
                                       expenseTransactions
                                         .filter((t: any) => t.expense_type === "Ticketing")
-                                        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0)
+                                        .reduce((sum: number, t: any) => sum + Number.parseFloat(t.amount || 0), 0),
                                     )}
                                   </p>
                                 </CardContent>
@@ -1298,7 +1308,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                     {formatCurrency(
                                       expenseTransactions
                                         .filter((t: any) => t.expense_type === "Allowance")
-                                        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0)
+                                        .reduce((sum: number, t: any) => sum + Number.parseFloat(t.amount || 0), 0),
                                     )}
                                   </p>
                                 </CardContent>
@@ -1312,9 +1322,9 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                 <p className="text-2xl font-bold text-green-600">
                                   {formatCurrency(
                                     expenseTransactions.reduce(
-                                      (sum: number, t: any) => sum + parseFloat(t.amount || 0),
-                                      0
-                                    )
+                                      (sum: number, t: any) => sum + Number.parseFloat(t.amount || 0),
+                                      0,
+                                    ),
                                   )}
                                 </p>
                               </div>
@@ -1328,10 +1338,16 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                   <thead>
                                     <tr className="border-b">
                                       <th className="text-left p-3 text-sm font-medium text-muted-foreground">Type</th>
-                                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">Account</th>
-                                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">Quantity</th>
+                                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">
+                                        Account
+                                      </th>
+                                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">
+                                        Quantity
+                                      </th>
                                       <th className="text-left p-3 text-sm font-medium text-muted-foreground">Date</th>
-                                      <th className="text-right p-3 text-sm font-medium text-muted-foreground">Amount</th>
+                                      <th className="text-right p-3 text-sm font-medium text-muted-foreground">
+                                        Amount
+                                      </th>
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -1351,9 +1367,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                             {transaction.expense_type}
                                           </Badge>
                                         </td>
-                                        <td className="p-3 text-sm">
-                                          {transaction.account?.account_name || "N/A"}
-                                        </td>
+                                        <td className="p-3 text-sm">{transaction.account?.account_name || "N/A"}</td>
                                         <td className="p-3 text-sm">
                                           {transaction.quantity
                                             ? `${transaction.quantity} ${transaction.unit || ""}`
@@ -1363,8 +1377,10 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                           {formatRelativeTime(transaction.transaction_date)}
                                         </td>
                                         <td className="p-3 text-right font-medium">
-                                          {transaction.amount && !isNaN(parseFloat(transaction.amount)) && parseFloat(transaction.amount) > 0
-                                            ? formatCurrency(parseFloat(transaction.amount))
+                                          {transaction.amount &&
+                                          !isNaN(Number.parseFloat(transaction.amount)) &&
+                                          Number.parseFloat(transaction.amount) > 0
+                                            ? formatCurrency(Number.parseFloat(transaction.amount))
                                             : "₦0.00"}
                                         </td>
                                       </tr>
@@ -1382,20 +1398,13 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                 ? "No valid expenses recorded (all amounts are zero or invalid)"
                                 : "No expenses recorded for this job"}
                             </p>
-                            {displayBooking.assigned_driver_id && expenseTransactions && expenseTransactions.length === 0 && (
-                              <p className="text-xs text-muted-foreground mt-2">
-                                Expenses are logged when a driver is assigned
-                              </p>
-                            )}
-                            {(userRole === "MD" || userRole === "ED") && (
-                              <Button
-                                onClick={() => setShowManualExpenseLog(true)}
-                                className="mt-4 bg-green-600 hover:bg-green-700"
-                              >
-                                <Wallet className="h-4 w-4 mr-2" />
-                                Log Expenses Manually
-                              </Button>
-                            )}
+                            {displayBooking.assigned_driver_id &&
+                              expenseTransactions &&
+                              expenseTransactions.length === 0 && (
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  Expenses are logged when a driver is assigned
+                                </p>
+                              )}
                           </div>
                         )}
                       </CardContent>
