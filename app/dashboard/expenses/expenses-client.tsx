@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -11,9 +11,12 @@ import { formatCurrency } from "@/lib/utils"
 import { FuelTab } from "./fuel-tab"
 import { TicketingTab } from "./ticketing-tab"
 import { AllowanceTab } from "./allowance-tab"
+import { DriverSpendingTab } from "./driver-spending-tab"
 import { AddTopupDialog } from "./add-topup-dialog"
 import { FuelMeter } from "./fuel-meter"
-import { getWeeklyExpenses, getPrepaidAccounts } from "@/app/actions/expenses"
+import { getPrepaidAccounts } from "@/app/actions/expenses"
+import { TopUpDriverDialog } from "./top-up-driver-dialog"
+import { SpendingLimitsDialog } from "./spending-limits-dialog"
 
 type ExpensesClientProps = {
   initialAccounts?: any[]
@@ -23,9 +26,10 @@ type ExpensesClientProps = {
   initialFuelTopups?: any[]
   initialTicketingTopups?: any[]
   initialAllowanceTopups?: any[]
+  initialDriverSpendingAccounts?: any[]
 }
 
-export function ExpensesClient({ 
+export function ExpensesClient({
   initialAccounts = [],
   initialFuelTransactions = [],
   initialTicketingTransactions = [],
@@ -33,10 +37,13 @@ export function ExpensesClient({
   initialFuelTopups = [],
   initialTicketingTopups = [],
   initialAllowanceTopups = [],
+  initialDriverSpendingAccounts = [],
 }: ExpensesClientProps) {
   const [showTopupDialog, setShowTopupDialog] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("fuel")
+  const [showDriverTopUpDialog, setShowDriverTopUpDialog] = useState(false)
+  const [showDriverSettingsDialog, setShowDriverSettingsDialog] = useState(false)
   const supabase = createClient()
 
   // Get all prepaid accounts - use initial data from server, then revalidate
@@ -54,15 +61,12 @@ export function ExpensesClient({
   )
 
   // Get weekly expenses only for active tab (lazy load)
-  const { data: activeWeeklyExpenses = 0 } = useSWR(
-    `weekly-${activeTab}-expenses`,
-    async () => {
-      const { getWeeklyExpenses } = await import("@/app/actions/expenses")
-      const expenseType = activeTab === "fuel" ? "Fuel" : activeTab === "ticketing" ? "Ticketing" : "Allowance"
-      const { data } = await getWeeklyExpenses(expenseType)
-      return data || 0
-    },
-  )
+  const { data: activeWeeklyExpenses = 0 } = useSWR(`weekly-${activeTab}-expenses`, async () => {
+    const { getWeeklyExpenses } = await import("@/app/actions/expenses")
+    const expenseType = activeTab === "fuel" ? "Fuel" : activeTab === "ticketing" ? "Ticketing" : "Allowance"
+    const { data } = await getWeeklyExpenses(expenseType)
+    return data || 0
+  })
 
   // Calculate balances by type
   const fuelBalance = accounts
@@ -77,8 +81,20 @@ export function ExpensesClient({
     .filter((a: any) => a.vendor?.vendor_type === "Allowance")
     .reduce((sum: number, a: any) => sum + Number(a.current_balance || 0), 0)
 
+  const driverSpendingBalance = initialDriverSpendingAccounts.reduce(
+    (sum: number, a: any) => sum + Number(a.current_balance || 0),
+    0,
+  )
+
   // Get active tab data
-  const activeBalance = activeTab === "fuel" ? fuelBalance : activeTab === "ticketing" ? ticketingBalance : allowanceBalance
+  const activeBalance =
+    activeTab === "fuel"
+      ? fuelBalance
+      : activeTab === "ticketing"
+        ? ticketingBalance
+        : activeTab === "driver-spending"
+          ? driverSpendingBalance
+          : allowanceBalance
 
   const handleAddTopup = (accountId?: string) => {
     setSelectedAccount(accountId || null)
@@ -92,10 +108,22 @@ export function ExpensesClient({
           <h1 className="text-2xl font-bold">Expense Management</h1>
           <p className="text-sm text-muted-foreground">Manage prepaid accounts for fuel, ticketing, and allowances</p>
         </div>
-        <Button onClick={() => handleAddTopup()} className="bg-accent hover:bg-accent/90">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Top-up
-        </Button>
+        {activeTab === "driver-spending" ? (
+          <div className="flex gap-2">
+            <Button onClick={() => setShowDriverTopUpDialog(true)} className="bg-accent hover:bg-accent/90">
+              <Plus className="h-4 w-4 mr-2" />
+              Top Up
+            </Button>
+            <Button onClick={() => setShowDriverSettingsDialog(true)} variant="outline">
+              Settings
+            </Button>
+          </div>
+        ) : (
+          <Button onClick={() => handleAddTopup()} className="bg-accent hover:bg-accent/90">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Top-up
+          </Button>
+        )}
       </div>
 
       {/* Summary Cards - Dynamic based on active tab */}
@@ -103,16 +131,19 @@ export function ExpensesClient({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              {activeTab === "fuel" ? "Fuel" : activeTab === "ticketing" ? "Ticketing" : "Allowance"} Balance
+              {activeTab === "fuel"
+                ? "Fuel"
+                : activeTab === "ticketing"
+                  ? "Ticketing"
+                  : activeTab === "driver-spending"
+                    ? "Driver Spending"
+                    : "Allowance"}{" "}
+              Balance
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(activeBalance, "NGN")}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {activeBalance < 0 ? "Overdrawn" : "Available"}
-            </p>
+            <div className="text-2xl font-bold">{formatCurrency(activeBalance, "NGN")}</div>
+            <p className="text-xs text-muted-foreground">{activeBalance < 0 ? "Overdrawn" : "Available"}</p>
           </CardContent>
         </Card>
 
@@ -121,47 +152,46 @@ export function ExpensesClient({
             <CardTitle className="text-sm font-medium">Total Expenses This Week</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(activeWeeklyExpenses, "NGN")}
-            </div>
+            <div className="text-2xl font-bold">{formatCurrency(activeWeeklyExpenses, "NGN")}</div>
             <p className="text-xs text-muted-foreground">Weekly accounting period</p>
           </CardContent>
         </Card>
 
         {/* Fuel Spending Progress - Only show for fuel tab */}
-        {activeTab === "fuel" && (() => {
-          const fuelAccount = accounts.find((a: any) => a.vendor?.vendor_type === "Fuel")
-          // Ensure we're reading the correct fields (they might be strings from DB)
-          const totalFuelSpent = fuelAccount ? parseFloat(fuelAccount.total_spent || 0) : 0
-          const totalDeposited = fuelAccount ? parseFloat(fuelAccount.total_deposited || 0) : 0
-          
-          return (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Fuel Spending Progress</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <FuelMeter totalSpent={totalFuelSpent} totalDeposited={totalDeposited} />
-                <p className="text-xs text-muted-foreground mt-2">
-                  {formatCurrency(totalFuelSpent, "NGN")} of {formatCurrency(totalDeposited || 0, "NGN")}
-                </p>
-              </CardContent>
-            </Card>
-          )
-        })()}
+        {activeTab === "fuel" &&
+          (() => {
+            const fuelAccount = accounts.find((a: any) => a.vendor?.vendor_type === "Fuel")
+            const totalFuelSpent = fuelAccount ? Number.parseFloat(fuelAccount.total_spent || 0) : 0
+            const totalDeposited = fuelAccount ? Number.parseFloat(fuelAccount.total_deposited || 0) : 0
+
+            return (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Fuel Spending Progress</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <FuelMeter totalSpent={totalFuelSpent} totalDeposited={totalDeposited} />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {formatCurrency(totalFuelSpent, "NGN")} of {formatCurrency(totalDeposited || 0, "NGN")}
+                  </p>
+                </CardContent>
+              </Card>
+            )
+          })()}
       </div>
 
       {/* Tabs */}
       <Tabs defaultValue="fuel" className="w-full" onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="fuel">Fuel</TabsTrigger>
           <TabsTrigger value="ticketing">Ticketing</TabsTrigger>
           <TabsTrigger value="allowance">Allowance</TabsTrigger>
+          <TabsTrigger value="driver-spending">Driver Spending</TabsTrigger>
         </TabsList>
 
         <TabsContent value="fuel" className="space-y-4 mt-4">
-          <FuelTab 
-            onAddTopup={handleAddTopup} 
+          <FuelTab
+            onAddTopup={handleAddTopup}
             initialAccounts={accounts}
             initialTransactions={initialFuelTransactions}
             initialTopups={initialFuelTopups}
@@ -169,8 +199,8 @@ export function ExpensesClient({
         </TabsContent>
 
         <TabsContent value="ticketing" className="space-y-4 mt-4">
-          <TicketingTab 
-            onAddTopup={handleAddTopup} 
+          <TicketingTab
+            onAddTopup={handleAddTopup}
             initialAccounts={accounts}
             initialTransactions={initialTicketingTransactions}
             initialTopups={initialTicketingTopups}
@@ -178,12 +208,16 @@ export function ExpensesClient({
         </TabsContent>
 
         <TabsContent value="allowance" className="space-y-4 mt-4">
-          <AllowanceTab 
-            onAddTopup={handleAddTopup} 
+          <AllowanceTab
+            onAddTopup={handleAddTopup}
             initialAccounts={accounts}
             initialTransactions={initialAllowanceTransactions}
             initialTopups={initialAllowanceTopups}
           />
+        </TabsContent>
+
+        <TabsContent value="driver-spending" className="space-y-4 mt-4">
+          <DriverSpendingTab />
         </TabsContent>
       </Tabs>
 
@@ -192,6 +226,28 @@ export function ExpensesClient({
           open={showTopupDialog}
           onOpenChange={setShowTopupDialog}
           accountId={selectedAccount || undefined}
+        />
+      )}
+
+      {showDriverTopUpDialog && (
+        <TopUpDriverDialog
+          open={showDriverTopUpDialog}
+          onOpenChange={setShowDriverTopUpDialog}
+          onSuccess={() => {
+            setShowDriverTopUpDialog(false)
+            // Trigger refresh of driver spending tab
+          }}
+        />
+      )}
+
+      {showDriverSettingsDialog && (
+        <SpendingLimitsDialog
+          open={showDriverSettingsDialog}
+          onOpenChange={setShowDriverSettingsDialog}
+          onSuccess={() => {
+            setShowDriverSettingsDialog(false)
+            // Trigger refresh of driver spending tab
+          }}
         />
       )}
     </>

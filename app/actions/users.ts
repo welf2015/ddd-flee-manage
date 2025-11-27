@@ -3,16 +3,17 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
-import { randomBytes } from "crypto"
 import { SYSTEM_ROLES, type SystemRole } from "@/lib/roles"
 
 const ROLE_CREATION_GUARDS: SystemRole[] = ["MD", "ED", "Head of Operations"]
 
 function generatePassword() {
-  return randomBytes(12)
-    .toString("base64")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .slice(0, 12)
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
+  let password = ""
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return password
 }
 
 export async function invitePlatformUser(data: { fullName: string; email: string; role: string }) {
@@ -56,14 +57,12 @@ export async function invitePlatformUser(data: { fullName: string; email: string
     return { success: false, error: createError?.message || "Failed to create auth user" }
   }
 
-  const { error: profileError } = await admin
-    .from("profiles")
-    .upsert({
-      id: created.user.id,
-      email: normalizedEmail,
-      full_name: data.fullName.trim(),
-      role: requestedRole,
-    })
+  const { error: profileError } = await admin.from("profiles").upsert({
+    id: created.user.id,
+    email: normalizedEmail,
+    full_name: data.fullName.trim(),
+    role: requestedRole,
+  })
 
   if (profileError) {
     return { success: false, error: profileError.message }
