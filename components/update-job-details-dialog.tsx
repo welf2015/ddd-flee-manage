@@ -1,8 +1,15 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect, useCallback } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { useState, useRef, useEffect } from "react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -24,17 +31,12 @@ type UpdateJobDetailsDialogProps = {
   onSuccess: () => void
 }
 
-export function UpdateJobDetailsDialog({
-  open,
-  onOpenChange,
-  booking,
-  onSuccess,
-}: UpdateJobDetailsDialogProps) {
+export function UpdateJobDetailsDialog({ open, onOpenChange, booking, onSuccess }: UpdateJobDetailsDialogProps) {
   const [saving, setSaving] = useState(false)
   const [clientSuggestions, setClientSuggestions] = useState<any[]>([])
   const [showClientSuggestions, setShowClientSuggestions] = useState(false)
   const [clientSearchTerm, setClientSearchTerm] = useState("")
-  
+
   // Mapbox state
   const [suggestions, setSuggestions] = useState<any[]>([])
   const [mapboxLoaded, setMapboxLoaded] = useState(false)
@@ -60,7 +62,6 @@ export function UpdateJobDetailsDialog({
     client_name: "",
     client_address: "",
     client_contact: "",
-    client_email: "",
     destination_contact_name: "",
     destination_contact_phone: "",
     pickup_address: "",
@@ -108,7 +109,7 @@ export function UpdateJobDetailsDialog({
       // Parse route into destinations
       const routeParts = booking.route?.split("→").map((s: string) => s.trim()) || []
       const initialDestinations = []
-      
+
       if (routeParts.length >= 2) {
         for (let i = 0; i < routeParts.length - 1; i++) {
           initialDestinations.push({
@@ -131,21 +132,26 @@ export function UpdateJobDetailsDialog({
         })
       }
 
-      setDestinations(initialDestinations.length > 0 ? initialDestinations : [{
-        from: "",
-        to: "",
-        fromLat: null,
-        fromLng: null,
-        toLat: null,
-        toLng: null,
-      }])
+      setDestinations(
+        initialDestinations.length > 0
+          ? initialDestinations
+          : [
+              {
+                from: "",
+                to: "",
+                fromLat: null,
+                fromLng: null,
+                toLat: null,
+                toLng: null,
+              },
+            ],
+      )
 
       setFormData({
         company_name: booking.company_name || "",
         client_name: booking.client_name || "",
         client_address: booking.client_address || "",
         client_contact: booking.client_contact || "",
-        client_email: booking.client_email || "",
         destination_contact_name: booking.destination_contact_name || "",
         destination_contact_phone: booking.destination_contact_phone || "",
         pickup_address: booking.pickup_address || "",
@@ -171,7 +177,6 @@ export function UpdateJobDetailsDialog({
       client_name: client.name || "",
       client_address: client.address || "",
       client_contact: client.phone || "",
-      client_email: client.email || "",
     })
     setClientSearchTerm(client.company_name || client.name || "")
     setShowClientSuggestions(false)
@@ -181,7 +186,7 @@ export function UpdateJobDetailsDialog({
     const updated = [...destinations]
     updated[index] = { ...updated[index], [field]: value }
     setDestinations(updated)
-    
+
     // Update route string
     const routeString = updated
       .filter((d) => d.from || d.to)
@@ -218,7 +223,7 @@ export function UpdateJobDetailsDialog({
 
     try {
       const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&country=NG&limit=5`
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&country=NG&limit=5`,
       )
       const data = await response.json()
       setSuggestions(data.features || [])
@@ -299,10 +304,7 @@ export function UpdateJobDetailsDialog({
           }
         })
 
-        const center: [number, number] =
-          coordinates.length > 0
-            ? coordinates[0]
-            : [3.3792, 6.5244] // Default to Lagos
+        const center: [number, number] = coordinates.length > 0 ? coordinates[0] : [3.3792, 6.5244] // Default to Lagos
 
         const currentMap = new mapboxgl.Map({
           container: mapContainer.current!,
@@ -386,16 +388,20 @@ export function UpdateJobDetailsDialog({
     setSaving(true)
 
     try {
+      console.log("[v0] 📝 Starting job update submission")
+
       // Ensure route is constructed from destinations
       const routeString = destinations
         .filter((d) => d.from || d.to)
         .map((d) => `${d.from} → ${d.to}`)
         .join(" → ")
-      
+
+      console.log("[v0] Route constructed:", routeString)
+
       // Update pickup/delivery addresses from first/last destination
       const firstDest = destinations[0]
       const lastDest = destinations[destinations.length - 1]
-      
+
       const finalPickupAddress = firstDest?.from || formData.pickup_address
       const finalDeliveryAddress = lastDest?.to || formData.delivery_address
       const finalPickupLat = firstDest?.fromLat || formData.pickup_lat
@@ -408,7 +414,6 @@ export function UpdateJobDetailsDialog({
       form.append("client_name", formData.client_name)
       form.append("client_address", formData.client_address)
       form.append("client_contact", formData.client_contact)
-      form.append("client_email", formData.client_email)
       form.append("destination_contact_name", formData.destination_contact_name)
       form.append("destination_contact_phone", formData.destination_contact_phone)
       form.append("pickup_address", finalPickupAddress)
@@ -422,7 +427,7 @@ export function UpdateJobDetailsDialog({
       form.append("timeline", formData.timeline)
       form.append("number_of_loads", formData.number_of_loads)
 
-      console.log("📝 [Update Job Details] Submitting:", {
+      console.log("[v0] 📝 Form data prepared:", {
         route: routeString || formData.route,
         pickup: finalPickupAddress,
         delivery: finalDeliveryAddress,
@@ -430,19 +435,24 @@ export function UpdateJobDetailsDialog({
           pickup: { lat: finalPickupLat, lng: finalPickupLng },
           delivery: { lat: finalDeliveryLat, lng: finalDeliveryLng },
         },
+        company: formData.company_name,
+        client: formData.client_name,
       })
 
+      console.log("[v0] Calling updateBooking with bookingId:", booking.id)
       const result = await updateBooking(booking.id, form)
+      console.log("[v0] updateBooking result:", result)
 
       if (result.success) {
         toast.success("Job details updated successfully")
         onSuccess()
         onOpenChange(false)
       } else {
+        console.error("[v0] Update failed:", result.error)
         toast.error(result.error || "Failed to update job details")
       }
     } catch (error) {
-      console.error("Error updating job details:", error)
+      console.error("[v0] Error updating job details:", error)
       toast.error("An error occurred while updating job details")
     } finally {
       setSaving(false)
@@ -530,17 +540,7 @@ export function UpdateJobDetailsDialog({
                     required
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="client_email">Client Email</Label>
-                  <Input
-                    id="client_email"
-                    name="client_email"
-                    type="email"
-                    placeholder="Email (optional)"
-                    value={formData.client_email}
-                    onChange={(e) => setFormData({ ...formData, client_email: e.target.value })}
-                  />
-                </div>
+                {/* Removed client_email as it doesn't exist in bookings table */}
               </div>
 
               <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/30">

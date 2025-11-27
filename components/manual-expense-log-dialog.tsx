@@ -1,12 +1,18 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { Fuel, Ticket, Wallet } from "lucide-react"
 import { toast } from "sonner"
 import { getPrepaidAccounts, createExpenseTransaction } from "@/app/actions/expenses"
@@ -33,7 +39,8 @@ export function ManualExpenseLogDialog({
   const [fuelAccount, setFuelAccount] = useState<any>(null)
   const [ticketingAccount, setTicketingAccount] = useState<any>(null)
   const [allowanceAccount, setAllowanceAccount] = useState<any>(null)
-  
+  const [driverInfo, setDriverInfo] = useState<{ id: string; name: string } | null>(null)
+
   const [fuelAmount, setFuelAmount] = useState("")
   const [fuelLiters, setFuelLiters] = useState("")
   const [ticketingAmount, setTicketingAmount] = useState("")
@@ -44,19 +51,41 @@ export function ManualExpenseLogDialog({
   useEffect(() => {
     if (open) {
       setLoadingAccounts(true)
-      fetchAccounts().finally(() => setLoadingAccounts(false))
+      Promise.all([fetchAccounts(), fetchDriverInfo()]).finally(() => setLoadingAccounts(false))
     } else {
-      // Reset accounts when dialog closes
       setFuelAccount(null)
       setTicketingAccount(null)
       setAllowanceAccount(null)
+      setDriverInfo(null)
     }
   }, [open])
+
+  const fetchDriverInfo = async () => {
+    try {
+      const { data: booking } = await supabase
+        .from("bookings")
+        .select("assigned_driver_id, driver:drivers(id, full_name)")
+        .eq("id", bookingId)
+        .single()
+
+      if (booking?.driver) {
+        setDriverInfo({
+          id: booking.driver.id,
+          name: booking.driver.full_name,
+        })
+        console.log("👤 [Manual Expense] Driver found:", booking.driver.full_name)
+      } else {
+        console.warn("⚠️ [Manual Expense] No driver assigned to booking")
+      }
+    } catch (error) {
+      console.error("Error fetching driver info:", error)
+    }
+  }
 
   const fetchAccounts = async () => {
     try {
       const { data: accounts, error } = await getPrepaidAccounts()
-      
+
       if (error) {
         console.error("Error fetching accounts:", error)
         toast.error("Failed to load accounts")
@@ -67,40 +96,43 @@ export function ManualExpenseLogDialog({
         console.warn("No accounts found")
         return
       }
-      
-      // Filter and select best accounts
+
       const fuelOnly = accounts.filter((a: any) => a.vendor?.vendor_type === "Fuel")
       const ticketingOnly = accounts.filter((a: any) => a.vendor?.vendor_type === "Ticketing")
       const allowanceOnly = accounts.filter((a: any) => a.vendor?.vendor_type === "Allowance")
 
       const selectBestAccount = (accounts: any[]) => {
         if (accounts.length === 0) return null
-        
-        // Prefer account with actual data
-        const withData = accounts.find((a: any) => 
-          parseFloat(a.total_deposited || 0) > 0 || parseFloat(a.total_spent || 0) > 0
+
+        const withData = accounts.find(
+          (a: any) => Number.parseFloat(a.total_deposited || 0) > 0 || Number.parseFloat(a.total_spent || 0) > 0,
         )
         if (withData) {
           return {
             ...withData,
-            current_balance: parseFloat(withData.current_balance || 0),
+            current_balance: Number.parseFloat(withData.current_balance || 0),
           }
         }
-        
-        // If all are zero, prefer the one with most recent update
-        const sorted = accounts.sort((a: any, b: any) => 
-          new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
+
+        const sorted = accounts.sort(
+          (a: any, b: any) =>
+            new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime(),
         )
         return {
           ...sorted[0],
-          current_balance: parseFloat(sorted[0].current_balance || 0),
+          current_balance: Number.parseFloat(sorted[0].current_balance || 0),
         }
       }
 
       if (fuelOnly.length > 0) {
         const selected = selectBestAccount(fuelOnly)
         if (selected) {
-          console.log("⛽ [Manual Expense] Setting fuel account:", selected.account_name, "Balance:", selected.current_balance)
+          console.log(
+            "⛽ [Manual Expense] Setting fuel account:",
+            selected.account_name,
+            "Balance:",
+            selected.current_balance,
+          )
           setFuelAccount(selected)
         }
       } else {
@@ -110,7 +142,12 @@ export function ManualExpenseLogDialog({
       if (ticketingOnly.length > 0) {
         const selected = selectBestAccount(ticketingOnly)
         if (selected) {
-          console.log("🎫 [Manual Expense] Setting ticketing account:", selected.account_name, "Balance:", selected.current_balance)
+          console.log(
+            "🎫 [Manual Expense] Setting ticketing account:",
+            selected.account_name,
+            "Balance:",
+            selected.current_balance,
+          )
           setTicketingAccount(selected)
         }
       } else {
@@ -120,7 +157,12 @@ export function ManualExpenseLogDialog({
       if (allowanceOnly.length > 0) {
         const selected = selectBestAccount(allowanceOnly)
         if (selected) {
-          console.log("💰 [Manual Expense] Setting allowance account:", selected.account_name, "Balance:", selected.current_balance)
+          console.log(
+            "💰 [Manual Expense] Setting allowance account:",
+            selected.account_name,
+            "Balance:",
+            selected.current_balance,
+          )
           setAllowanceAccount(selected)
         }
       } else {
@@ -133,70 +175,77 @@ export function ManualExpenseLogDialog({
   }
 
   const handleSubmit = async () => {
-    if (!fuelAccount) {
-      toast.error("Fuel account not found. Please contact administrator.")
-      return
-    }
-
     setSaving(true)
 
     try {
-      // Fuel transaction - always required for accounting
-      if (fuelAccount) {
-        const fuelAmt = fuelAmount ? parseFloat(fuelAmount) : 0
-        const fuelLitersValue = fuelLiters ? parseFloat(fuelLiters) : undefined
+      const transactions = []
+
+      if (fuelAmount && Number.parseFloat(fuelAmount) > 0 && fuelAccount) {
+        const fuelAmt = Number.parseFloat(fuelAmount)
+        const fuelLitersValue = fuelLiters ? Number.parseFloat(fuelLiters) : undefined
 
         const fuelResult = await createExpenseTransaction(fuelAccount.id, {
           bookingId,
           vehicleId: vehicleId || undefined,
+          driverId: driverInfo?.id,
           expenseType: "Fuel",
           amount: fuelAmt,
           quantity: fuelLitersValue,
           unit: "Liters",
-          notes: fuelAmt > 0 ? `Manual fuel log for booking ${bookingId}` : `No fuel expense for booking ${bookingId}`,
+          notes: `Manual fuel log for booking ${bookingId}${driverInfo ? ` - Driver: ${driverInfo.name}` : ""}`,
         })
 
         if (!fuelResult.success) {
           console.error("Failed to create fuel transaction:", fuelResult.error)
           toast.error(`Failed to log fuel expense: ${fuelResult.error}`)
+        } else {
+          transactions.push("Fuel")
         }
       }
 
-      // Ticketing transaction
-      if (ticketingAmount && ticketingAccount) {
+      if (ticketingAmount && Number.parseFloat(ticketingAmount) > 0 && ticketingAccount) {
         const ticketingResult = await createExpenseTransaction(ticketingAccount.id, {
           bookingId,
           vehicleId: vehicleId || undefined,
+          driverId: driverInfo?.id,
           expenseType: "Ticketing",
-          amount: parseFloat(ticketingAmount),
-          notes: `Manual ticketing log for booking ${bookingId}`,
+          amount: Number.parseFloat(ticketingAmount),
+          notes: `Manual ticketing log for booking ${bookingId}${driverInfo ? ` - Driver: ${driverInfo.name}` : ""}`,
         })
         if (!ticketingResult.success) {
           console.error("Failed to create ticketing transaction:", ticketingResult.error)
           toast.error(`Failed to log ticketing expense: ${ticketingResult.error}`)
+        } else {
+          transactions.push("Ticketing")
         }
       }
 
-      // Allowance transaction
-      if (allowanceAmount && allowanceAccount) {
+      if (allowanceAmount && Number.parseFloat(allowanceAmount) > 0 && allowanceAccount) {
         const allowanceResult = await createExpenseTransaction(allowanceAccount.id, {
           bookingId,
           vehicleId: vehicleId || undefined,
+          driverId: driverInfo?.id,
           expenseType: "Allowance",
-          amount: parseFloat(allowanceAmount),
-          notes: `Manual allowance log for booking ${bookingId}`,
+          amount: Number.parseFloat(allowanceAmount),
+          notes: `Manual allowance log for booking ${bookingId}${driverInfo ? ` - Driver: ${driverInfo.name}` : ""}`,
         })
         if (!allowanceResult.success) {
           console.error("Failed to create allowance transaction:", allowanceResult.error)
           toast.error(`Failed to log allowance expense: ${allowanceResult.error}`)
+        } else {
+          transactions.push("Allowance")
         }
       }
 
-      toast.success("Expenses logged successfully")
+      if (transactions.length > 0) {
+        toast.success(`Expenses logged successfully: ${transactions.join(", ")}`)
+      } else {
+        toast.info("No expenses to log (all amounts were 0)")
+      }
+
       onSuccess()
       onOpenChange(false)
-      
-      // Reset form
+
       setFuelAmount("")
       setFuelLiters("")
       setTicketingAmount("")
@@ -215,24 +264,23 @@ export function ManualExpenseLogDialog({
         <DialogHeader>
           <DialogTitle>Log Expenses Manually</DialogTitle>
           <DialogDescription>
-            Record expenses for this booking. Fuel expense is required for accounting (can be 0).
+            Record expenses for this booking. {driverInfo ? `Driver: ${driverInfo.name}` : "No driver assigned"}
+            <br />
+            Only amounts greater than 0 will be recorded.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Fuel Required */}
           <Card className="border-blue-500/20 bg-blue-500/5">
             <CardContent className="pt-6 space-y-4">
               <div className="flex items-center gap-2 mb-2">
                 <Fuel className="h-5 w-5 text-blue-500" />
-                <Label className="text-base font-semibold">Fuel Required</Label>
+                <Label className="text-base font-semibold">Fuel</Label>
               </div>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="fuelAmount">
-                      Amount (NGN) <span className="text-red-500">*</span>
-                    </Label>
+                    <Label htmlFor="fuelAmount">Amount (NGN)</Label>
                     <Input
                       id="fuelAmount"
                       type="number"
@@ -241,9 +289,8 @@ export function ManualExpenseLogDialog({
                       value={fuelAmount}
                       onChange={(e) => setFuelAmount(e.target.value)}
                       placeholder="0.00"
-                      required
                     />
-                    <p className="text-xs text-muted-foreground">Required for accounting. Enter 0 if no fuel needed.</p>
+                    <p className="text-xs text-muted-foreground">Leave blank or enter 0 if no fuel needed.</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="fuelLiters">Liters</Label>
@@ -281,7 +328,6 @@ export function ManualExpenseLogDialog({
             </CardContent>
           </Card>
 
-          {/* Government Ticketing */}
           <Card className="border-purple-500/20 bg-purple-500/5">
             <CardContent className="pt-6 space-y-4">
               <div className="flex items-center gap-2 mb-2">
@@ -324,7 +370,6 @@ export function ManualExpenseLogDialog({
             </CardContent>
           </Card>
 
-          {/* Driver Allowance */}
           <Card className="border-green-500/20 bg-green-500/5">
             <CardContent className="pt-6 space-y-4">
               <div className="flex items-center gap-2 mb-2">
@@ -372,7 +417,7 @@ export function ManualExpenseLogDialog({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={saving || !fuelAccount} className="bg-green-600 hover:bg-green-700">
+          <Button onClick={handleSubmit} disabled={saving} className="bg-green-600 hover:bg-green-700">
             {saving ? "Logging..." : "Log Expenses"}
           </Button>
         </DialogFooter>

@@ -1331,64 +1331,48 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                             </div>
 
                             {/* Expense Transactions Table */}
-                            <div className="border-t pt-4">
-                              <Label className="text-sm font-semibold mb-3 block">Transaction Details</Label>
-                              <div className="overflow-x-auto">
-                                <table className="w-full">
-                                  <thead>
-                                    <tr className="border-b">
-                                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">Type</th>
-                                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">
-                                        Account
-                                      </th>
-                                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">
-                                        Quantity
-                                      </th>
-                                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">Date</th>
-                                      <th className="text-right p-3 text-sm font-medium text-muted-foreground">
-                                        Amount
-                                      </th>
+                            {expenseTransactions.length > 0 && (
+                              <div className="rounded-md border">
+                                <table className="w-full text-sm">
+                                  <thead className="border-b bg-muted/50">
+                                    <tr>
+                                      <th className="p-3 text-left font-medium">Date</th>
+                                      <th className="p-3 text-left font-medium">Type</th>
+                                      <th className="p-3 text-left font-medium">Driver</th>
+                                      <th className="p-3 text-right font-medium">Amount</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {expenseTransactions.map((transaction: any) => (
-                                      <tr key={transaction.id} className="border-b hover:bg-muted/50">
+                                      <tr key={transaction.id} className="border-b last:border-0">
+                                        <td className="p-3 text-muted-foreground">
+                                          {new Date(transaction.transaction_date).toLocaleDateString()}
+                                        </td>
                                         <td className="p-3">
                                           <Badge
-                                            variant="outline"
-                                            className={
+                                            variant={
                                               transaction.expense_type === "Fuel"
-                                                ? "bg-blue-100 text-blue-700 border-blue-300"
+                                                ? "default"
                                                 : transaction.expense_type === "Ticketing"
-                                                  ? "bg-purple-100 text-purple-700 border-purple-300"
-                                                  : "bg-green-100 text-green-700 border-green-300"
+                                                  ? "secondary"
+                                                  : "outline"
                                             }
                                           >
                                             {transaction.expense_type}
                                           </Badge>
                                         </td>
-                                        <td className="p-3 text-sm">{transaction.account?.account_name || "N/A"}</td>
-                                        <td className="p-3 text-sm">
-                                          {transaction.quantity
-                                            ? `${transaction.quantity} ${transaction.unit || ""}`
-                                            : "-"}
-                                        </td>
-                                        <td className="p-3 text-sm text-muted-foreground">
-                                          {formatRelativeTime(transaction.transaction_date)}
+                                        <td className="p-3 text-muted-foreground">
+                                          {transaction.driver?.full_name || "N/A"}
                                         </td>
                                         <td className="p-3 text-right font-medium">
-                                          {transaction.amount &&
-                                          !isNaN(Number.parseFloat(transaction.amount)) &&
-                                          Number.parseFloat(transaction.amount) > 0
-                                            ? formatCurrency(Number.parseFloat(transaction.amount))
-                                            : "₦0.00"}
+                                          ₦{transaction.amount?.toLocaleString() || "0"}
                                         </td>
                                       </tr>
                                     ))}
                                   </tbody>
                                 </table>
                               </div>
-                            </div>
+                            )}
                           </div>
                         ) : (
                           <div className="text-center py-8">

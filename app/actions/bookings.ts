@@ -248,7 +248,7 @@ export async function closeBooking(
   },
 ) {
   console.log("🔒 [closeBooking] Called with:", { bookingId, data })
-  
+
   const supabase = await createClient()
 
   const {
@@ -300,7 +300,7 @@ export async function closeBooking(
     console.log("🔒 [closeBooking] Inserting waybill:", { waybillUrl: data.waybillUrl })
     const urlParts = data.waybillUrl.split("/")
     const filename = urlParts[urlParts.length - 1] || "waybill"
-    
+
     const { error: waybillError } = await supabase.from("waybill_uploads").insert({
       booking_id: bookingId,
       file_url: data.waybillUrl,
@@ -333,7 +333,7 @@ export async function closeBooking(
     console.log("🔒 [closeBooking] Inserting fuel receipt:", { fuelReceiptUrl: data.fuelReceiptUrl })
     const urlParts = data.fuelReceiptUrl.split("/")
     const filename = urlParts[urlParts.length - 1] || "fuel-receipt"
-    
+
     const { error: fuelReceiptError } = await supabase.from("waybill_uploads").insert({
       booking_id: bookingId,
       file_url: data.fuelReceiptUrl,
@@ -410,7 +410,7 @@ export async function closeBooking(
   console.log("🔒 [closeBooking] Revalidating paths...")
   revalidatePath("/dashboard/bookings")
   revalidatePath("/dashboard/drivers")
-  
+
   console.log("🔒 [closeBooking] Success!")
   return { success: true }
 }
@@ -655,7 +655,6 @@ export async function updateBooking(bookingId: string, formData: FormData) {
     company_name: formData.get("company_name") as string,
     client_name: formData.get("client_name") as string,
     client_contact: formData.get("client_contact") as string,
-    client_email: formData.get("client_email") as string,
     client_address: formData.get("client_address") as string,
     destination_contact_name: formData.get("destination_contact_name") as string,
     destination_contact_phone: formData.get("destination_contact_phone") as string,
@@ -760,7 +759,7 @@ export async function assignDriverWithExpenses(
   } else {
     console.warn("⚠️ [assignDriverWithExpenses] No expenses object provided")
   }
-  
+
   console.log("📝 [assignDriverWithExpenses] Update data:", updateData)
 
   const { error, data: updatedBooking } = await supabase
@@ -774,7 +773,7 @@ export async function assignDriverWithExpenses(
     console.error("❌ [assignDriverWithExpenses] Error updating booking:", error)
     return { success: false, error: error.message }
   }
-  
+
   console.log("✅ [assignDriverWithExpenses] Booking updated successfully:", {
     fuel_amount: updatedBooking?.fuel_amount,
     ticketing_amount: updatedBooking?.ticketing_amount,
@@ -908,7 +907,7 @@ export async function assignDriverWithExpenses(
 
 export async function deleteBooking(bookingId: string) {
   console.log("🗑️ [Server Action] deleteBooking called with bookingId:", bookingId)
-  
+
   const supabase = await createClient()
 
   const {
@@ -1000,22 +999,22 @@ export async function deleteBooking(bookingId: string) {
     .select("id, account_id, expense_type, amount, notes")
     .eq("booking_id", bookingId)
 
-  console.log("🗑️ [Server Action] Found expense transactions:", { 
-    count: expenseTransactions?.length || 0, 
-    error: expensesFetchError 
+  console.log("🗑️ [Server Action] Found expense transactions:", {
+    count: expenseTransactions?.length || 0,
+    error: expensesFetchError,
   })
 
   if (expenseTransactions && expenseTransactions.length > 0) {
     console.log("🗑️ [Server Action] Processing refunds for expenses...")
-    
+
     // Group expenses by account_id to create refund top-ups
     const refundsByAccount = new Map<string, { amount: number; types: string[] }>()
-    
+
     for (const transaction of expenseTransactions) {
       const accountId = transaction.account_id
       const existing = refundsByAccount.get(accountId) || { amount: 0, types: [] }
       refundsByAccount.set(accountId, {
-        amount: existing.amount + parseFloat(transaction.amount.toString()),
+        amount: existing.amount + Number.parseFloat(transaction.amount.toString()),
         types: [...existing.types, transaction.expense_type],
       })
     }
@@ -1029,11 +1028,11 @@ export async function deleteBooking(bookingId: string) {
         notes: `Refund for deleted booking ${booking.job_id} - Expenses: ${refund.types.join(", ")}`,
         receipt_number: `REFUND-${booking.job_id}-${Date.now()}`,
       })
-      
-      console.log("🗑️ [Server Action] Created refund top-up:", { 
-        accountId, 
-        amount: refund.amount, 
-        error: refundError 
+
+      console.log("🗑️ [Server Action] Created refund top-up:", {
+        accountId,
+        amount: refund.amount,
+        error: refundError,
       })
     }
   }
@@ -1067,7 +1066,7 @@ export async function deleteBooking(bookingId: string) {
 
   // Verify deletion
   const { data: verifyBooking } = await supabase.from("bookings").select("id").eq("id", bookingId).single()
-  
+
   if (verifyBooking) {
     console.error("🗑️ [Server Action] WARNING: Booking still exists after deletion attempt!", { bookingId })
     return { success: false, error: "Booking deletion failed - record still exists" }
