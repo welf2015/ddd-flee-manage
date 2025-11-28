@@ -9,6 +9,7 @@ import { FuelUsageReport } from "@/components/reports/fuel-usage-report"
 import { ClientPerformanceReport } from "@/components/reports/client-performance-report"
 import { DriverPerformanceReport } from "@/components/reports/driver-performance-report"
 import { FinancialSummaryReport } from "@/components/reports/financial-summary-report"
+import { DriverSpendingReport } from "@/components/reports/driver-spending-report"
 
 type TimePeriod = "weekly" | "monthly" | "yearly" | "all-time"
 
@@ -36,12 +37,13 @@ export function ReportsClient() {
       </div>
 
       <Tabs defaultValue="trips" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
           <TabsTrigger value="trips">Trips</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
           <TabsTrigger value="fuel">Fuel</TabsTrigger>
           <TabsTrigger value="clients">Clients</TabsTrigger>
           <TabsTrigger value="drivers">Drivers</TabsTrigger>
+          <TabsTrigger value="driver-spending">Driver Spending</TabsTrigger>
           <TabsTrigger value="financial">Financial</TabsTrigger>
         </TabsList>
 
@@ -63,6 +65,10 @@ export function ReportsClient() {
 
         <TabsContent value="drivers" className="space-y-4 mt-4">
           <DriverPerformanceReport timePeriod={timePeriod} />
+        </TabsContent>
+
+        <TabsContent value="driver-spending" className="space-y-4 mt-4">
+          <DriverSpendingReport timePeriod={timePeriod} />
         </TabsContent>
 
         <TabsContent value="financial" className="space-y-4 mt-4">

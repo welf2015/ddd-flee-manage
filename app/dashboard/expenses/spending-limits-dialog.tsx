@@ -46,21 +46,15 @@ export function SpendingLimitsDialog({ open, onOpenChange, onSuccess }: Spending
     if (open) {
       const loadDrivers = async () => {
         setFetchingDrivers(true)
-        console.log("[v0] Loading drivers for spending limits dialog...")
         const result = await getAllDriversWithAccounts()
-        console.log("[v0] getAllDriversWithAccounts result:", result)
         if (result.success && result.data) {
           setDrivers(result.data)
-          console.log("[v0] Loaded drivers:", result.data.length)
-
-          // Initialize limits with current values or default
           const initialLimits: Record<string, string> = {}
           result.data.forEach((driver) => {
             initialLimits[driver.id] = driver.account?.spending_limit?.toString() || "50000"
           })
           setLimits(initialLimits)
         } else {
-          console.log("[v0] Error loading drivers:", result.error)
           toast({
             title: "Error",
             description: result.error || "Failed to fetch drivers",
@@ -184,7 +178,9 @@ export function SpendingLimitsDialog({ open, onOpenChange, onSuccess }: Spending
                       <div>
                         <p>{driver.full_name}</p>
                         <div className="flex items-center gap-2 mt-1">{getStatusBadge(driver.status)}</div>
-                        <p className="text-xs text-muted-foreground mt-1">{driver.phone}</p>
+                        {driver.phone && driver.phone !== "N/A" && (
+                          <p className="text-xs text-muted-foreground mt-1">{driver.phone}</p>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>

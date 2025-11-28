@@ -33,14 +33,10 @@ export function DriverSpendingTab() {
 
   const fetchDrivers = async () => {
     setLoading(true)
-    console.log("[v0] DriverSpendingTab: Fetching drivers...")
     const result = await getDriversWithAllowanceSpending()
-    console.log("[v0] DriverSpendingTab: Result:", result)
     if (result.success && result.data) {
       setDrivers(result.data)
-      console.log("[v0] DriverSpendingTab: Loaded", result.data.length, "drivers")
     } else if (result.error) {
-      console.log("[v0] DriverSpendingTab: Error:", result.error)
       toast({
         title: "Error",
         description: result.error,
@@ -55,8 +51,8 @@ export function DriverSpendingTab() {
   }, [])
 
   const getBalanceStatus = (balance: number, totalSpent: number) => {
-    if (totalSpent > 100000) return { color: "destructive", icon: AlertTriangle }
-    if (totalSpent > 50000) return { color: "warning", icon: TrendingDown }
+    if (balance < 0) return { color: "destructive", icon: AlertTriangle }
+    if (totalSpent > 100000) return { color: "warning", icon: TrendingDown }
     return { color: "default", icon: Wallet }
   }
 
@@ -157,14 +153,16 @@ export function DriverSpendingTab() {
                       <div>
                         <p>{item.driver.full_name}</p>
                         <div className="flex items-center gap-2 mt-1">{getStatusBadge(item.driver.status)}</div>
-                        <p className="text-xs text-muted-foreground mt-1">{item.driver.phone}</p>
+                        {item.driver.phone && item.driver.phone !== "N/A" && (
+                          <p className="text-xs text-muted-foreground mt-1">{item.driver.phone}</p>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <BalanceIcon className="h-4 w-4" />
                         <span className={balance < 0 ? "text-destructive font-semibold" : ""}>
-                          ₦{balance.toLocaleString()}
+                          {balance < 0 ? `-₦${Math.abs(balance).toLocaleString()}` : `₦${balance.toLocaleString()}`}
                         </span>
                       </div>
                     </TableCell>
@@ -197,7 +195,9 @@ export function DriverSpendingTab() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {totalSpent > 0 ? (
+                      {balance < 0 ? (
+                        <Badge variant="destructive">Negative Balance</Badge>
+                      ) : totalSpent > 0 ? (
                         spendingLimit > 0 && spendingProgress >= 100 ? (
                           <Badge variant="destructive">Limit Reached</Badge>
                         ) : spendingLimit > 0 && spendingProgress >= 80 ? (

@@ -44,6 +44,7 @@ export function ExpensesClient({
   const [activeTab, setActiveTab] = useState("fuel")
   const [showDriverTopUpDialog, setShowDriverTopUpDialog] = useState(false)
   const [showDriverSettingsDialog, setShowDriverSettingsDialog] = useState(false)
+  const [driverSpendingKey, setDriverSpendingKey] = useState(0)
   const supabase = createClient()
 
   // Get all prepaid accounts - use initial data from server, then revalidate
@@ -99,6 +100,10 @@ export function ExpensesClient({
   const handleAddTopup = (accountId?: string) => {
     setSelectedAccount(accountId || null)
     setShowTopupDialog(true)
+  }
+
+  const refreshDriverSpending = () => {
+    setDriverSpendingKey((prev) => prev + 1)
   }
 
   return (
@@ -217,7 +222,7 @@ export function ExpensesClient({
         </TabsContent>
 
         <TabsContent value="driver-spending" className="space-y-4 mt-4">
-          <DriverSpendingTab />
+          <DriverSpendingTab key={driverSpendingKey} />
         </TabsContent>
       </Tabs>
 
@@ -234,8 +239,7 @@ export function ExpensesClient({
           open={showDriverTopUpDialog}
           onOpenChange={setShowDriverTopUpDialog}
           onSuccess={() => {
-            setShowDriverTopUpDialog(false)
-            // Trigger refresh of driver spending tab
+            refreshDriverSpending()
           }}
         />
       )}
@@ -245,8 +249,7 @@ export function ExpensesClient({
           open={showDriverSettingsDialog}
           onOpenChange={setShowDriverSettingsDialog}
           onSuccess={() => {
-            setShowDriverSettingsDialog(false)
-            // Trigger refresh of driver spending tab
+            refreshDriverSpending()
           }}
         />
       )}

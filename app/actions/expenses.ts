@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { notifyTopup } from "@/lib/notifications"
+import { recordDriverExpense } from "@/app/actions/driver-spending"
 
 export async function getExpenseVendors() {
   const supabase = await createClient()
@@ -12,14 +13,16 @@ export async function getExpenseVendors() {
 
 export async function getPrepaidAccounts(vendorType?: string) {
   const supabase = await createClient()
-  let query = supabase
+  const query = supabase
     .from("prepaid_accounts")
-    .select("id, account_name, current_balance, total_deposited, total_spent, is_active, created_at, updated_at, vendor_id, vendor:expense_vendors!prepaid_accounts_vendor_id_fkey(*)")
+    .select(
+      "id, account_name, current_balance, total_deposited, total_spent, is_active, created_at, updated_at, vendor_id, vendor:expense_vendors!prepaid_accounts_vendor_id_fkey(*)",
+    )
     .eq("is_active", true)
     .order("account_name")
 
   const { data, error } = await query
-  
+
   if (error) {
     console.error("Error fetching prepaid accounts:", error)
     return { data: [], error }
@@ -141,9 +144,15 @@ export async function createExpenseTransaction(
 
   console.log("Expense transaction created successfully:", transaction.id)
 
-  // Note: Booking expense amounts are updated by assignDriverWithExpenses
-  // We don't update here to avoid race conditions when multiple transactions are created
-  // The booking is already updated with all expense amounts before transactions are created
+  if (data.expenseType === "Allowance" && data.driverId) {
+    const description = data.notes || `Allowance for booking ${data.bookingId || "N/A"}`
+    const deductResult = await recordDriverExpense(data.driverId, data.amount, description, data.bookingId)
+    if (!deductResult.success) {
+      console.log("Note: Could not deduct from driver spending account:", deductResult.error)
+      // Don't fail the transaction, just log the issue
+      // The driver may not have a spending account yet
+    }
+  }
 
   revalidatePath("/dashboard/expenses")
   revalidatePath("/dashboard/bookings")
@@ -239,10 +248,7 @@ export async function getWeeklyExpenses(expenseType?: string) {
 
 export async function getTotalFuelSpent() {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("expense_transactions")
-    .select("amount")
-    .eq("expense_type", "Fuel")
+  const { data, error } = await supabase.from("expense_transactions").select("amount").eq("expense_type", "Fuel")
 
   if (error) {
     return { data: 0, error }
