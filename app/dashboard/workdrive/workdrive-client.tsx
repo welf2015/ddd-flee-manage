@@ -202,17 +202,18 @@ export function WorkDriveClient() {
         throw new Error("Worker URL or Auth Key not configured")
       }
 
-      // Upload to R2
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("folder", "workdrive")
+      // Upload to R2 - send file directly as binary data with PUT
+      const timestamp = Date.now()
+      const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+      const uploadUrl = `${workerUrl}?folder=workdrive&filename=${encodeURIComponent(`${timestamp}-${sanitizedFilename}`)}`
 
-      const response = await fetch(workerUrl, {
-        method: "POST",
+      const response = await fetch(uploadUrl, {
+        method: "PUT",
         headers: {
           "X-Auth-Key": authKey,
+          "Content-Type": file.type,
         },
-        body: formData,
+        body: file,
       })
 
       if (!response.ok) {
@@ -457,7 +458,7 @@ export function WorkDriveClient() {
                           onClick={() =>
                             item.itemType === "folder"
                               ? navigateToFolder(item.id)
-                              : window.open((item as WorkDriveDocument).file_url, "_blank")
+                              : window.open(`/api/workdrive/download/${item.id}`, "_blank")
                           }
                         >
                           {item.name}
@@ -526,7 +527,7 @@ export function WorkDriveClient() {
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
                               <a
-                                href={(item as WorkDriveDocument).file_url}
+                                href={`/api/workdrive/download/${item.id}`}
                                 download={item.name}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -641,7 +642,7 @@ export function WorkDriveClient() {
           <div className="flex-1 overflow-auto">
             {previewDocument?.file_type === "pdf" ? (
               <iframe
-                src={previewDocument.file_url}
+                src={`/api/workdrive/download/${previewDocument.id}`}
                 className="w-full h-[70vh] rounded-lg border"
                 title={previewDocument.name}
               />
@@ -651,8 +652,8 @@ export function WorkDriveClient() {
                 <p className="mt-4 text-muted-foreground">Preview not available for this file type</p>
                 <Button asChild className="mt-4">
                   <a
-                    href={previewDocument?.file_url}
-                    download={previewDocument?.name}
+                    href={`/api/workdrive/download/${previewDocument.id}`}
+                    download={previewDocument.name}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
