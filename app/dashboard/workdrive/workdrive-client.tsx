@@ -634,38 +634,40 @@ export function WorkDriveClient() {
       </Dialog>
 
       {/* Document Preview Dialog */}
-      <Dialog open={!!previewDocument} onOpenChange={() => setPreviewDocument(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>{previewDocument?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto">
-            {previewDocument?.file_type === "pdf" ? (
-              <iframe
-                src={`/api/workdrive/download/${previewDocument.id}`}
-                className="w-full h-[70vh] rounded-lg border"
-                title={previewDocument.name}
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center py-12">
-                {getFileIcon(previewDocument?.file_type || "")}
-                <p className="mt-4 text-muted-foreground">Preview not available for this file type</p>
-                <Button asChild className="mt-4">
-                  <a
-                    href={`/api/workdrive/download/${previewDocument.id}`}
-                    download={previewDocument.name}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download to view
-                  </a>
-                </Button>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {previewDocument && (
+        <Dialog open={true} onOpenChange={() => setPreviewDocument(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle>{previewDocument.name}</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-auto">
+              {previewDocument.file_type === "pdf" ? (
+                <iframe
+                  src={`/api/workdrive/download/${previewDocument.id}`}
+                  className="w-full h-[70vh] rounded-lg border"
+                  title={previewDocument.name}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12">
+                  {getFileIcon(previewDocument.file_type)}
+                  <p className="mt-4 text-muted-foreground">Preview not available for this file type</p>
+                  <Button asChild className="mt-4">
+                    <a
+                      href={`/api/workdrive/download/${previewDocument.id}`}
+                      download={previewDocument.name}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download to view
+                    </a>
+                  </Button>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }
