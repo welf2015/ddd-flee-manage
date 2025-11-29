@@ -359,7 +359,7 @@ export function WorkDriveClient() {
                 <div
                   key={folder.id}
                   className="group relative flex flex-col items-center p-4 rounded-lg border border-border hover:bg-accent/50 cursor-pointer transition-colors"
-                  onDoubleClick={() => navigateToFolder(folder.id)}
+                  onClick={() => navigateToFolder(folder.id)}
                 >
                   <Folder className="h-12 w-12 text-yellow-500 mb-2" />
                   <span className="text-sm font-medium text-center truncate w-full">{folder.name}</span>
@@ -369,6 +369,7 @@ export function WorkDriveClient() {
                         variant="ghost"
                         size="icon"
                         className="absolute top-1 right-1 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <MoreVertical className="h-4 w-4" />
                       </Button>
@@ -408,7 +409,7 @@ export function WorkDriveClient() {
                 <div
                   key={doc.id}
                   className="group relative flex flex-col items-center p-4 rounded-lg border border-border hover:bg-accent/50 cursor-pointer transition-colors"
-                  onDoubleClick={() => setPreviewDocument(doc)}
+                  onClick={() => window.open(doc.file_url, '_blank')}
                 >
                   {getFileIcon(doc.file_type)}
                   <span className="text-sm font-medium text-center truncate w-full mt-2">{doc.name}</span>
@@ -419,6 +420,7 @@ export function WorkDriveClient() {
                         variant="ghost"
                         size="icon"
                         className="absolute top-1 right-1 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <MoreVertical className="h-4 w-4" />
                       </Button>
