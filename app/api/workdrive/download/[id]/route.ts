@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
+    const { id } = await params
     const supabase = await createClient()
 
     // Verify user is authenticated
@@ -18,7 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const { data: document, error } = await supabase
       .from("workdrive_documents")
       .select("file_url, name, file_type")
-      .eq("id", params.id)
+      .eq("id", id)
       .single()
 
     if (error || !document) {
