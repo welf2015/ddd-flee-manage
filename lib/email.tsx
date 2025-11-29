@@ -166,35 +166,56 @@ export async function sendEmailNotification({ to, subject, html, text }: EmailPa
   const apiKey = process.env.RESEND_API_KEY
 
   if (!apiKey) {
-    console.warn("[notifications] RESEND_API_KEY not configured. Email not sent.")
-    return
+    console.error("[EMAIL ERROR] RESEND_API_KEY not configured in environment variables")
+    console.error("[EMAIL ERROR] Email subject:", subject)
+    console.error("[EMAIL ERROR] Recipients:", to)
+    return { success: false, error: "RESEND_API_KEY not configured" }
   }
 
   const recipients = Array.isArray(to) ? to.filter(Boolean) : [to].filter(Boolean)
 
   if (recipients.length === 0) {
-    console.warn("[notifications] No recipients provided for email.")
-    return
+    console.warn("[EMAIL WARNING] No recipients provided for email:", subject)
+    return { success: false, error: "No recipients" }
   }
 
-  const response = await fetch(RESEND_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      from: getFromEmail(),
-      to: recipients,
-      subject,
-      html,
-      text,
-    }),
-  })
+  const fromEmail = getFromEmail()
+  console.log("[EMAIL INFO] Sending email...")
+  console.log("[EMAIL INFO] From:", fromEmail)
+  console.log("[EMAIL INFO] To:", recipients)
+  console.log("[EMAIL INFO] Subject:", subject)
 
-  if (!response.ok) {
-    const errorBody = await response.text()
-    console.error("[notifications] Failed to send email:", response.status, errorBody)
+  try {
+    const response = await fetch(RESEND_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: recipients,
+        subject,
+        html,
+        text,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text()
+      console.error("[EMAIL ERROR] Failed to send email")
+      console.error("[EMAIL ERROR] Status:", response.status)
+      console.error("[EMAIL ERROR] Response:", errorBody)
+      return { success: false, error: `HTTP ${response.status}: ${errorBody}` }
+    }
+
+    const responseData = await response.json()
+    console.log("[EMAIL SUCCESS] Email sent successfully!")
+    console.log("[EMAIL SUCCESS] Response:", responseData)
+    return { success: true, data: responseData }
+  } catch (error) {
+    console.error("[EMAIL ERROR] Exception while sending email:", error)
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" }
   }
 }
 

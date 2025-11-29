@@ -79,10 +79,16 @@ export async function notifyAdminsForBookingApproval(bookingData: {
   const adminEmails = admins.filter((a) => a.email).map((a) => a.email!)
 
   if (adminEmails.length > 0) {
-    await sendEmailNotification({
+    console.log("[NOTIFICATION] Sending booking approval email to:", adminEmails)
+    const emailResult = await sendEmailNotification({
       to: adminEmails,
       ...emailData,
     })
+    if (emailResult && !emailResult.success) {
+      console.error("[NOTIFICATION] Failed to send approval email:", emailResult.error)
+    }
+  } else {
+    console.warn("[NOTIFICATION] No admin emails found in profiles. Please add email addresses to user profiles.")
   }
 
   // Create in-app notifications

@@ -276,14 +276,8 @@ export async function topUpDriverSpending(driverId: string, amount: number, desc
 
   const accountData = account.data!
 
-  // Check if top-up would exceed spending limit
+  // Calculate new balance (no limit check - accounts can go negative or exceed limits)
   const newBalance = Number(accountData.current_balance) + amount
-  if (newBalance > Number(accountData.spending_limit)) {
-    return {
-      success: false,
-      error: `Top-up would exceed spending limit of ₦${Number(accountData.spending_limit).toLocaleString()}`,
-    }
-  }
 
   // Get current user
   const {

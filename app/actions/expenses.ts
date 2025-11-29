@@ -144,6 +144,7 @@ export async function createExpenseTransaction(
 
   console.log("Expense transaction created successfully:", transaction.id)
 
+  // Deduct from driver spending account ONLY for Allowance
   if (data.expenseType === "Allowance" && data.driverId) {
     const description = data.notes || `Allowance for booking ${data.bookingId || "N/A"}`
     const deductResult = await recordDriverExpense(data.driverId, data.amount, description, data.bookingId)
@@ -151,6 +152,8 @@ export async function createExpenseTransaction(
       console.log("Note: Could not deduct from driver spending account:", deductResult.error)
       // Don't fail the transaction, just log the issue
       // The driver may not have a spending account yet
+    } else {
+      console.log(`✅ Deducted ₦${data.amount} from driver allowance account`)
     }
   }
 
