@@ -80,16 +80,32 @@ export default {
 
         await env.BUCKET.put(key, request.body)
 
-        // Return the worker URL so files can be accessed through the worker
-        // The worker handles GET requests without authentication (line 20-32)
-        // This allows public access to uploaded files
-        const workerUrl = `${url.origin}/${key}`
+        // Use R2 public URL instead of worker URL
+        // Format: https://{account-id}.r2.cloudflarestorage.com/{bucket-name}/{key}
+        // Or use R2_PUBLIC_URL env var if set (for custom domains)
+        const bucketName = "fleetm" // From wrangler.toml
+        const accountId = "62bdb1736e32df066a3014665f294d04" // R2 Account ID
+        
+        // Construct R2 public URL
+        // If R2_PUBLIC_URL is set, use it (may include bucket name or be custom domain)
+        // Otherwise, construct standard R2 URL with bucket name
+        let publicUrl
+        if (env.R2_PUBLIC_URL) {
+          // If R2_PUBLIC_URL ends with bucket name, just append key
+          // Otherwise, append bucket name and key
+          const baseUrl = env.R2_PUBLIC_URL.endsWith(`/${bucketName}`) 
+            ? env.R2_PUBLIC_URL 
+            : `${env.R2_PUBLIC_URL}/${bucketName}`
+          publicUrl = `${baseUrl}/${key}`
+        } else {
+          publicUrl = `https://${accountId}.r2.cloudflarestorage.com/${bucketName}/${key}`
+        }
 
         return new Response(
           JSON.stringify({
             success: true,
             key,
-            url: workerUrl
+            url: publicUrl
           }),
           {
             headers: { "Content-Type": "application/json", ...corsHeaders }

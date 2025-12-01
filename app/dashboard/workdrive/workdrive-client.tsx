@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
   Dialog,
@@ -25,7 +26,7 @@ import {
   FileText,
   Upload,
   Plus,
-  MoreHorizontal,
+  MoreVertical,
   Trash2,
   Pencil,
   Download,
@@ -35,8 +36,6 @@ import {
   Loader2,
   FileIcon,
   Search,
-  Filter,
-  ArrowUpDown,
 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -53,8 +52,6 @@ import {
   type WorkDriveDocument,
 } from "@/app/actions/workdrive"
 
-type TabType = "all" | "recent" | "folders"
-
 export function WorkDriveClient() {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
   const [folders, setFolders] = useState<WorkDriveFolder[]>([])
@@ -63,7 +60,6 @@ export function WorkDriveClient() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState<TabType>("all")
 
   // Dialog states
   const [createFolderOpen, setCreateFolderOpen] = useState(false)
@@ -202,18 +198,17 @@ export function WorkDriveClient() {
         throw new Error("Worker URL or Auth Key not configured")
       }
 
-      // Upload to R2 - send file directly as binary data with PUT
-      const timestamp = Date.now()
-      const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
-      const uploadUrl = `${workerUrl}?folder=workdrive&filename=${encodeURIComponent(`${timestamp}-${sanitizedFilename}`)}`
+      // Upload to R2
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("folder", "workdrive")
 
-      const response = await fetch(uploadUrl, {
-        method: "PUT",
+      const response = await fetch(workerUrl, {
+        method: "POST",
         headers: {
           "X-Auth-Key": authKey,
-          "Content-Type": file.type,
         },
-        body: file,
+        body: formData,
       })
 
       if (!response.ok) {
@@ -258,59 +253,32 @@ export function WorkDriveClient() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
-  // Format date
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-  }
-
   // Get file icon based on type
-  const getFileIcon = (fileType: string, size: "sm" | "lg" = "lg") => {
-    const sizeClass = size === "sm" ? "h-5 w-5" : "h-8 w-8"
+  const getFileIcon = (fileType: string) => {
     switch (fileType) {
       case "pdf":
-        return <FileText className={`${sizeClass} text-red-500`} />
+        return <FileText className="h-8 w-8 text-red-500" />
       case "doc":
       case "docx":
-        return <FileIcon className={`${sizeClass} text-blue-500`} />
+        return <FileIcon className="h-8 w-8 text-blue-500" />
       default:
-        return <FileText className={`${sizeClass} text-muted-foreground`} />
+        return <FileText className="h-8 w-8 text-muted-foreground" />
     }
   }
 
-  // Filter items based on search and tab
-  let filteredFolders = folders.filter((f) => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
-  let filteredDocuments = documents.filter((d) => d.name.toLowerCase().includes(searchQuery.toLowerCase()))
-
-  if (activeTab === "folders") {
-    filteredDocuments = []
-  } else if (activeTab === "recent") {
-    // Sort by modified date
-    filteredDocuments = [...filteredDocuments].sort(
-      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
-    )
-    filteredFolders = [...filteredFolders].sort(
-      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
-    )
-  }
-
-  // Combine folders and documents for table view
-  const allItems = [
-    ...filteredFolders.map((f) => ({ ...f, itemType: "folder" as const })),
-    ...filteredDocuments.map((d) => ({ ...d, itemType: "document" as const })),
-  ]
+  // Filter items based on search
+  const filteredFolders = folders.filter((f) => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredDocuments = documents.filter((d) => d.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">WorkDrive</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage and organize your company documents, track versions, and collaborate.
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight">WorkDrive</h1>
+          <p className="text-muted-foreground">Manage and organize your company documents</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <Button variant="outline" onClick={() => setCreateFolderOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             New Folder
@@ -339,234 +307,161 @@ export function WorkDriveClient() {
       </div>
 
       {/* Breadcrumbs */}
-      {breadcrumbs.length > 0 && (
-        <div className="flex items-center gap-2 text-sm">
-          <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => navigateToFolder(null)}>
-            <Home className="h-4 w-4" />
-          </Button>
-          {breadcrumbs.map((folder) => (
-            <div key={folder.id} className="flex items-center gap-2">
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => navigateToFolder(folder.id)}>
-                {folder.name}
-              </Button>
+      <div className="flex items-center gap-2 text-sm">
+        <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => navigateToFolder(null)}>
+          <Home className="h-4 w-4" />
+        </Button>
+        {breadcrumbs.map((folder, index) => (
+          <div key={folder.id} className="flex items-center gap-2">
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => navigateToFolder(folder.id)}>
+              {folder.name}
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search files and folders..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      {/* Content */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">
+            {currentFolderId ? breadcrumbs[breadcrumbs.length - 1]?.name || "Folder" : "All Files"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="border-b border-border">
-        <div className="flex gap-8">
-          <button
-            onClick={() => setActiveTab("all")}
-            className={`pb-3 border-b-2 font-medium text-sm transition-colors ${
-              activeTab === "all"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            All Documents
-          </button>
-          <button
-            onClick={() => setActiveTab("recent")}
-            className={`pb-3 border-b-2 font-medium text-sm transition-colors ${
-              activeTab === "recent"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Recent
-          </button>
-          <button
-            onClick={() => setActiveTab("folders")}
-            className={`pb-3 border-b-2 font-medium text-sm transition-colors ${
-              activeTab === "folders"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Folders Only
-          </button>
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div className="flex justify-between items-center">
-        <div className="relative w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search files and folders..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <div className="flex gap-3">
-          <Button variant="ghost" size="sm">
-            <Filter className="mr-2 h-4 w-4" />
-            Filter
-          </Button>
-          <Button variant="ghost" size="sm">
-            <ArrowUpDown className="mr-2 h-4 w-4" />
-            Sort by
-          </Button>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="border border-border rounded-lg overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : allItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Folder className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-medium">No files or folders</p>
-            <p className="text-sm text-muted-foreground">
-              {searchQuery ? "No items match your search" : "Create a folder or upload a document to get started"}
-            </p>
-          </div>
-        ) : (
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-muted/50 border-b border-border">
-                <th className="py-3 px-6 text-xs font-medium text-muted-foreground uppercase">Name</th>
-                <th className="py-3 px-6 text-xs font-medium text-muted-foreground uppercase">Date Created</th>
-                <th className="py-3 px-6 text-xs font-medium text-muted-foreground uppercase">Last Modified</th>
-                <th className="py-3 px-6 text-xs font-medium text-muted-foreground uppercase">Type</th>
-                <th className="py-3 px-6 text-xs font-medium text-muted-foreground uppercase text-right"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {allItems.map((item) => (
-                <tr key={item.id} className="group border-b border-border last:border-none hover:bg-muted/30 transition-colors">
-                  {/* Name Column */}
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center shrink-0">
-                        {item.itemType === "folder" ? (
-                          <Folder className="h-5 w-5 text-yellow-500" />
-                        ) : (
-                          getFileIcon((item as WorkDriveDocument).file_type, "sm")
-                        )}
-                      </div>
-                      <div>
-                        <div
-                          className="font-medium cursor-pointer hover:underline"
-                          onClick={() =>
-                            item.itemType === "folder"
-                              ? navigateToFolder(item.id)
-                              : window.open(`/api/workdrive/download/${item.id}`, "_blank")
-                          }
-                        >
-                          {item.name}
-                        </div>
-                        {item.itemType === "document" && (
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            {formatFileSize((item as WorkDriveDocument).file_size)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Dates */}
-                  <td className="py-4 px-6 text-sm text-muted-foreground">{formatDate(item.created_at)}</td>
-                  <td className="py-4 px-6 text-sm text-muted-foreground">{formatDate(item.updated_at)}</td>
-
-                  {/* Type */}
-                  <td className="py-4 px-6">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-primary/10 text-primary border-primary/20">
-                      {item.itemType === "folder" ? "Folder" : (item as WorkDriveDocument).file_type.toUpperCase()}
-                    </span>
-                  </td>
-
-                  {/* Actions */}
-                  <td className="py-4 px-6 text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {item.itemType === "folder" ? (
-                          <>
-                            <DropdownMenuItem onClick={() => navigateToFolder(item.id)}>
-                              <Folder className="mr-2 h-4 w-4" />
-                              Open
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setRenameTarget({ id: item.id, name: item.name, type: "folder" })
-                                setRenameDialogOpen(true)
-                              }}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={() => {
-                                setDeleteTarget({ id: item.id, name: item.name, type: "folder" })
-                                setDeleteDialogOpen(true)
-                              }}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </>
-                        ) : (
-                          <>
-                            <DropdownMenuItem onClick={() => setPreviewDocument(item as WorkDriveDocument)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Preview
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <a
-                                href={`/api/workdrive/download/${item.id}`}
-                                download={item.name}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <Download className="mr-2 h-4 w-4" />
-                                Download
-                              </a>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setRenameTarget({ id: item.id, name: item.name, type: "document" })
-                                setRenameDialogOpen(true)
-                              }}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={() => {
-                                setDeleteTarget({ id: item.id, name: item.name, type: "document" })
-                                setDeleteDialogOpen(true)
-                              }}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
+          ) : filteredFolders.length === 0 && filteredDocuments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Folder className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-lg font-medium">No files or folders</p>
+              <p className="text-sm text-muted-foreground">
+                {searchQuery ? "No items match your search" : "Create a folder or upload a document to get started"}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {/* Folders */}
+              {filteredFolders.map((folder) => (
+                <div
+                  key={folder.id}
+                  className="group relative flex flex-col items-center p-4 rounded-lg border border-border hover:bg-accent/50 cursor-pointer transition-colors"
+                  onDoubleClick={() => navigateToFolder(folder.id)}
+                >
+                  <Folder className="h-12 w-12 text-yellow-500 mb-2" />
+                  <span className="text-sm font-medium text-center truncate w-full">{folder.name}</span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-1 right-1 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => navigateToFolder(folder.id)}>
+                        <Folder className="mr-2 h-4 w-4" />
+                        Open
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setRenameTarget({ id: folder.id, name: folder.name, type: "folder" })
+                          setRenameDialogOpen(true)
+                        }}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => {
+                          setDeleteTarget({ id: folder.id, name: folder.name, type: "folder" })
+                          setDeleteDialogOpen(true)
+                        }}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+
+              {/* Documents */}
+              {filteredDocuments.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="group relative flex flex-col items-center p-4 rounded-lg border border-border hover:bg-accent/50 cursor-pointer transition-colors"
+                  onDoubleClick={() => setPreviewDocument(doc)}
+                >
+                  {getFileIcon(doc.file_type)}
+                  <span className="text-sm font-medium text-center truncate w-full mt-2">{doc.name}</span>
+                  <span className="text-xs text-muted-foreground">{formatFileSize(doc.file_size)}</span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-1 right-1 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setPreviewDocument(doc)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Preview
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <a href={doc.file_url} download={doc.name} target="_blank" rel="noopener noreferrer">
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </a>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setRenameTarget({ id: doc.id, name: doc.name, type: "document" })
+                          setRenameDialogOpen(true)
+                        }}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => {
+                          setDeleteTarget({ id: doc.id, name: doc.name, type: "document" })
+                          setDeleteDialogOpen(true)
+                        }}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Create Folder Dialog */}
       <Dialog open={createFolderOpen} onOpenChange={setCreateFolderOpen}>
@@ -634,40 +529,38 @@ export function WorkDriveClient() {
       </Dialog>
 
       {/* Document Preview Dialog */}
-      {previewDocument && (
-        <Dialog open={true} onOpenChange={() => setPreviewDocument(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle>{previewDocument.name}</DialogTitle>
-            </DialogHeader>
-            <div className="flex-1 overflow-auto">
-              {previewDocument.file_type === "pdf" ? (
-                <iframe
-                  src={`/api/workdrive/download/${previewDocument.id}`}
-                  className="w-full h-[70vh] rounded-lg border"
-                  title={previewDocument.name}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12">
-                  {getFileIcon(previewDocument.file_type)}
-                  <p className="mt-4 text-muted-foreground">Preview not available for this file type</p>
-                  <Button asChild className="mt-4">
-                    <a
-                      href={`/api/workdrive/download/${previewDocument.id}`}
-                      download={previewDocument.name}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Download to view
-                    </a>
-                  </Button>
-                </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      <Dialog open={!!previewDocument} onOpenChange={() => setPreviewDocument(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>{previewDocument?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {previewDocument?.file_type === "pdf" ? (
+              <iframe
+                src={previewDocument.file_url}
+                className="w-full h-[70vh] rounded-lg border"
+                title={previewDocument.name}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12">
+                {getFileIcon(previewDocument?.file_type || "")}
+                <p className="mt-4 text-muted-foreground">Preview not available for this file type</p>
+                <Button asChild className="mt-4">
+                  <a
+                    href={previewDocument?.file_url}
+                    download={previewDocument?.name}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download to view
+                  </a>
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

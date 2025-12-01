@@ -4,11 +4,11 @@
 
 Ensure these are set in your Vercel environment variables:
 
-```bash
+\`\`\`bash
 RESEND_API_KEY=re_xxxxxxxxxxxxx
 RESEND_FROM_EMAIL="Fleet Manager <notifications@yourdomain.com>"
 NEXT_PUBLIC_APP_URL=https://yourdomain.com  # Optional
-```
+\`\`\`
 
 ## Common Issues and Solutions
 
@@ -26,29 +26,29 @@ Look for these log messages:
 **Common causes:**
 
 a) **Environment variables not set**
-```
+\`\`\`
 [EMAIL ERROR] RESEND_API_KEY not configured in environment variables
-```
+\`\`\`
 **Solution:** Add `RESEND_API_KEY` in Vercel → Settings → Environment Variables
 
 b) **User profiles missing email addresses**
-```
+\`\`\`
 [NOTIFICATION] No admin emails found in profiles
-```
+\`\`\`
 **Solution:** Add email addresses to user profiles in the database:
 - Go to Supabase → Table Editor → `profiles` table
 - Add email addresses for users with roles: MD, ED, Head of Operations, Accountant
 
 c) **Invalid API key**
-```
+\`\`\`
 [EMAIL ERROR] Status: 401
-```
+\`\`\`
 **Solution:** Verify your Resend API key at https://resend.com/api-keys
 
 d) **Unverified domain**
-```
+\`\`\`
 [EMAIL ERROR] Status: 403
-```
+\`\`\`
 **Solution:**
 1. Go to https://resend.com/domains
 2. Add and verify your domain
@@ -63,7 +63,7 @@ d) **Unverified domain**
 
 #### Method 2: Check user profiles
 Run this SQL in Supabase SQL Editor:
-```sql
+\`\`\`sql
 SELECT
   id,
   email,
@@ -71,7 +71,7 @@ SELECT
   role
 FROM profiles
 WHERE role IN ('MD', 'ED', 'Head of Operations', 'Accountant');
-```
+\`\`\`
 
 Make sure users have:
 - Valid email addresses
@@ -109,20 +109,20 @@ Check your Resend dashboard at https://resend.com/emails for:
 All email operations now log detailed information:
 
 ### Success logs:
-```
+\`\`\`
 [EMAIL INFO] Sending email...
 [EMAIL INFO] From: Fleet Manager <notifications@yourdomain.com>
 [EMAIL INFO] To: ["user@example.com"]
 [EMAIL INFO] Subject: New Booking Approval Required
 [EMAIL SUCCESS] Email sent successfully!
-```
+\`\`\`
 
 ### Error logs:
-```
+\`\`\`
 [EMAIL ERROR] Failed to send email
 [EMAIL ERROR] Status: 403
 [EMAIL ERROR] Response: {"error": "Domain not verified"}
-```
+\`\`\`
 
 ## Quick Checklist
 
