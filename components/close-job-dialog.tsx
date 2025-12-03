@@ -81,8 +81,10 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
 
       // Upload waybill
       if (waybillFile) {
+        // Sanitize filename - replace spaces and special chars with underscores
+        const sanitizedFilename = waybillFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')
         const workerUrlObj = new URL(workerUrl)
-        workerUrlObj.searchParams.set("filename", waybillFile.name)
+        workerUrlObj.searchParams.set("filename", sanitizedFilename)
         workerUrlObj.searchParams.set("folder", `waybills/${booking.id}`)
 
         const uploadRes = await fetch(workerUrlObj.toString(), {
@@ -106,8 +108,10 @@ export function CloseJobDialog({ open, onOpenChange, booking, onSuccess }: Close
 
       // Upload fuel receipt
       if (fuelReceiptFile) {
+        // Sanitize filename - replace spaces and special chars with underscores
+        const sanitizedFilename = fuelReceiptFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')
         const workerUrlObj = new URL(workerUrl)
-        workerUrlObj.searchParams.set("filename", fuelReceiptFile.name)
+        workerUrlObj.searchParams.set("filename", sanitizedFilename)
         workerUrlObj.searchParams.set("folder", `fuel-receipts/${booking.id}`)
 
         const uploadRes = await fetch(workerUrlObj.toString(), {

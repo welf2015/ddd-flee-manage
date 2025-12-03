@@ -84,46 +84,62 @@ export function CreateBookingDialog() {
     return () => clearTimeout(timeoutId)
   }, [clientSearchTerm, open, supabase])
 
-  const { data: driversWithRatings = [] } = useSWR(open ? "drivers-with-ratings" : null, async () => {
-    const { data: drivers } = await supabase.from("drivers").select("*").eq("status", "Active").order("full_name")
-    if (!drivers) return []
-
-    const driversWithAvgRatings = await Promise.all(
-      drivers.map(async (driver) => {
-        const { data: ratings } = await supabase
-          .from("bookings")
-          .select("driver_rating, punctuality_rating, vehicle_condition_rating, communication_rating")
-          .eq("assigned_driver_id", driver.id)
-          .not("driver_rating", "is", null)
-
-        if (!ratings || ratings.length === 0) {
-          return { ...driver, avgRating: null, totalRatings: 0 }
+  const { data: driversWithRatings = [] } = useSWR(
+    open ? "drivers-with-ratings" : null,
+    async () => {
+      try {
+        const { data: drivers, error } = await supabase.from("drivers").select("*").eq("status", "Active").order("full_name")
+        if (error) {
+          console.error("Error fetching drivers:", error)
+          return []
         }
+        if (!drivers) return []
 
-        const allRatings = ratings
-          .flatMap((r) => [r.driver_rating, r.punctuality_rating, r.vehicle_condition_rating, r.communication_rating])
-          .filter(Boolean)
+        const driversWithAvgRatings = await Promise.all(
+          drivers.map(async (driver) => {
+            const { data: ratings } = await supabase
+              .from("bookings")
+              .select("driver_rating, punctuality_rating, vehicle_condition_rating, communication_rating")
+              .eq("assigned_driver_id", driver.id)
+              .not("driver_rating", "is", null)
 
-        const avgRating =
-          allRatings.length > 0
-            ? (allRatings.reduce((sum, rating) => sum + rating, 0) / allRatings.length).toFixed(1)
-            : null
+            if (!ratings || ratings.length === 0) {
+              return { ...driver, avgRating: null, totalRatings: 0 }
+            }
 
-        return {
-          ...driver,
-          avgRating: avgRating ? Number.parseFloat(avgRating) : null,
-          totalRatings: ratings.length,
-        }
-      }),
-    )
+            const allRatings = ratings
+              .flatMap((r) => [r.driver_rating, r.punctuality_rating, r.vehicle_condition_rating, r.communication_rating])
+              .filter(Boolean)
 
-    return driversWithAvgRatings.sort((a, b) => {
-      if (a.avgRating && b.avgRating) return b.avgRating - a.avgRating
-      if (a.avgRating) return -1
-      if (b.avgRating) return 1
-      return a.full_name.localeCompare(b.full_name)
-    })
-  })
+            const avgRating =
+              allRatings.length > 0
+                ? (allRatings.reduce((sum, rating) => sum + rating, 0) / allRatings.length).toFixed(1)
+                : null
+
+            return {
+              ...driver,
+              avgRating: avgRating ? Number.parseFloat(avgRating) : null,
+              totalRatings: ratings.length,
+            }
+          }),
+        )
+
+        return driversWithAvgRatings.sort((a, b) => {
+          if (a.avgRating && b.avgRating) return b.avgRating - a.avgRating
+          if (a.avgRating) return -1
+          if (b.avgRating) return 1
+          return a.full_name.localeCompare(b.full_name)
+        })
+      } catch (error) {
+        console.error("Error in drivers fetch:", error)
+        return []
+      }
+    },
+    {
+      revalidateOnFocus: false,
+      shouldRetryOnError: false,
+    }
+  )
 
   const fetchSuggestions = useCallback(async (query: string) => {
     if (!query || query.length < 3) {
@@ -195,62 +211,69 @@ export function CreateBookingDialog() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = e.currentTarget
-    setLoading(true)
-
-    const updatedDestinations = await Promise.all(
-      destinations.map(async (dest) => {
-        const updated = { ...dest }
-
-        // Geocode 'from' address if no coordinates
-        if (dest.from && (!dest.fromLat || !dest.fromLng)) {
-          const coords = await geocodeAddress(dest.from)
-          if (coords) {
-            updated.fromLat = coords.lat
-            updated.fromLng = coords.lng
-          }
-        }
-
-        // Geocode 'to' address if no coordinates
-        if (dest.to && (!dest.toLat || !dest.toLng)) {
-          const coords = await geocodeAddress(dest.to)
-          if (coords) {
-            updated.toLat = coords.lat
-            updated.toLng = coords.lng
-          }
-        }
-
-        return updated
-      }),
-    )
-
-    setDestinations(updatedDestinations)
-
-    const formData = new FormData(form)
-
-    const route = updatedDestinations.map((d) => `${d.from} → ${d.to}`).join(", ")
-    formData.set("route", route)
-    formData.set("requires_waybill", requiresWaybill.toString())
-
-    if (updatedDestinations[0]?.fromLat != null && updatedDestinations[0]?.fromLng != null) {
-      formData.set("pickup_lat", updatedDestinations[0].fromLat.toString())
-      formData.set("pickup_lng", updatedDestinations[0].fromLng.toString())
-      formData.set("pickup_address", updatedDestinations[0].from)
-    }
-
-    const lastDest = updatedDestinations[updatedDestinations.length - 1]
-    if (lastDest?.toLat != null && lastDest?.toLng != null) {
-      formData.set("delivery_lat", lastDest.toLat.toString())
-      formData.set("delivery_lng", lastDest.toLng.toString())
-      formData.set("delivery_address", lastDest.to)
-    }
 
     try {
+      setLoading(true)
+      console.log("[CREATE BOOKING] Starting submission...")
+
+      // Geocode addresses
+      console.log("[CREATE BOOKING] Geocoding addresses...")
+      const updatedDestinations = await Promise.all(
+        destinations.map(async (dest) => {
+          const updated = { ...dest }
+
+          // Geocode 'from' address if no coordinates
+          if (dest.from && (!dest.fromLat || !dest.fromLng)) {
+            const coords = await geocodeAddress(dest.from)
+            if (coords) {
+              updated.fromLat = coords.lat
+              updated.fromLng = coords.lng
+            }
+          }
+
+          // Geocode 'to' address if no coordinates
+          if (dest.to && (!dest.toLat || !dest.toLng)) {
+            const coords = await geocodeAddress(dest.to)
+            if (coords) {
+              updated.toLat = coords.lat
+              updated.toLng = coords.lng
+            }
+          }
+
+          return updated
+        }),
+      )
+
+      setDestinations(updatedDestinations)
+      console.log("[CREATE BOOKING] Geocoding complete")
+
+      const formData = new FormData(form)
+
+      const route = updatedDestinations.map((d) => `${d.from} → ${d.to}`).join(", ")
+      formData.set("route", route)
+      formData.set("requires_waybill", requiresWaybill.toString())
+
+      if (updatedDestinations[0]?.fromLat != null && updatedDestinations[0]?.fromLng != null) {
+        formData.set("pickup_lat", updatedDestinations[0].fromLat.toString())
+        formData.set("pickup_lng", updatedDestinations[0].fromLng.toString())
+        formData.set("pickup_address", updatedDestinations[0].from)
+      }
+
+      const lastDest = updatedDestinations[updatedDestinations.length - 1]
+      if (lastDest?.toLat != null && lastDest?.toLng != null) {
+        formData.set("delivery_lat", lastDest.toLat.toString())
+        formData.set("delivery_lng", lastDest.toLng.toString())
+        formData.set("delivery_address", lastDest.to)
+      }
+
+      console.log("[CREATE BOOKING] Calling createBooking action...")
       const result = await createBooking(formData)
+      console.log("[CREATE BOOKING] Result:", result)
 
       if (result.success) {
         toast.success("Booking created successfully")
         setOpen(false)
-        router.refresh()
+        setTimeout(() => router.refresh(), 100) // Delay refresh to prevent React errors
         form.reset()
         setDestinations([{ from: "", to: "", fromLat: null, fromLng: null, toLat: null, toLng: null }])
         setRequiresWaybill(false)
@@ -258,10 +281,11 @@ export function CreateBookingDialog() {
       } else {
         toast.error(result.error || "Failed to create booking")
       }
-    } catch (error) {
-      console.error("[v0] Booking creation error:", error)
-      toast.error("An unexpected error occurred")
+    } catch (error: any) {
+      console.error("[CREATE BOOKING] Error:", error)
+      toast.error(error?.message || "An unexpected error occurred")
     } finally {
+      console.log("[CREATE BOOKING] Resetting loading state")
       setLoading(false)
     }
   }

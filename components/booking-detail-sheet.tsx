@@ -1,7 +1,7 @@
 "use client"
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -193,9 +193,11 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
 
   const handleDocumentUpload = async (file: File, documentType: "Waybill" | "Fuel Receipt") => {
     try {
+      // Sanitize filename - replace spaces and special chars with underscores
+      const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
       const folder = documentType === "Waybill" ? "waybills" : "fuel-receipts"
       const response = await fetch(
-        `/api/upload?filename=${encodeURIComponent(file.name)}&folder=${folder}/${booking.id}&contentType=${encodeURIComponent(file.type)}`,
+        `/api/upload?filename=${encodeURIComponent(sanitizedFilename)}&folder=${folder}/${booking.id}&contentType=${encodeURIComponent(file.type)}`,
       )
 
       if (!response.ok) throw new Error("Failed to get upload config")
@@ -204,7 +206,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
       let publicUrl = ""
       if (config.workerUrl) {
         const workerUrl = new URL(config.workerUrl)
-        workerUrl.searchParams.set("filename", file.name)
+        workerUrl.searchParams.set("filename", sanitizedFilename)
         workerUrl.searchParams.set("folder", `${folder}/${booking.id}`)
 
         const uploadResponse = await fetch(workerUrl.toString(), {
@@ -224,7 +226,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
       // Save to Supabase table
       const { error } = await supabase.from("waybill_uploads").insert({
         booking_id: booking.id,
-        file_name: file.name,
+        file_name: sanitizedFilename,
         file_url: publicUrl,
         file_type: file.type,
         document_type: documentType,
@@ -501,14 +503,6 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
 
             {/* Action Buttons */}
             <div className="px-6 py-3 border-b flex gap-2 flex-wrap bg-muted/30">
-              {console.log("[v0] Rendering action buttons:", {
-                status: displayBooking.status,
-                isAdmin,
-                canNegotiate,
-                canApprove,
-                canAssignDriver,
-              })}
-
               {canDelete && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -1738,6 +1732,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
             <DialogHeader>
               <DialogTitle>{viewingDocument.name}</DialogTitle>
+              <DialogDescription>Document preview</DialogDescription>
             </DialogHeader>
             <div className="flex items-center justify-center w-full h-[70vh] overflow-auto bg-muted/50 rounded-lg p-4">
               {viewingDocument.type?.startsWith("image/") ? (
