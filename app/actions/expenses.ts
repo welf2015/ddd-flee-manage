@@ -346,12 +346,7 @@ export async function updateExpenseTransaction(
   if (data.notes !== undefined) updateData.notes = data.notes
   if (data.expenseType !== undefined) updateData.expense_type = data.expenseType
 
-  const { data: updated, error } = await supabase
-    .from("expense_transactions")
-    .update(updateData)
-    .eq("id", transactionId)
-    .select()
-    .single()
+  const { error } = await supabase.from("expense_transactions").update(updateData).eq("id", transactionId)
 
   if (error) {
     console.error("Error updating expense transaction:", error)
@@ -362,5 +357,5 @@ export async function updateExpenseTransaction(
 
   revalidatePath("/dashboard/expenses")
   revalidatePath("/dashboard/bookings")
-  return { success: true, data: updated }
+  return { success: true }
 }

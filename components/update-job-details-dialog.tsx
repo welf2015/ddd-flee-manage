@@ -21,6 +21,8 @@ import { updateBooking } from "@/app/actions/bookings"
 import { createClient } from "@/lib/supabase/client"
 import Script from "next/script"
 import type mapboxgl from "mapbox-gl"
+import { useRouter } from "next/navigation"
+import type { SearchResult } from "@/types/search-result"
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiZGFtaWxvbGFqYW1lcyIsImEiOiJjbWk3bzRuZXUwMmx6MndyMWduZmcwNG9pIn0.lTWQddjYoQjt3w-CUEc81w"
 
@@ -28,10 +30,13 @@ type UpdateJobDetailsDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   booking: any
-  onSuccess: () => void
 }
 
-export function UpdateJobDetailsDialog({ open, onOpenChange, booking, onSuccess }: UpdateJobDetailsDialogProps) {
+export function UpdateJobDetailsDialog({ open, onOpenChange, booking }: UpdateJobDetailsDialogProps) {
+  const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [isSearching, setIsSearching] = useState(false)
   const [saving, setSaving] = useState(false)
   const [clientSuggestions, setClientSuggestions] = useState<any[]>([])
   const [showClientSuggestions, setShowClientSuggestions] = useState(false)
@@ -58,22 +63,15 @@ export function UpdateJobDetailsDialog({ open, onOpenChange, booking, onSuccess 
   ])
 
   const [formData, setFormData] = useState({
-    company_name: "",
-    client_name: "",
-    client_address: "",
-    client_contact: "",
-    destination_contact_name: "",
-    destination_contact_phone: "",
-    pickup_address: "",
-    delivery_address: "",
-    pickup_lat: null as number | null,
-    pickup_lng: null as number | null,
-    delivery_lat: null as number | null,
-    delivery_lng: null as number | null,
-    request_details: "",
-    route: "",
-    timeline: "",
-    number_of_loads: "",
+    company_name: booking.company_name || "",
+    client_name: booking.client_name || "",
+    pickup_location: booking.pickup_location || "",
+    dropoff_location: booking.dropoff_location || "",
+    request_details: booking.request_details || "",
+    route: booking.route || "",
+    timeline: booking.timeline || "24-48 hours",
+    number_of_loads: booking.number_of_loads?.toString() || "1",
+    budget: booking.proposed_client_budget?.toString() || "",
   })
 
   const supabase = createClient()
@@ -150,20 +148,13 @@ export function UpdateJobDetailsDialog({ open, onOpenChange, booking, onSuccess 
       setFormData({
         company_name: booking.company_name || "",
         client_name: booking.client_name || "",
-        client_address: booking.client_address || "",
-        client_contact: booking.client_contact || "",
-        destination_contact_name: booking.destination_contact_name || "",
-        destination_contact_phone: booking.destination_contact_phone || "",
-        pickup_address: booking.pickup_address || "",
-        delivery_address: booking.delivery_address || "",
-        pickup_lat: booking.pickup_lat || null,
-        pickup_lng: booking.pickup_lng || null,
-        delivery_lat: booking.delivery_lat || null,
-        delivery_lng: booking.delivery_lng || null,
+        pickup_location: booking.pickup_location || "",
+        dropoff_location: booking.dropoff_location || "",
         request_details: booking.request_details || "",
         route: booking.route || "",
-        timeline: booking.timeline || "",
-        number_of_loads: booking.number_of_loads?.toString() || "",
+        timeline: booking.timeline || "24-48 hours",
+        number_of_loads: booking.number_of_loads?.toString() || "1",
+        budget: booking.proposed_client_budget?.toString() || "",
       })
 
       setClientSearchTerm(booking.company_name || booking.client_name || "")
@@ -259,16 +250,16 @@ export function UpdateJobDetailsDialog({ open, onOpenChange, booking, onSuccess 
       if (field === "from") {
         setFormData({
           ...formData,
-          pickup_address: placeName,
+          pickup_location: placeName,
           pickup_lat: lat,
           pickup_lng: lng,
         })
       } else {
         setFormData({
           ...formData,
-          delivery_address: placeName,
-          delivery_lat: lat,
-          delivery_lng: lng,
+          dropoff_location: placeName,
+          dropoff_lat: lat,
+          dropoff_lng: lng,
         })
       }
     }
@@ -398,45 +389,43 @@ export function UpdateJobDetailsDialog({ open, onOpenChange, booking, onSuccess 
 
       console.log("[v0] Route constructed:", routeString)
 
-      // Update pickup/delivery addresses from first/last destination
+      // Update pickup/dropoff addresses from first/last destination
       const firstDest = destinations[0]
       const lastDest = destinations[destinations.length - 1]
 
-      const finalPickupAddress = firstDest?.from || formData.pickup_address
-      const finalDeliveryAddress = lastDest?.to || formData.delivery_address
-      const finalPickupLat = firstDest?.fromLat || formData.pickup_lat
-      const finalPickupLng = firstDest?.fromLng || formData.pickup_lng
-      const finalDeliveryLat = lastDest?.toLat || formData.delivery_lat
-      const finalDeliveryLng = lastDest?.toLng || formData.delivery_lng
+      const finalPickupLocation = firstDest?.from || formData.pickup_location
+      const finalDropoffLocation = lastDest?.to || formData.dropoff_location
+      const finalPickupLat = firstDest?.fromLat || booking.pickup_lat
+      const finalPickupLng = firstDest?.fromLng || booking.pickup_lng
+      const finalDropoffLat = lastDest?.toLat || booking.delivery_lat
+      const finalDropoffLng = lastDest?.toLng || booking.delivery_lng
 
       const form = new FormData()
       form.append("company_name", formData.company_name)
       form.append("client_name", formData.client_name)
-      form.append("client_address", formData.client_address)
-      form.append("client_contact", formData.client_contact)
-      form.append("destination_contact_name", formData.destination_contact_name)
-      form.append("destination_contact_phone", formData.destination_contact_phone)
-      form.append("pickup_address", finalPickupAddress)
-      form.append("delivery_address", finalDeliveryAddress)
+      form.append("pickup_location", finalPickupLocation)
+      form.append("dropoff_location", finalDropoffLocation)
       if (finalPickupLat !== null) form.append("pickup_lat", finalPickupLat.toString())
       if (finalPickupLng !== null) form.append("pickup_lng", finalPickupLng.toString())
-      if (finalDeliveryLat !== null) form.append("delivery_lat", finalDeliveryLat.toString())
-      if (finalDeliveryLng !== null) form.append("delivery_lng", finalDeliveryLng.toString())
+      if (finalDropoffLat !== null) form.append("dropoff_lat", finalDropoffLat.toString())
+      if (finalDropoffLng !== null) form.append("dropoff_lng", finalDropoffLng.toString())
       form.append("request_details", formData.request_details)
       form.append("route", routeString || formData.route)
       form.append("timeline", formData.timeline)
       form.append("number_of_loads", formData.number_of_loads)
+      form.append("budget", formData.budget)
 
       console.log("[v0] 📝 Form data prepared:", {
         route: routeString || formData.route,
-        pickup: finalPickupAddress,
-        delivery: finalDeliveryAddress,
+        pickup: finalPickupLocation,
+        delivery: finalDropoffLocation,
         coordinates: {
           pickup: { lat: finalPickupLat, lng: finalPickupLng },
-          delivery: { lat: finalDeliveryLat, lng: finalDeliveryLng },
+          delivery: { lat: finalDropoffLat, lng: finalDropoffLng },
         },
         company: formData.company_name,
         client: formData.client_name,
+        budget: formData.budget,
       })
 
       console.log("[v0] Calling updateBooking with bookingId:", booking.id)
@@ -445,7 +434,7 @@ export function UpdateJobDetailsDialog({ open, onOpenChange, booking, onSuccess 
 
       if (result.success) {
         toast.success("Job details updated successfully")
-        onSuccess()
+        router.push("/bookings")
         onOpenChange(false)
       } else {
         console.error("[v0] Update failed:", result.error)
@@ -518,55 +507,92 @@ export function UpdateJobDetailsDialog({ open, onOpenChange, booking, onSuccess 
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="client_address">Client/Company Address</Label>
+                <Label htmlFor="pickup_location">Pickup Location</Label>
                 <Input
-                  id="client_address"
-                  name="client_address"
+                  id="pickup_location"
+                  name="pickup_location"
                   placeholder="Full address"
-                  value={formData.client_address}
-                  onChange={(e) => setFormData({ ...formData, client_address: e.target.value })}
+                  value={formData.pickup_location}
+                  onChange={(e) => setFormData({ ...formData, pickup_location: e.target.value })}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="dropoff_location">Dropoff Location</Label>
+                <Input
+                  id="dropoff_location"
+                  name="dropoff_location"
+                  placeholder="Full address"
+                  value={formData.dropoff_location}
+                  onChange={(e) => setFormData({ ...formData, dropoff_location: e.target.value })}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="client_contact">Client Phone</Label>
-                  <Input
-                    id="client_contact"
-                    name="client_contact"
-                    placeholder="Phone number"
-                    value={formData.client_contact}
-                    onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })}
+                  <Label htmlFor="request_details">Request Details</Label>
+                  <Textarea
+                    id="request_details"
+                    name="request_details"
+                    placeholder="Describe the cargo, special requirements, etc."
+                    rows={4}
+                    value={formData.request_details}
+                    onChange={(e) => setFormData({ ...formData, request_details: e.target.value })}
                     required
                   />
                 </div>
-                {/* Removed client_email as it doesn't exist in bookings table */}
-              </div>
 
-              <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/30">
-                <div className="col-span-2">
-                  <Label className="text-base font-semibold">Destination Contact</Label>
-                  <p className="text-sm text-muted-foreground">Person to contact at delivery location</p>
-                </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="destination_contact_name">Contact Name</Label>
+                  <Label htmlFor="timeline">Timeline</Label>
+                  <Select
+                    value={formData.timeline}
+                    onValueChange={(value) => setFormData({ ...formData, timeline: value })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select timeline" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="4 hours">4 Hours</SelectItem>
+                      <SelectItem value="5 hours">5 Hours</SelectItem>
+                      <SelectItem value="8 hours">8 Hours</SelectItem>
+                      <SelectItem value="1 day">1 Day</SelectItem>
+                      <SelectItem value="2 days">2 Days</SelectItem>
+                      <SelectItem value="3 days">3 Days</SelectItem>
+                      <SelectItem value="4 days">4 Days</SelectItem>
+                      <SelectItem value="5 days">5 Days</SelectItem>
+                      <SelectItem value="1 week">1 Week</SelectItem>
+                      <SelectItem value="2 weeks">2 Weeks</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="number_of_loads">Number of Loads</Label>
                   <Input
-                    id="destination_contact_name"
-                    name="destination_contact_name"
-                    placeholder="Recipient name"
-                    value={formData.destination_contact_name}
-                    onChange={(e) => setFormData({ ...formData, destination_contact_name: e.target.value })}
+                    id="number_of_loads"
+                    name="number_of_loads"
+                    type="number"
+                    min="1"
+                    placeholder="1"
+                    value={formData.number_of_loads}
+                    onChange={(e) => setFormData({ ...formData, number_of_loads: e.target.value })}
+                    required
                   />
                 </div>
+
                 <div className="grid gap-2">
-                  <Label htmlFor="destination_contact_phone">Contact Phone</Label>
+                  <Label htmlFor="budget">Budget (₦)</Label>
                   <Input
-                    id="destination_contact_phone"
-                    name="destination_contact_phone"
-                    placeholder="Recipient phone"
-                    value={formData.destination_contact_phone}
-                    onChange={(e) => setFormData({ ...formData, destination_contact_phone: e.target.value })}
+                    id="budget"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="e.g., 500000"
+                    value={formData.budget || ""}
+                    onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
                   />
+                  <p className="text-xs text-muted-foreground">Total budget for this job</p>
                 </div>
               </div>
 
@@ -657,59 +683,6 @@ export function UpdateJobDetailsDialog({ open, onOpenChange, booking, onSuccess 
                     </p>
                   </div>
                 )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="number_of_loads">Number of Loads</Label>
-                  <Input
-                    id="number_of_loads"
-                    name="number_of_loads"
-                    type="number"
-                    placeholder="1"
-                    value={formData.number_of_loads}
-                    onChange={(e) => setFormData({ ...formData, number_of_loads: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="timeline">Timeline</Label>
-                  <Select
-                    value={formData.timeline}
-                    onValueChange={(value) => setFormData({ ...formData, timeline: value })}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select timeline" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="4 hours">4 Hours</SelectItem>
-                      <SelectItem value="5 hours">5 Hours</SelectItem>
-                      <SelectItem value="8 hours">8 Hours</SelectItem>
-                      <SelectItem value="1 day">1 Day</SelectItem>
-                      <SelectItem value="2 days">2 Days</SelectItem>
-                      <SelectItem value="3 days">3 Days</SelectItem>
-                      <SelectItem value="4 days">4 Days</SelectItem>
-                      <SelectItem value="5 days">5 Days</SelectItem>
-                      <SelectItem value="1 week">1 Week</SelectItem>
-                      <SelectItem value="2 weeks">2 Weeks</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="request_details">Request Details</Label>
-                <Textarea
-                  id="request_details"
-                  name="request_details"
-                  placeholder="Describe the cargo, special requirements, etc."
-                  rows={4}
-                  value={formData.request_details}
-                  onChange={(e) => setFormData({ ...formData, request_details: e.target.value })}
-                  required
-                />
               </div>
 
               <div className="mt-4 h-64 w-full rounded-md border overflow-hidden relative bg-muted">

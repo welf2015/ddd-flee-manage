@@ -1861,7 +1861,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Edit Expense</DialogTitle>
-              <DialogDescription>Update the expense details below</DialogDescription>
+              <DialogDescription>Update the expense details below. Description cannot be changed.</DialogDescription>
             </DialogHeader>
             <form
               onSubmit={(e) => {
@@ -1876,6 +1876,19 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
               }}
               className="space-y-4"
             >
+              <div>
+                <Label>Description</Label>
+                <Input
+                  value={
+                    editingExpense.booking?.job_id
+                      ? `${editingExpense.expense_type} for ${editingExpense.booking.job_id}`
+                      : editingExpense.notes || "Manual Entry"
+                  }
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Description cannot be edited</p>
+              </div>
               <div>
                 <Label htmlFor="amount">Amount (₦)</Label>
                 <Input
@@ -1903,17 +1916,23 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                   </div>
                   <div>
                     <Label htmlFor="unit">Unit</Label>
-                    <Input id="unit" name="unit" defaultValue={editingExpense.unit || "Liters"} />
+                    <Input
+                      id="unit"
+                      name="unit"
+                      defaultValue={editingExpense.unit || "Liters"}
+                      disabled
+                      className="bg-muted"
+                    />
                   </div>
                 </>
               )}
               <div>
-                <Label htmlFor="notes">Notes</Label>
+                <Label htmlFor="notes">Additional Notes</Label>
                 <Textarea
                   id="notes"
                   name="notes"
                   defaultValue={editingExpense.notes || ""}
-                  placeholder="Optional notes"
+                  placeholder="Optional additional notes"
                 />
               </div>
               <DialogFooter>

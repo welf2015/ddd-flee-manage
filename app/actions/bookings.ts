@@ -651,6 +651,8 @@ export async function updateBooking(bookingId: string, formData: FormData) {
     return { success: false, error: "Not authenticated" }
   }
 
+  const budgetValue = formData.get("budget") as string
+
   const updateData: any = {
     company_name: formData.get("company_name") as string,
     client_name: formData.get("client_name") as string,
@@ -666,6 +668,11 @@ export async function updateBooking(bookingId: string, formData: FormData) {
     request_details: formData.get("request_details") as string,
     updated_at: new Date().toISOString(),
   }
+
+  if (budgetValue) {
+    updateData.proposed_client_budget = Number.parseFloat(budgetValue)
+  }
+  // End of change
 
   // Add coordinates if provided
   const pickupLat = formData.get("pickup_lat")

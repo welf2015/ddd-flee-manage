@@ -45,18 +45,24 @@ export function ManualExpenseLogDialog({
   const [fuelLiters, setFuelLiters] = useState("")
   const [ticketingAmount, setTicketingAmount] = useState("")
   const [allowanceAmount, setAllowanceAmount] = useState("")
+  const [fuelRate, setFuelRate] = useState(1019) // Default rate
 
   const supabase = createClient()
 
   useEffect(() => {
     if (open) {
       setLoadingAccounts(true)
-      Promise.all([fetchAccounts(), fetchDriverInfo()]).finally(() => setLoadingAccounts(false))
+      Promise.all([fetchAccounts(), fetchDriverInfo(), fetchFuelRate()]).finally(() => setLoadingAccounts(false))
     } else {
+      // Reset state
       setFuelAccount(null)
       setTicketingAccount(null)
       setAllowanceAccount(null)
       setDriverInfo(null)
+      setFuelAmount("")
+      setFuelLiters("")
+      setTicketingAmount("")
+      setAllowanceAmount("")
     }
   }, [open])
 
@@ -174,6 +180,28 @@ export function ManualExpenseLogDialog({
     }
   }
 
+  const fetchFuelRate = async () => {
+    try {
+      const { getFuelRate } = await import("@/app/actions/settings")
+      const result = await getFuelRate()
+      if (result.success && result.rate) {
+        setFuelRate(result.rate)
+        console.log("⛽ [Manual Expense] Fuel rate loaded:", result.rate)
+      }
+    } catch (error) {
+      console.error("Error fetching fuel rate:", error)
+    }
+  }
+
+  useEffect(() => {
+    if (fuelLiters && Number(fuelLiters) > 0) {
+      const calculatedAmount = (Number(fuelLiters) * fuelRate).toFixed(2)
+      setFuelAmount(calculatedAmount)
+    } else if (!fuelLiters || fuelLiters === "0") {
+      setFuelAmount("")
+    }
+  }, [fuelLiters, fuelRate])
+
   const handleSubmit = async () => {
     setSaving(true)
 
@@ -280,20 +308,7 @@ export function ManualExpenseLogDialog({
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="fuelAmount">Amount (NGN)</Label>
-                    <Input
-                      id="fuelAmount"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={fuelAmount}
-                      onChange={(e) => setFuelAmount(e.target.value)}
-                      placeholder="0.00"
-                    />
-                    <p className="text-xs text-muted-foreground">Leave blank or enter 0 if no fuel needed.</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="fuelLiters">Liters</Label>
+                    <Label htmlFor="fuelLiters">Liters *</Label>
                     <Input
                       id="fuelLiters"
                       type="number"
@@ -303,6 +318,22 @@ export function ManualExpenseLogDialog({
                       onChange={(e) => setFuelLiters(e.target.value)}
                       placeholder="0.00"
                     />
+                    <p className="text-xs text-muted-foreground">Enter liters used</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="fuelAmount">Amount (₦)</Label>
+                    <Input
+                      id="fuelAmount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={fuelAmount}
+                      onChange={(e) => setFuelAmount(e.target.value)}
+                      placeholder="Auto-calculated"
+                      className="bg-muted"
+                      disabled
+                    />
+                    <p className="text-xs text-muted-foreground">Rate: ₦{fuelRate}/L</p>
                   </div>
                 </div>
                 <div className="pt-2 border-t">
