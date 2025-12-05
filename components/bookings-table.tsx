@@ -177,23 +177,23 @@ export function BookingsTable({ bookings, onUpdate }: BookingsTableProps) {
                 </TableHeader>
                 <TableBody>
                   {filteredBookings.map((booking) => {
-                    const totalExpense = 
-                      (booking.fuel_amount || 0) + 
-                      (booking.ticketing_amount || 0) + 
-                      (booking.allowance_amount || 0)
-                    
+                    const totalExpense =
+                      (booking.fuel_amount || 0) + (booking.ticketing_amount || 0) + (booking.allowance_amount || 0)
+
                     return (
                       <TableRow key={booking.id} className="text-xs">
                         <TableCell className="font-medium text-xs">{booking.job_id}</TableCell>
                         <TableCell className="text-xs">{booking.client_name}</TableCell>
                         <TableCell className="text-xs">{formatCurrency(booking.proposed_client_budget)}</TableCell>
                         <TableCell className="text-xs">
-                          {booking.driver?.full_name || (
-                            <span className="text-muted-foreground">Not assigned</span>
-                          )}
+                          {booking.driver?.full_name || <span className="text-muted-foreground">Not assigned</span>}
                         </TableCell>
                         <TableCell className="text-xs">
-                          {totalExpense > 0 ? formatCurrency(totalExpense) : (
+                          {!booking.assigned_driver_id ? (
+                            <span className="text-orange-500 font-medium">Pending</span>
+                          ) : totalExpense > 0 ? (
+                            formatCurrency(totalExpense)
+                          ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
@@ -221,7 +221,12 @@ export function BookingsTable({ bookings, onUpdate }: BookingsTableProps) {
                           {booking.created_by_profile?.full_name || "Unknown"}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setSelectedBooking(booking)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => setSelectedBooking(booking)}
+                          >
                             <Eye className="h-3 w-3" />
                           </Button>
                         </TableCell>

@@ -1,5 +1,7 @@
 "use client"
 
+import { DialogFooter } from "@/components/ui/dialog"
+
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
@@ -38,6 +40,7 @@ import {
   Eye,
   Download,
   Trash2,
+  Pencil,
 } from "lucide-react"
 import { AssignDriverDialog } from "./assign-driver-dialog"
 import { UpdateJobStatusDialog } from "./update-job-status-dialog"
@@ -56,6 +59,10 @@ import useSWR from "swr"
 import cn from "classnames"
 import { formatRelativeTime } from "@/lib/utils"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { deleteExpenseTransaction, updateExpenseTransaction } from "@/app/actions/expenses"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiZGFtaWxvbGFqYW1lcyIsImEiOiJjbWk3bzRuZXUwMmx6MndyMWduZmcwNG9pIn0.lTWQddjYoQjt3w-CUEc81w"
 
@@ -87,6 +94,61 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const handleSheetToggle = (isOpen: boolean) => {
     setOpenSheet(isOpen)
     onOpenChange(isOpen)
+  }
+
+  const [editingExpense, setEditingExpense] = useState<any | null>(null)
+  const [deleteExpenseId, setDeleteExpenseId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
+
+  const handleDeleteExpense = async (transactionId: string) => {
+    setIsDeleting(true)
+    try {
+      const result = await deleteExpenseTransaction(transactionId)
+      if (result.success) {
+        toast.success("Expense deleted successfully", {
+          position: "bottom-right",
+        })
+        onUpdate?.()
+        mutateBooking() // Refresh local data
+      } else {
+        toast.error(result.error || "Failed to delete expense", {
+          position: "bottom-right",
+        })
+      }
+    } catch (error) {
+      toast.error("An error occurred while deleting", {
+        position: "bottom-right",
+      })
+    } finally {
+      setIsDeleting(false)
+      setDeleteExpenseId(null)
+    }
+  }
+
+  const handleUpdateExpense = async (transactionId: string, data: any) => {
+    setIsUpdating(true)
+    try {
+      const result = await updateExpenseTransaction(transactionId, data)
+      if (result.success) {
+        toast.success("Expense updated successfully", {
+          position: "bottom-right",
+        })
+        setEditingExpense(null)
+        onUpdate?.()
+        mutateBooking() // Refresh local data
+      } else {
+        toast.error(result.error || "Failed to update expense", {
+          position: "bottom-right",
+        })
+      }
+    } catch (error) {
+      toast.error("An error occurred while updating", {
+        position: "bottom-right",
+      })
+    } finally {
+      setIsUpdating(false)
+    }
   }
 
   useEffect(() => {
@@ -148,7 +210,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   )
 
   // Fetch expense transactions for this booking
-  const { data: expenseTransactions = [], mutate: mutateExpenseTransactions } = useSWR(
+  const { data: expenseTransactions = [], mutate } = useSWR(
     open && booking?.id ? `expense-transactions-${booking.id}` : null,
     async () => {
       const { getExpenseTransactions } = await import("@/app/actions/expenses")
@@ -194,7 +256,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const handleDocumentUpload = async (file: File, documentType: "Waybill" | "Fuel Receipt") => {
     try {
       // Sanitize filename - replace spaces and special chars with underscores
-      const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+      const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, "_")
       const folder = documentType === "Waybill" ? "waybills" : "fuel-receipts"
       const response = await fetch(
         `/api/upload?filename=${encodeURIComponent(sanitizedFilename)}&folder=${folder}/${booking.id}&contentType=${encodeURIComponent(file.type)}`,
@@ -1258,7 +1320,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                           </div>
                         )}
 
-                        {expenseTransactions && expenseTransactions.length > 0 ? (
+                        {expenseTransactions.length > 0 ? (
                           <div className="space-y-4">
                             {/* Summary Cards */}
                             <div className="grid grid-cols-3 gap-4">
@@ -1334,13 +1396,14 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                       <th className="p-3 text-left font-medium">Type</th>
                                       <th className="p-3 text-left font-medium">Driver</th>
                                       <th className="p-3 text-right font-medium">Amount</th>
+                                      {isAdmin && <th className="p-3 text-right font-medium">Actions</th>}
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {expenseTransactions.map((transaction: any) => (
                                       <tr key={transaction.id} className="border-b last:border-0">
                                         <td className="p-3 text-muted-foreground">
-                                          {new Date(transaction.transaction_date).toLocaleDateString()}
+                                          {formatRelativeTime(transaction.transaction_date)}
                                         </td>
                                         <td className="p-3">
                                           <Badge
@@ -1361,6 +1424,28 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                                         <td className="p-3 text-right font-medium">
                                           ₦{transaction.amount?.toLocaleString() || "0"}
                                         </td>
+                                        {isAdmin && (
+                                          <td className="p-3 text-right">
+                                            <div className="flex items-center justify-end gap-1">
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0"
+                                                onClick={() => setEditingExpense(transaction)}
+                                              >
+                                                <Pencil className="h-3 w-3" />
+                                              </Button>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                onClick={() => setDeleteExpenseId(transaction.id)}
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </Button>
+                                            </div>
+                                          </td>
+                                        )}
                                       </tr>
                                     ))}
                                   </tbody>
@@ -1720,7 +1805,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
           vehicleId={displayBooking.assigned_vehicle_id}
           onSuccess={() => {
             // Refresh expense transactions
-            mutateExpenseTransactions()
+            mutate()
             mutateBooking()
             onUpdate()
           }}
@@ -1770,6 +1855,100 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
           </DialogContent>
         </Dialog>
       )}
+
+      {editingExpense && (
+        <Dialog open={!!editingExpense} onOpenChange={(open) => !open && setEditingExpense(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Expense</DialogTitle>
+              <DialogDescription>Update the expense details below</DialogDescription>
+            </DialogHeader>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                const formData = new FormData(e.currentTarget)
+                handleUpdateExpense(editingExpense.id, {
+                  amount: Number(formData.get("amount")),
+                  quantity: Number(formData.get("quantity")) || undefined,
+                  unit: (formData.get("unit") as string) || undefined,
+                  notes: (formData.get("notes") as string) || undefined,
+                })
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <Label htmlFor="amount">Amount (₦)</Label>
+                <Input
+                  id="amount"
+                  name="amount"
+                  type="number"
+                  defaultValue={editingExpense.amount}
+                  required
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              {editingExpense.expense_type === "Fuel" && (
+                <>
+                  <div>
+                    <Label htmlFor="quantity">Quantity (Liters)</Label>
+                    <Input
+                      id="quantity"
+                      name="quantity"
+                      type="number"
+                      defaultValue={editingExpense.quantity || ""}
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="unit">Unit</Label>
+                    <Input id="unit" name="unit" defaultValue={editingExpense.unit || "Liters"} />
+                  </div>
+                </>
+              )}
+              <div>
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  name="notes"
+                  defaultValue={editingExpense.notes || ""}
+                  placeholder="Optional notes"
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditingExpense(null)} disabled={isUpdating}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isUpdating}>
+                  {isUpdating ? "Updating..." : "Update Expense"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      <AlertDialog open={!!deleteExpenseId} onOpenChange={(open) => !open && setDeleteExpenseId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the expense transaction.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteExpenseId && handleDeleteExpense(deleteExpenseId)}
+              disabled={isDeleting}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

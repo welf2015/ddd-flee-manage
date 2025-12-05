@@ -1,8 +1,6 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
 import { getPrepaidAccounts, getExpenseTransactions, getTopups } from "@/app/actions/expenses"
 import useSWR from "swr"
 import { formatCurrency, formatRelativeTime } from "@/lib/utils"
@@ -14,7 +12,12 @@ type TicketingTabProps = {
   initialTopups?: any[]
 }
 
-export function TicketingTab({ onAddTopup, initialAccounts = [], initialTransactions = [], initialTopups = [] }: TicketingTabProps) {
+export function TicketingTab({
+  onAddTopup,
+  initialAccounts = [],
+  initialTransactions = [],
+  initialTopups = [],
+}: TicketingTabProps) {
   const initialTicketingAccounts = initialAccounts.filter((a: any) => a.vendor?.vendor_type === "Ticketing")
   const { data: accounts = initialTicketingAccounts } = useSWR(
     "ticketing-accounts",
@@ -25,34 +28,36 @@ export function TicketingTab({ onAddTopup, initialAccounts = [], initialTransact
     },
     {
       fallbackData: initialTicketingAccounts,
-      revalidateOnMount: false,
+      revalidateOnMount: true,
     },
   )
 
   const mainAccount = accounts[0]
 
   const { data: transactions = initialTransactions } = useSWR(
-    mainAccount ? "ticketing-transactions" : null,
+    "ticketing-transactions",
     async () => {
       const { data } = await getExpenseTransactions({ expenseType: "Ticketing" })
       return data || []
     },
     {
       fallbackData: initialTransactions,
-      revalidateOnMount: false,
+      revalidateOnMount: true,
     },
   )
 
   const { data: topups = initialTopups } = useSWR(
-    mainAccount ? `ticketing-topups-${mainAccount.id}` : null,
+    "ticketing-topups",
     async () => {
-      if (!mainAccount) return []
-      const { data } = await getTopups(mainAccount.id)
-      return data || []
+      const result = await getTopups(mainAccount?.id)
+      if (mainAccount?.id) {
+        return (result.data || []).filter((t: any) => t.account_id === mainAccount.id)
+      }
+      return result.data || []
     },
     {
       fallbackData: initialTopups,
-      revalidateOnMount: false,
+      revalidateOnMount: true,
     },
   )
 
@@ -66,11 +71,23 @@ export function TicketingTab({ onAddTopup, initialAccounts = [], initialTransact
     })),
     ...topups.map((t: any) => ({
       ...t,
-      type: "topup" as const,
+      type: t.topup_type === "refund" ? ("refund" as const) : ("topup" as const),
       date: t.topup_date,
       amount: Number(t.amount), // Positive for top-ups
     })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  const getTypeBadge = (type: string) => {
+    switch (type) {
+      case "topup":
+        return { className: "bg-green-100 text-green-700", label: "Top-up" }
+      case "refund":
+        return { className: "bg-blue-100 text-blue-700", label: "Refund" }
+      case "expense":
+      default:
+        return { className: "bg-red-100 text-red-700", label: "Expense" }
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -93,60 +110,52 @@ export function TicketingTab({ onAddTopup, initialAccounts = [], initialTransact
                   </tr>
                 </thead>
                 <tbody>
-                  {allTransactions.slice(0, 20).map((item: any, index: number) => (
-                    <tr key={item.id || `item-${index}`} className="border-b hover:bg-muted/50">
-                      <td className="p-3">
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            item.type === "topup"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {item.type === "topup" ? "Top-up" : "Expense"}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        {item.type === "expense" ? (
-                          <div>
-                            <p className="font-medium">
-                              {item.booking?.job_id || "Manual Entry"}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {item.vehicle?.vehicle_number || "N/A"}
-                            </p>
-                          </div>
-                        ) : (
-                          <div>
-                            <p className="font-medium">{item.account?.account_name || "Account"}</p>
-                            {item.receipt_number && (
-                              <p className="text-sm text-muted-foreground">Receipt: {item.receipt_number}</p>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        <p className="text-sm">
-                          {item.type === "expense"
-                            ? item.driver?.full_name || "N/A"
-                            : item.deposited_by_profile?.full_name || "System"}
-                        </p>
-                      </td>
-                      <td className="p-3">
-                        <p className="text-sm text-muted-foreground">{formatRelativeTime(item.date)}</p>
-                      </td>
-                      <td className="p-3 text-right">
-                        <p
-                          className={`font-bold ${
-                            item.type === "topup" ? "text-green-600" : "text-red-600"
-                          }`}
-                        >
-                          {item.type === "topup" ? "+" : "-"}
-                          {formatCurrency(Math.abs(item.amount), "NGN")}
-                        </p>
-                      </td>
-                    </tr>
-                  ))}
+                  {allTransactions.map((item: any, index: number) => {
+                    const badge = getTypeBadge(item.type)
+                    return (
+                      <tr key={item.id || `item-${index}`} className="border-b hover:bg-muted/50">
+                        <td className="p-3">
+                          <span
+                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badge.className}`}
+                          >
+                            {badge.label}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          {item.type === "expense" ? (
+                            <div>
+                              <p className="font-medium">{item.booking?.job_id || "Manual Entry"}</p>
+                              <p className="text-sm text-muted-foreground">{item.driver?.full_name || "N/A"}</p>
+                            </div>
+                          ) : (
+                            <div>
+                              <p className="font-medium">{item.account?.account_name || "Account"}</p>
+                              {item.receipt_number && (
+                                <p className="text-sm text-muted-foreground">Receipt: {item.receipt_number}</p>
+                              )}
+                              {item.notes && <p className="text-sm text-muted-foreground">{item.notes}</p>}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          <p className="text-sm">
+                            {item.type === "expense"
+                              ? item.driver?.full_name || "N/A"
+                              : item.deposited_by_profile?.full_name || "System"}
+                          </p>
+                        </td>
+                        <td className="p-3">
+                          <p className="text-sm text-muted-foreground">{formatRelativeTime(item.date)}</p>
+                        </td>
+                        <td className="p-3 text-right">
+                          <p className={`font-bold ${item.type === "expense" ? "text-red-600" : "text-green-600"}`}>
+                            {item.type === "expense" ? "-" : "+"}
+                            {formatCurrency(Math.abs(item.amount), "NGN")}
+                          </p>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

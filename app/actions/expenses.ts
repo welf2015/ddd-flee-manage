@@ -221,7 +221,13 @@ export async function getTopups(accountId?: string) {
   }
 
   const { data, error } = await query
-  return { data: data || [], error }
+
+  const mappedData = (data || []).map((topup: any) => ({
+    ...topup,
+    topup_type: topup.topup_type || (topup.receipt_number?.startsWith("REFUND") ? "refund" : "topup"),
+  }))
+
+  return { data: mappedData, error }
 }
 
 export async function getWeeklyExpenses(expenseType?: string) {
@@ -259,4 +265,102 @@ export async function getTotalFuelSpent() {
 
   const total = data?.reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0
   return { data: total, error: null }
+}
+
+export async function deleteExpenseTransaction(transactionId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  // Check if user is admin (MD or ED)
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+
+  if (!profile || !["MD", "ED"].includes(profile.role)) {
+    return { success: false, error: "Only MD/ED can delete expense transactions" }
+  }
+
+  // Get transaction details before deletion for logging
+  const { data: transaction } = await supabase
+    .from("expense_transactions")
+    .select("*, booking:bookings(job_id)")
+    .eq("id", transactionId)
+    .single()
+
+  if (!transaction) {
+    return { success: false, error: "Transaction not found" }
+  }
+
+  // Delete the transaction
+  const { error } = await supabase.from("expense_transactions").delete().eq("id", transactionId)
+
+  if (error) {
+    console.error("Error deleting expense transaction:", error)
+    return { success: false, error: error.message }
+  }
+
+  console.log(`✅ Expense transaction deleted: ${transactionId} (${transaction.expense_type} - ₦${transaction.amount})`)
+
+  revalidatePath("/dashboard/expenses")
+  revalidatePath("/dashboard/bookings")
+  return { success: true }
+}
+
+export async function updateExpenseTransaction(
+  transactionId: string,
+  data: {
+    amount?: number
+    quantity?: number
+    unit?: string
+    notes?: string
+    expenseType?: "Fuel" | "Ticketing" | "Allowance"
+  },
+) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  // Check if user is admin (MD or ED)
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+
+  if (!profile || !["MD", "ED"].includes(profile.role)) {
+    return { success: false, error: "Only MD/ED can edit expense transactions" }
+  }
+
+  // Build update object with only provided fields
+  const updateData: any = {}
+  if (data.amount !== undefined) updateData.amount = data.amount
+  if (data.quantity !== undefined) updateData.quantity = data.quantity
+  if (data.unit !== undefined) updateData.unit = data.unit
+  if (data.notes !== undefined) updateData.notes = data.notes
+  if (data.expenseType !== undefined) updateData.expense_type = data.expenseType
+
+  const { data: updated, error } = await supabase
+    .from("expense_transactions")
+    .update(updateData)
+    .eq("id", transactionId)
+    .select()
+    .single()
+
+  if (error) {
+    console.error("Error updating expense transaction:", error)
+    return { success: false, error: error.message }
+  }
+
+  console.log(`✅ Expense transaction updated: ${transactionId}`)
+
+  revalidatePath("/dashboard/expenses")
+  revalidatePath("/dashboard/bookings")
+  return { success: true, data: updated }
 }

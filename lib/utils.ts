@@ -13,14 +13,8 @@ export function formatRelativeTime(date: string | Date): string {
   if (diffInSeconds < 60) return `${diffInSeconds}sec ago`
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}min ago`
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}hr ago`
-  if (diffInSeconds < 604800)
-    return `${Math.floor(diffInSeconds / 86400)} day${Math.floor(diffInSeconds / 86400) > 1 ? "s" : ""} ago`
-  if (diffInSeconds < 2592000)
-    return `${Math.floor(diffInSeconds / 604800)} week${Math.floor(diffInSeconds / 604800) > 1 ? "s" : ""} ago`
-  if (diffInSeconds < 7776000)
-    return `${Math.floor(diffInSeconds / 2592000)} month${Math.floor(diffInSeconds / 2592000) > 1 ? "s" : ""} ago`
 
-  // After 3 months, show full date with time
+  // After 24 hours, show the actual date
   return formatDateTime(then)
 }
 
