@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Truck, User, Calendar, AlertCircle, Fuel, Ticket, Wallet } from "lucide-react"
+import { Truck, User, Calendar, AlertCircle, Fuel, Ticket, Wallet, Settings } from "lucide-react"
 import { useState, useEffect } from "react"
 import { assignDriverWithExpenses } from "@/app/actions/bookings"
 import { createClient } from "@/lib/supabase/client"
@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { getPrepaidAccounts } from "@/app/actions/expenses"
 import { formatCurrency } from "@/lib/utils"
+import { FuelRateSettingsDialog } from "@/components/fuel-rate-settings-dialog"
 
 type AssignDriverDialogProps = {
   open: boolean
@@ -28,13 +29,15 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
   const [selectedDriver, setSelectedDriver] = useState("")
   const [driverDetails, setDriverDetails] = useState<any>(null)
   const [loading, setLoading] = useState(false)
-  
+  const [showRateSettings, setShowRateSettings] = useState(false)
+
   // Expense fields
   const [fuelAmount, setFuelAmount] = useState("")
   const [fuelLiters, setFuelLiters] = useState("")
   const [ticketingAmount, setTicketingAmount] = useState("")
   const [allowanceAmount, setAllowanceAmount] = useState("")
-  
+  const [fuelRate, setFuelRate] = useState(1019) // Default rate
+
   // Account balances
   const [fuelAccount, setFuelAccount] = useState<any>(null)
   const [ticketingAccount, setTicketingAccount] = useState<any>(null)
@@ -44,8 +47,9 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
     if (open) {
       fetchDrivers()
       fetchAccounts()
+      fetchFuelRate()
       // Reset expense fields when dialog opens - fuel defaults to 0 (required for accounting)
-      setFuelAmount("0")
+      setFuelAmount("")
       setFuelLiters("")
       setTicketingAmount("")
       setAllowanceAmount("")
@@ -183,6 +187,28 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
       toast.error("Failed to load expense accounts")
     }
   }
+
+  const fetchFuelRate = async () => {
+    try {
+      const { getFuelRate } = await import("@/app/actions/settings")
+      const result = await getFuelRate()
+      if (result.success && result.rate) {
+        setFuelRate(result.rate)
+        console.log("⛽ [Assign Driver] Fuel rate loaded:", result.rate)
+      }
+    } catch (error) {
+      console.error("Error fetching fuel rate:", error)
+    }
+  }
+
+  useEffect(() => {
+    if (fuelLiters && Number(fuelLiters) > 0) {
+      const calculatedAmount = (Number(fuelLiters) * fuelRate).toFixed(2)
+      setFuelAmount(calculatedAmount)
+    } else if (!fuelLiters || fuelLiters === "0") {
+      setFuelAmount("")
+    }
+  }, [fuelLiters, fuelRate])
 
   useEffect(() => {
     if (selectedDriver) {
@@ -406,23 +432,7 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="fuelAmount">
-                        Amount (NGN) <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="fuelAmount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={fuelAmount}
-                        onChange={(e) => setFuelAmount(e.target.value)}
-                        placeholder="0.00"
-                        required
-                      />
-                      <p className="text-xs text-muted-foreground">Required for accounting. Enter 0 if no fuel needed.</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="fuelLiters">Liters</Label>
+                      <Label htmlFor="fuelLiters">Liters *</Label>
                       <Input
                         id="fuelLiters"
                         type="number"
@@ -432,6 +442,34 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
                         onChange={(e) => setFuelLiters(e.target.value)}
                         placeholder="0.00"
                       />
+                      <p className="text-xs text-muted-foreground">Enter liters used</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="fuelAmount">Amount (₦)</Label>
+                      <Input
+                        id="fuelAmount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={fuelAmount}
+                        onChange={(e) => setFuelAmount(e.target.value)}
+                        placeholder="Auto-calculated"
+                        className="bg-muted"
+                        disabled
+                      />
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">Rate: ₦{fuelRate}/L</p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => setShowRateSettings(true)}
+                        >
+                          <Settings className="h-3 w-3 mr-1" />
+                          Update
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   {fuelAccount ? (
@@ -552,6 +590,13 @@ export function AssignDriverDialog({ open, onOpenChange, bookingId, onSuccess }:
           </div>
         </div>
       </DialogContent>
+
+      <FuelRateSettingsDialog
+        open={showRateSettings}
+        onOpenChange={setShowRateSettings}
+        currentRate={fuelRate}
+        onSuccess={() => fetchFuelRate()}
+      />
     </Dialog>
   )
 }

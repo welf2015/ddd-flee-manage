@@ -13,11 +13,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
-import { Fuel, Ticket, Wallet } from "lucide-react"
+import { Fuel, Ticket, Wallet, Settings } from "lucide-react"
 import { toast } from "sonner"
 import { getPrepaidAccounts, createExpenseTransaction } from "@/app/actions/expenses"
 import { formatCurrency } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import { FuelRateSettingsDialog } from "@/components/fuel-rate-settings-dialog"
 
 type ManualExpenseLogDialogProps = {
   open: boolean
@@ -40,6 +41,7 @@ export function ManualExpenseLogDialog({
   const [ticketingAccount, setTicketingAccount] = useState<any>(null)
   const [allowanceAccount, setAllowanceAccount] = useState<any>(null)
   const [driverInfo, setDriverInfo] = useState<{ id: string; name: string } | null>(null)
+  const [showRateSettings, setShowRateSettings] = useState(false)
 
   const [fuelAmount, setFuelAmount] = useState("")
   const [fuelLiters, setFuelLiters] = useState("")
@@ -333,7 +335,19 @@ export function ManualExpenseLogDialog({
                       className="bg-muted"
                       disabled
                     />
-                    <p className="text-xs text-muted-foreground">Rate: ₦{fuelRate}/L</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">Rate: ₦{fuelRate}/L</p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => setShowRateSettings(true)}
+                      >
+                        <Settings className="h-3 w-3 mr-1" />
+                        Update
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <div className="pt-2 border-t">
@@ -453,6 +467,13 @@ export function ManualExpenseLogDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <FuelRateSettingsDialog
+        open={showRateSettings}
+        onOpenChange={setShowRateSettings}
+        currentRate={fuelRate}
+        onSuccess={() => fetchFuelRate()}
+      />
     </Dialog>
   )
 }

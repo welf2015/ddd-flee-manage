@@ -69,6 +69,31 @@ export function ExpensesClient({
     return data || 0
   })
 
+  // Get weekly topups for fuel tab
+  const { data: weeklyFuelTopups = 0 } = useSWR(
+    activeTab === "fuel" ? "weekly-fuel-topups" : null,
+    async () => {
+      const { getTopups } = await import("@/app/actions/expenses")
+      const fuelAccount = accounts.find((a: any) => a.vendor?.vendor_type === "Fuel")
+      if (!fuelAccount) return 0
+
+      const { data: topups } = await getTopups(fuelAccount.id)
+      if (!topups) return 0
+
+      // Filter for current week
+      const now = new Date()
+      const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay())
+      weekStart.setHours(0, 0, 0, 0)
+
+      const weeklyTopups = topups.filter((t: any) => {
+        const topupDate = new Date(t.topup_date)
+        return topupDate >= weekStart
+      })
+
+      return weeklyTopups.reduce((sum: number, t: any) => sum + Number(t.amount), 0)
+    },
+  )
+
   // Calculate balances by type
   const fuelBalance = accounts
     .filter((a: any) => a.vendor?.vendor_type === "Fuel")
@@ -161,28 +186,6 @@ export function ExpensesClient({
             <p className="text-xs text-muted-foreground">Weekly accounting period</p>
           </CardContent>
         </Card>
-
-        {/* Fuel Spending Progress - Only show for fuel tab */}
-        {activeTab === "fuel" &&
-          (() => {
-            const fuelAccount = accounts.find((a: any) => a.vendor?.vendor_type === "Fuel")
-            const totalFuelSpent = fuelAccount ? Number.parseFloat(fuelAccount.total_spent || 0) : 0
-            const totalDeposited = fuelAccount ? Number.parseFloat(fuelAccount.total_deposited || 0) : 0
-
-            return (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Fuel Spending Progress</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <FuelMeter totalSpent={totalFuelSpent} totalDeposited={totalDeposited} />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {formatCurrency(totalFuelSpent, "NGN")} of {formatCurrency(totalDeposited || 0, "NGN")}
-                  </p>
-                </CardContent>
-              </Card>
-            )
-          })()}
       </div>
 
       {/* Tabs */}
