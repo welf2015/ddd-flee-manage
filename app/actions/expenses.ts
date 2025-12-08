@@ -338,6 +338,16 @@ export async function updateExpenseTransaction(
     return { success: false, error: "Only MD/ED can edit expense transactions" }
   }
 
+  const { data: originalTransaction } = await supabase
+    .from("expense_transactions")
+    .select("*, booking:bookings(job_id), account:prepaid_accounts(*)")
+    .eq("id", transactionId)
+    .single()
+
+  if (!originalTransaction) {
+    return { success: false, error: "Transaction not found" }
+  }
+
   // Build update object with only provided fields
   const updateData: any = {}
   if (data.amount !== undefined) updateData.amount = data.amount
@@ -353,9 +363,57 @@ export async function updateExpenseTransaction(
     return { success: false, error: error.message }
   }
 
+  if (data.amount !== undefined && data.amount !== originalTransaction.amount) {
+    const difference = data.amount - originalTransaction.amount
+    const jobId = originalTransaction.booking?.job_id || "Unknown"
+
+    if (difference !== 0) {
+      // Create adjustment entry
+      const adjustmentType = difference > 0 ? "topup" : "refund"
+      const adjustmentAmount = Math.abs(difference)
+
+      await supabase.from("account_topups").insert({
+        account_id: originalTransaction.account_id,
+        amount: difference > 0 ? -adjustmentAmount : adjustmentAmount, // Negative for deduction, positive for refund
+        topup_type: adjustmentType,
+        topup_date: new Date().toISOString(),
+        receipt_number: `ADJ-${adjustmentType.toUpperCase()}-${Date.now()}`,
+        notes: `Adjustment ${difference > 0 ? "deduction" : "refund"} for ${originalTransaction.expense_type} expense edit on ${jobId}. Changed from ₦${originalTransaction.amount.toLocaleString()} to ₦${data.amount.toLocaleString()} (${difference > 0 ? "+" : ""}₦${difference.toLocaleString()}).`,
+        deposited_by: user.id,
+      })
+
+      // Update prepaid account balance
+      if (difference > 0) {
+        // Amount increased - deduct more from account
+        await supabase
+          .from("prepaid_accounts")
+          .update({
+            current_balance: originalTransaction.account.current_balance - adjustmentAmount,
+            total_spent: originalTransaction.account.total_spent + adjustmentAmount,
+          })
+          .eq("id", originalTransaction.account_id)
+      } else {
+        // Amount decreased - refund to account
+        await supabase
+          .from("prepaid_accounts")
+          .update({
+            current_balance: originalTransaction.account.current_balance + adjustmentAmount,
+            total_deposited: originalTransaction.account.total_deposited + adjustmentAmount,
+          })
+          .eq("id", originalTransaction.account_id)
+      }
+
+      console.log(
+        `✅ Created adjustment entry: ${difference > 0 ? "Deducted" : "Refunded"} ₦${adjustmentAmount.toLocaleString()} for ${jobId}`,
+      )
+    }
+  }
+
   console.log(`✅ Expense transaction updated: ${transactionId}`)
 
   revalidatePath("/dashboard/expenses")
   revalidatePath("/dashboard/bookings")
   return { success: true }
 }
+
+export const addTopUp = addAccountTopup
