@@ -4,18 +4,51 @@ import { useState } from "react"
 import useSWR from "swr"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Settings, Plus } from "lucide-react"
+import { Settings, Trash2 } from "lucide-react"
 import { formatCurrency, formatRelativeTime } from "@/lib/utils"
-import { getExpenseTransactions, getTopups, getPrepaidAccounts } from "@/app/actions/expenses"
+import { getExpenseTransactions, getTopups, getPrepaidAccounts, deleteExpenseTransaction } from "@/app/actions/expenses"
 import { getFuelRate } from "@/app/actions/settings"
 import { TopUpDialog } from "@/components/top-up-dialog"
 import { FuelRateSettingsDialog } from "@/components/fuel-rate-settings-dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
+import { createClient } from "@/lib/supabase/client"
 
 export function FuelTab() {
   const [showTopUp, setShowTopUp] = useState(false)
   const [showRateSettings, setShowRateSettings] = useState(false)
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; transaction: any | null }>({
+    open: false,
+    transaction: null,
+  })
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
+
+  useState(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", data.user.id)
+          .single()
+          .then(({ data: profile }) => {
+            setUserRole(profile?.role || null)
+          })
+      }
+    })
+  })
 
   const { data: accountsResult, isLoading: accountsLoading } = useSWR(
     "fuel-prepaid-accounts",
@@ -29,15 +62,19 @@ export function FuelTab() {
   const accounts = accountsResult?.data || []
   const mainAccount = accounts[0]
 
-  const { data: transactionsResult, isLoading: transactionsLoading } = useSWR(
-    "fuel-transactions",
-    () => getExpenseTransactions({ expenseType: "Fuel" }),
-    { revalidateOnMount: true },
-  )
+  const {
+    data: transactionsResult,
+    isLoading: transactionsLoading,
+    mutate: mutateTransactions,
+  } = useSWR("fuel-transactions", () => getExpenseTransactions({ expenseType: "Fuel" }), { revalidateOnMount: true })
 
   const transactions = transactionsResult?.data || []
 
-  const { data: topupsResult, isLoading: topupsLoading, mutate: mutateTopups } = useSWR(
+  const {
+    data: topupsResult,
+    isLoading: topupsLoading,
+    mutate: mutateTopups,
+  } = useSWR(
     mainAccount ? `fuel-topups-${mainAccount.id}` : null,
     () => (mainAccount ? getTopups(mainAccount.id) : Promise.resolve({ data: [] })),
     { revalidateOnMount: true },
@@ -51,31 +88,25 @@ export function FuelTab() {
 
   const isLoading = accountsLoading || transactionsLoading || topupsLoading
 
-  // Use total account balance for fuel gauge
   const currentBalance = mainAccount?.current_balance || 0
   const totalDeposited = mainAccount?.total_deposited || 0
   const totalSpent = mainAccount?.total_spent || 0
 
-  // Convert balance to liters
   const remainingLiters = currentBalance / fuelRate
   const totalPurchasedLiters = totalDeposited / fuelRate
   const totalUsedLiters = totalSpent / fuelRate
 
-  // Calculate percentages for fuel gauge (based on total deposited vs spent)
   const usagePercentage = totalDeposited > 0 ? (totalSpent / totalDeposited) * 100 : 0
   const remainingPercentage = Math.max(0, 100 - usagePercentage)
 
-  // Longer progress bar (80 pipes instead of 40)
   const totalPipes = 80
   const filledPipes = Math.round((remainingPercentage / 100) * totalPipes)
   const emptyPipes = totalPipes - filledPipes
 
-  // Create gradient colored segments (red at start, yellow middle, green at end)
   const greenPipes = Math.floor(filledPipes * 0.6) // 60% green
   const yellowPipes = Math.floor(filledPipes * 0.3) // 30% yellow
   const redPipes = filledPipes - greenPipes - yellowPipes // remaining red
 
-  // Combine transactions and top-ups
   const allTransactions = [
     ...transactions.map((t: any) => ({
       ...t,
@@ -105,9 +136,30 @@ export function FuelTab() {
     }
   }
 
+  const handleDeleteTransaction = async () => {
+    if (!deleteDialog.transaction) return
+
+    setIsDeleting(true)
+    try {
+      const result = await deleteExpenseTransaction(deleteDialog.transaction.id)
+      if (result.success) {
+        toast.success("Expense transaction deleted successfully")
+        mutateTransactions()
+      } else {
+        toast.error(result.error || "Failed to delete transaction")
+      }
+    } catch (error) {
+      toast.error("An error occurred while deleting the transaction")
+    } finally {
+      setIsDeleting(false)
+      setDeleteDialog({ open: false, transaction: null })
+    }
+  }
+
+  const canDelete = userRole === "MD" || userRole === "ED"
+
   return (
     <div className="space-y-4">
-      {/* Fuel Progress Gauge */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <div className="space-y-1">
@@ -148,7 +200,6 @@ export function FuelTab() {
         </CardContent>
       </Card>
 
-      {/* Transactions Table */}
       <Card>
         <CardHeader>
           <CardTitle>All Transactions</CardTitle>
@@ -171,6 +222,7 @@ export function FuelTab() {
                     <th className="text-left p-3 text-sm font-medium text-muted-foreground">Date</th>
                     <th className="text-right p-3 text-sm font-medium text-muted-foreground">Liters</th>
                     <th className="text-right p-3 text-sm font-medium text-muted-foreground">Amount</th>
+                    {canDelete && <th className="text-right p-3 text-sm font-medium text-muted-foreground">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -223,6 +275,20 @@ export function FuelTab() {
                             {formatCurrency(Math.abs(item.amount), "NGN")}
                           </p>
                         </td>
+                        {canDelete && (
+                          <td className="p-3 text-right">
+                            {(item.type === "topup" || item.type === "refund") && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => setDeleteDialog({ open: true, transaction: item })}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     )
                   })}
@@ -235,7 +301,6 @@ export function FuelTab() {
         </CardContent>
       </Card>
 
-      {/* Dialogs */}
       {mainAccount && (
         <TopUpDialog
           open={showTopUp}
@@ -252,6 +317,41 @@ export function FuelTab() {
         currentRate={fuelRate}
         onSuccess={() => mutateFuelRate()}
       />
+
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, transaction: null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Expense Transaction</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this fuel expense transaction?
+              {deleteDialog.transaction && (
+                <div className="mt-2 p-3 bg-muted rounded-md text-sm">
+                  <span className="font-medium block">
+                    {deleteDialog.transaction.booking?.job_id || "Manual Entry"} -{" "}
+                    {deleteDialog.transaction.driver?.full_name || "N/A"}
+                  </span>
+                  <span className="text-red-600 font-bold mt-1 block">
+                    {formatCurrency(deleteDialog.transaction.amount, "NGN")}
+                  </span>
+                </div>
+              )}
+              <span className="mt-2 text-destructive font-medium block">
+                This action cannot be undone and will be logged for accountability.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTransaction}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

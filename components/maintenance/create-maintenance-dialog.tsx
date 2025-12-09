@@ -1,69 +1,75 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { createMaintenanceSchedule } from '@/app/actions/maintenance'
-import { useRouter } from 'next/navigation'
+import type React from "react"
 
-export default function CreateMaintenanceDialog({ open, onOpenChange, vehicles }: any) {
+import { useState } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { createMaintenanceSchedule } from "@/app/actions/maintenance"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+
+export function CreateMaintenanceDialog({ open, onOpenChange, vehicles, onSuccess }: any) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    vehicle_id: '',
-    maintenance_type: '',
-    priority: 'Medium',
-    scheduled_date: '',
-    estimated_cost: '',
-    description: '',
-    service_provider: '',
+    vehicle_id: "",
+    maintenance_type: "",
+    priority: "Medium",
+    scheduled_date: "",
+    estimated_cost: "",
+    description: "",
+    service_provider: "",
   })
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    
+
+    console.log("[v0] Creating maintenance schedule:", formData)
+
     const result = await createMaintenanceSchedule({
       ...formData,
-      estimated_cost: parseFloat(formData.estimated_cost) || 0,
+      estimated_cost: Number.parseFloat(formData.estimated_cost) || 0,
     })
-    
+
+    console.log("[v0] Maintenance schedule result:", result)
+
     if (result.success) {
-      router.refresh()
-      onOpenChange(false)
+      toast.success("Maintenance schedule created successfully")
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        router.refresh()
+        onOpenChange(false)
+      }
       setFormData({
-        vehicle_id: '',
-        maintenance_type: '',
-        priority: 'Medium',
-        scheduled_date: '',
-        estimated_cost: '',
-        description: '',
-        service_provider: '',
+        vehicle_id: "",
+        maintenance_type: "",
+        priority: "Medium",
+        scheduled_date: "",
+        estimated_cost: "",
+        description: "",
+        service_provider: "",
       })
     } else {
-      alert(result.error || 'Failed to create maintenance schedule')
+      toast.error(result.error || "Failed to create maintenance schedule")
     }
-    
+
     setLoading(false)
   }
-  
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Schedule Maintenance</DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label>Vehicle *</Label>
@@ -84,7 +90,7 @@ export default function CreateMaintenanceDialog({ open, onOpenChange, vehicles }
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="space-y-2">
             <Label>Maintenance Type *</Label>
             <Select
@@ -109,7 +115,7 @@ export default function CreateMaintenanceDialog({ open, onOpenChange, vehicles }
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Priority *</Label>
@@ -129,7 +135,7 @@ export default function CreateMaintenanceDialog({ open, onOpenChange, vehicles }
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label>Scheduled Date *</Label>
               <Input
@@ -140,7 +146,7 @@ export default function CreateMaintenanceDialog({ open, onOpenChange, vehicles }
               />
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <Label>Estimated Cost</Label>
             <Input
@@ -151,7 +157,7 @@ export default function CreateMaintenanceDialog({ open, onOpenChange, vehicles }
               placeholder="Enter estimated cost"
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label>Service Provider</Label>
             <Input
@@ -160,7 +166,7 @@ export default function CreateMaintenanceDialog({ open, onOpenChange, vehicles }
               placeholder="Enter service provider name"
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label>Description</Label>
             <Textarea
@@ -170,22 +176,13 @@ export default function CreateMaintenanceDialog({ open, onOpenChange, vehicles }
               rows={4}
             />
           </div>
-          
+
           <div className="flex justify-end gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="bg-[#003e31] hover:bg-[#003e31]/90"
-            >
-              {loading ? 'Creating...' : 'Schedule Maintenance'}
+            <Button type="submit" disabled={loading} className="bg-[#003e31] hover:bg-[#003e31]/90">
+              {loading ? "Creating..." : "Schedule Maintenance"}
             </Button>
           </div>
         </form>

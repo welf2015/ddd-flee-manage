@@ -223,3 +223,67 @@ export async function markVehicleAsOnboarded(vehicleId: string) {
   revalidatePath("/dashboard/vehicle-management/onboarding")
   return { success: true, data: onboarding }
 }
+
+export async function updateVehicle(vehicleId: string, data: any) {
+  console.log("[v0] updateVehicle called:", { vehicleId, data })
+
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  // Get current vehicle data for logging
+  const { data: currentData } = await supabase.from("vehicles").select("*").eq("id", vehicleId).single()
+
+  // Update vehicle
+  const { error } = await supabase
+    .from("vehicles")
+    .update({
+      vehicle_number: data.vehicle_number,
+      vehicle_type: data.vehicle_type,
+      make: data.make,
+      model: data.model,
+      year: data.year,
+      status: data.status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", vehicleId)
+
+  if (error) {
+    console.error("[v0] Error updating vehicle:", error)
+    return { success: false, error: error.message }
+  }
+
+  // Get user profile for logging
+  const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).single()
+
+  // Log the action to system_activity_log
+  const changes = []
+  if (currentData.vehicle_number !== data.vehicle_number) changes.push("Vehicle Number")
+  if (currentData.vehicle_type !== data.vehicle_type) changes.push("Vehicle Type")
+  if (currentData.make !== data.make) changes.push("Make")
+  if (currentData.model !== data.model) changes.push("Model")
+  if (currentData.year !== data.year) changes.push("Year")
+  if (currentData.status !== data.status) changes.push("Status")
+
+  await supabase.from("system_activity_log").insert({
+    module: "Vehicles",
+    action: "Updated",
+    reference_id: data.vehicle_number || vehicleId,
+    description: `Updated vehicle: ${changes.join(", ")}`,
+    user_id: user.id,
+    user_name: profile?.full_name || "Unknown",
+    user_email: profile?.email || "",
+    old_value: JSON.stringify(currentData),
+    new_value: JSON.stringify(data),
+  })
+
+  console.log("[v0] Vehicle updated successfully")
+  revalidatePath("/dashboard/vehicles")
+  return { success: true }
+}

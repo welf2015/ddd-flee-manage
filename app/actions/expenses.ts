@@ -279,18 +279,23 @@ export async function deleteExpenseTransaction(transactionId: string) {
   }
 
   // Check if user is admin (MD or ED)
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+  const { data: profile } = await supabase.from("profiles").select("role, full_name").eq("id", user.id).single()
 
   if (!profile || !["MD", "ED"].includes(profile.role)) {
     return { success: false, error: "Only MD/ED can delete expense transactions" }
   }
 
   // Get transaction details before deletion for logging
-  const { data: transaction } = await supabase
+  const { data: transaction, error: fetchError } = await supabase
     .from("expense_transactions")
-    .select("*, booking:bookings(job_id)")
+    .select("*, booking:bookings(job_id), account:prepaid_accounts(account_name), driver:drivers(full_name)")
     .eq("id", transactionId)
-    .single()
+    .maybeSingle()
+
+  if (fetchError) {
+    console.error("Error fetching transaction:", fetchError)
+    return { success: false, error: "Error fetching transaction details" }
+  }
 
   if (!transaction) {
     return { success: false, error: "Transaction not found" }
@@ -308,6 +313,7 @@ export async function deleteExpenseTransaction(transactionId: string) {
 
   revalidatePath("/dashboard/expenses")
   revalidatePath("/dashboard/bookings")
+  revalidatePath("/dashboard/accountability")
   return { success: true }
 }
 
@@ -413,6 +419,97 @@ export async function updateExpenseTransaction(
 
   revalidatePath("/dashboard/expenses")
   revalidatePath("/dashboard/bookings")
+  return { success: true }
+}
+
+export async function deleteTopup(topupId: string) {
+  console.log("[v0] deleteTopup called with ID:", topupId)
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  console.log("[v0] User authenticated:", user?.id)
+
+  if (!user) {
+    console.log("[v0] User not authenticated")
+    return { success: false, error: "Not authenticated" }
+  }
+
+  // Check if user is admin (MD or ED)
+  const { data: profile } = await supabase.from("profiles").select("role, full_name").eq("id", user.id).single()
+
+  console.log("[v0] User profile:", profile)
+
+  if (!profile || !["MD", "ED"].includes(profile.role)) {
+    console.log("[v0] User not authorized, role:", profile?.role)
+    return { success: false, error: "Only MD/ED can delete topup transactions" }
+  }
+
+  // Get topup details before deletion for logging
+  console.log("[v0] Fetching topup details for ID:", topupId)
+  const { data: topup, error: fetchError } = await supabase
+    .from("account_topups")
+    .select(
+      "*, account:prepaid_accounts(account_name, current_balance, total_deposited, vendor:expense_vendors(vendor_name))",
+    )
+    .eq("id", topupId)
+    .maybeSingle()
+
+  console.log("[v0] Topup fetch result:", { topup, fetchError })
+
+  if (fetchError) {
+    console.error("[v0] Error fetching topup:", fetchError)
+    return { success: false, error: "Error fetching topup details" }
+  }
+
+  if (!topup) {
+    console.log("[v0] Topup not found for ID:", topupId)
+    return { success: false, error: "Topup not found" }
+  }
+
+  console.log("[v0] Updating account balance before deletion")
+  console.log("[v0] Account ID:", topup.account_id, "Amount to reverse:", topup.amount)
+  console.log(
+    "[v0] Current balance:",
+    topup.account?.current_balance,
+    "Total deposited:",
+    topup.account?.total_deposited,
+  )
+
+  const { data: updatedAccount, error: updateError } = await supabase
+    .from("prepaid_accounts")
+    .update({
+      current_balance: (topup.account?.current_balance || 0) - topup.amount,
+      total_deposited: (topup.account?.total_deposited || 0) - topup.amount,
+    })
+    .eq("id", topup.account_id)
+    .select()
+
+  console.log("[v0] Account balance update result:", { updatedAccount, updateError })
+
+  if (updateError) {
+    console.error("[v0] Error updating account balance:", updateError)
+    return { success: false, error: "Error updating account balance" }
+  }
+
+  console.log("[v0] Deleting topup from account_topups table, ID:", topupId)
+  // Delete the topup
+  const { error } = await supabase.from("account_topups").delete().eq("id", topupId)
+
+  if (error) {
+    console.error("[v0] Error deleting topup:", error)
+    return { success: false, error: error.message }
+  }
+
+  console.log("[v0] Topup deleted successfully")
+
+  console.log(`[v0] ✅ Topup deleted: ${topupId} (₦${topup.amount})`)
+  console.log(`[v0] Action performed by: ${profile.role} (${profile.full_name})`)
+
+  revalidatePath("/dashboard/expenses")
+  revalidatePath("/dashboard/accountability")
   return { success: true }
 }
 

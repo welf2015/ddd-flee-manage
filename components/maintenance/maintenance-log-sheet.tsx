@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { createClient } from "@/lib/supabase/client"
-import { Printer, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Printer, ChevronLeft, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
 
 interface MaintenanceLogSheetProps {
@@ -41,11 +41,11 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null)
   const [assignedDriver, setAssignedDriver] = useState<any>(null)
   const [lastServiceDate, setLastServiceDate] = useState<string>("")
-  
+
   // Step 1 form data
   const [formData, setFormData] = useState({
     vehicle_id: "",
-    service_date: new Date().toISOString().split('T')[0],
+    service_date: new Date().toISOString().split("T")[0],
     next_service_date: "",
     current_mileage: "",
     service_centre: "",
@@ -59,46 +59,42 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
     cost: "",
     remarks: "",
   })
-  
+
   // Step 2 checklist data
   const [checklist, setChecklist] = useState<Record<string, any>>({})
-  
+
   const supabase = createClient()
-  
+
   // Fetch driver and last service when vehicle is selected
   useEffect(() => {
     if (formData.vehicle_id) {
       fetchVehicleDetails(formData.vehicle_id)
     }
   }, [formData.vehicle_id])
-  
+
   const fetchVehicleDetails = async (vehicleId: string) => {
-    const vehicle = vehicles.find(v => v.id === vehicleId)
+    const vehicle = vehicles.find((v) => v.id === vehicleId)
     setSelectedVehicle(vehicle)
-    
+
     // Fetch assigned driver
-    const { data: driver } = await supabase
-      .from('drivers')
-      .select('*')
-      .eq('assigned_vehicle_id', vehicleId)
-      .single()
-    
+    const { data: driver } = await supabase.from("drivers").select("*").eq("assigned_vehicle_id", vehicleId).single()
+
     setAssignedDriver(driver)
-    
+
     // Fetch last service date
     const { data: lastLog } = await supabase
-      .from('maintenance_logs')
-      .select('service_date')
-      .eq('vehicle_id', vehicleId)
-      .order('service_date', { ascending: false })
+      .from("maintenance_logs")
+      .select("service_date")
+      .eq("vehicle_id", vehicleId)
+      .order("service_date", { ascending: false })
       .limit(1)
       .single()
-    
+
     if (lastLog) {
       setLastServiceDate(lastLog.service_date)
     }
   }
-  
+
   const handleNext = () => {
     if (!formData.vehicle_id) {
       toast.error("Please select a vehicle")
@@ -106,64 +102,65 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
     }
     setStep(2)
   }
-  
+
   const handleBack = () => {
     setStep(1)
   }
-  
+
   const handleSubmit = async () => {
     setLoading(true)
-    
+
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
       // Insert maintenance log
       const { data: log, error: logError } = await supabase
-        .from('maintenance_logs')
+        .from("maintenance_logs")
         .insert({
           vehicle_id: formData.vehicle_id,
           service_date: formData.service_date,
           next_service_date: formData.next_service_date || null,
-          current_mileage: formData.current_mileage ? parseInt(formData.current_mileage) : null,
+          current_mileage: formData.current_mileage ? Number.parseInt(formData.current_mileage) : null,
           service_centre: formData.service_centre,
           nature_of_fault: formData.nature_of_fault,
           parts_replaced: formData.parts_replaced,
           maintenance_type: formData.maintenance_type,
-          cost: formData.cost ? parseFloat(formData.cost) : null,
+          cost: formData.cost ? Number.parseFloat(formData.cost) : null,
           repair_duration_from: formData.repair_duration_from || null,
           repair_duration_to: formData.repair_duration_to || null,
-          vehicle_downtime_days: formData.vehicle_downtime_days ? parseInt(formData.vehicle_downtime_days) : null,
+          vehicle_downtime_days: formData.vehicle_downtime_days
+            ? Number.parseInt(formData.vehicle_downtime_days)
+            : null,
           remarks: formData.remarks,
           logged_by: user?.id,
           performed_by: formData.service_centre,
         })
         .select()
         .single()
-      
+
       if (logError) throw logError
-      
+
       // Insert checklist
       const checklistData: any = {
         maintenance_log_id: log.id,
         last_updated_by: user?.id,
       }
-      
-      CHECKLIST_ITEMS.forEach(item => {
-        checklistData[item.key] = checklist[`${item.key}_condition`] || 'NA'
-        checklistData[`${item.key}_remarks`] = checklist[`${item.key}_remarks`] || ''
-        checklistData[`${item.key}_action`] = checklist[`${item.key}_action`] || ''
+
+      CHECKLIST_ITEMS.forEach((item) => {
+        checklistData[item.key] = checklist[`${item.key}_condition`] || "NA"
+        checklistData[`${item.key}_remarks`] = checklist[`${item.key}_remarks`] || ""
+        checklistData[`${item.key}_action`] = checklist[`${item.key}_action`] || ""
       })
-      
-      const { error: checklistError } = await supabase
-        .from('maintenance_checklist')
-        .insert(checklistData)
-      
+
+      const { error: checklistError } = await supabase.from("maintenance_checklist").insert(checklistData)
+
       if (checklistError) throw checklistError
-      
+
       toast.success("Maintenance log created successfully")
-      onSuccess()
-      onOpenChange(false)
       resetForm()
+      onSuccess()
     } catch (error: any) {
       console.error("[v0] Maintenance log error:", error)
       toast.error(error.message || "Failed to create maintenance log")
@@ -171,12 +168,12 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
       setLoading(false)
     }
   }
-  
+
   const resetForm = () => {
     setStep(1)
     setFormData({
       vehicle_id: "",
-      service_date: new Date().toISOString().split('T')[0],
+      service_date: new Date().toISOString().split("T")[0],
       next_service_date: "",
       current_mileage: "",
       service_centre: "",
@@ -195,11 +192,11 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
     setAssignedDriver(null)
     setLastServiceDate("")
   }
-  
+
   const handlePrint = () => {
     window.print()
   }
-  
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[90vw] max-w-[1400px] overflow-y-auto print:w-full">
@@ -212,12 +209,12 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
             </Button>
           </div>
         </SheetHeader>
-        
+
         <div className="hidden print:block mb-6">
           <h1 className="text-2xl font-bold">Maintenance Log</h1>
           <p className="text-sm text-muted-foreground">Generated on {new Date().toLocaleDateString()}</p>
         </div>
-        
+
         <div className="mt-6 space-y-6">
           {step === 1 && (
             <div className="space-y-4">
@@ -230,10 +227,13 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                     onChange={(e) => setFormData({ ...formData, service_date: e.target.value })}
                   />
                 </div>
-                
+
                 <div>
                   <Label>Fleet ID / Vehicle</Label>
-                  <Select value={formData.vehicle_id} onValueChange={(value) => setFormData({ ...formData, vehicle_id: value })}>
+                  <Select
+                    value={formData.vehicle_id}
+                    onValueChange={(value) => setFormData({ ...formData, vehicle_id: value })}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select vehicle" />
                     </SelectTrigger>
@@ -246,31 +246,29 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <Label>Make / Model / Year</Label>
                   <Input
-                    value={selectedVehicle ? `${selectedVehicle.make} ${selectedVehicle.model} ${selectedVehicle.year || ''}` : ''}
+                    value={
+                      selectedVehicle
+                        ? `${selectedVehicle.make} ${selectedVehicle.model} ${selectedVehicle.year || ""}`
+                        : ""
+                    }
                     disabled
                   />
                 </div>
-                
+
                 <div>
                   <Label>Assigned Driver</Label>
-                  <Input
-                    value={assignedDriver?.full_name || 'No driver assigned'}
-                    disabled
-                  />
+                  <Input value={assignedDriver?.full_name || "No driver assigned"} disabled />
                 </div>
-                
+
                 <div>
                   <Label>Last Service Date</Label>
-                  <Input
-                    value={lastServiceDate || 'No previous service'}
-                    disabled
-                  />
+                  <Input value={lastServiceDate || "No previous service"} disabled />
                 </div>
-                
+
                 <div>
                   <Label>Next Service Date</Label>
                   <Input
@@ -279,7 +277,7 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                     onChange={(e) => setFormData({ ...formData, next_service_date: e.target.value })}
                   />
                 </div>
-                
+
                 <div>
                   <Label>Current Mileage (km)</Label>
                   <Input
@@ -288,7 +286,7 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                     onChange={(e) => setFormData({ ...formData, current_mileage: e.target.value })}
                   />
                 </div>
-                
+
                 <div>
                   <Label>Service Centre / Technician</Label>
                   <Input
@@ -296,7 +294,7 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                     onChange={(e) => setFormData({ ...formData, service_centre: e.target.value })}
                   />
                 </div>
-                
+
                 <div className="col-span-2">
                   <Label>Nature of Fault/Complain</Label>
                   <Textarea
@@ -304,7 +302,7 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                     onChange={(e) => setFormData({ ...formData, nature_of_fault: e.target.value })}
                   />
                 </div>
-                
+
                 <div className="col-span-2">
                   <Label>Part Replaced</Label>
                   <Textarea
@@ -312,10 +310,13 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                     onChange={(e) => setFormData({ ...formData, parts_replaced: e.target.value })}
                   />
                 </div>
-                
+
                 <div>
                   <Label>Maintenance Type</Label>
-                  <Select value={formData.maintenance_type} onValueChange={(value) => setFormData({ ...formData, maintenance_type: value })}>
+                  <Select
+                    value={formData.maintenance_type}
+                    onValueChange={(value) => setFormData({ ...formData, maintenance_type: value })}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -325,10 +326,13 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <Label>Status</Label>
-                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) => setFormData({ ...formData, status: value })}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -338,7 +342,7 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <Label>Repair Duration From</Label>
                   <Input
@@ -347,7 +351,7 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                     onChange={(e) => setFormData({ ...formData, repair_duration_from: e.target.value })}
                   />
                 </div>
-                
+
                 <div>
                   <Label>Repair Duration To</Label>
                   <Input
@@ -356,7 +360,7 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                     onChange={(e) => setFormData({ ...formData, repair_duration_to: e.target.value })}
                   />
                 </div>
-                
+
                 <div>
                   <Label>Vehicle Downtime (Days)</Label>
                   <Input
@@ -365,7 +369,7 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                     onChange={(e) => setFormData({ ...formData, vehicle_downtime_days: e.target.value })}
                   />
                 </div>
-                
+
                 <div>
                   <Label>Repair Amount (NGN)</Label>
                   <Input
@@ -375,7 +379,7 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                     onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
                   />
                 </div>
-                
+
                 <div className="col-span-2">
                   <Label>Remarks</Label>
                   <Textarea
@@ -384,7 +388,7 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                   />
                 </div>
               </div>
-              
+
               <div className="flex justify-end print:hidden">
                 <Button onClick={handleNext}>
                   Next: Inspection Checklist
@@ -393,7 +397,7 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
               </div>
             </div>
           )}
-          
+
           {step === 2 && (
             <div className="space-y-4">
               <div className="border rounded-lg overflow-hidden">
@@ -412,7 +416,7 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                         <TableCell className="font-medium">{item.label}</TableCell>
                         <TableCell>
                           <Select
-                            value={checklist[`${item.key}_condition`] || 'NA'}
+                            value={checklist[`${item.key}_condition`] || "NA"}
                             onValueChange={(value) => setChecklist({ ...checklist, [`${item.key}_condition`]: value })}
                           >
                             <SelectTrigger className="h-8">
@@ -428,14 +432,14 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                         <TableCell>
                           <Input
                             className="h-8"
-                            value={checklist[`${item.key}_remarks`] || ''}
+                            value={checklist[`${item.key}_remarks`] || ""}
                             onChange={(e) => setChecklist({ ...checklist, [`${item.key}_remarks`]: e.target.value })}
                           />
                         </TableCell>
                         <TableCell>
                           <Input
                             className="h-8"
-                            value={checklist[`${item.key}_action`] || ''}
+                            value={checklist[`${item.key}_action`] || ""}
                             onChange={(e) => setChecklist({ ...checklist, [`${item.key}_action`]: e.target.value })}
                           />
                         </TableCell>
@@ -444,7 +448,7 @@ export function MaintenanceLogSheet({ open, onOpenChange, vehicles, onSuccess }:
                   </TableBody>
                 </Table>
               </div>
-              
+
               <div className="flex justify-between print:hidden">
                 <Button variant="outline" onClick={handleBack}>
                   <ChevronLeft className="mr-2 h-4 w-4" />

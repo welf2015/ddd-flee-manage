@@ -22,7 +22,7 @@ export async function getSystemActivityLog(filters?: {
 
   let query = supabase
     .from("system_activity_log")
-    .select("*", { count: "exact" })
+    .select("*, user:profiles!system_activity_log_user_id_fkey(full_name, role)", { count: "exact" })
     .order("created_at", { ascending: false })
 
   // Apply filters
@@ -55,4 +55,36 @@ export async function getSystemActivityLog(filters?: {
   }
 
   return { success: true, data, count }
+}
+
+export async function logSystemActivity(data: {
+  module: string
+  action: string
+  description: string
+  metadata?: any
+}) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  const { error } = await supabase.from("system_activity_log").insert({
+    user_id: user.id,
+    module: data.module,
+    action: data.action,
+    description: data.description,
+    metadata: data.metadata,
+  })
+
+  if (error) {
+    console.error("[v0] Error logging activity:", error)
+    return { success: false, error: error.message }
+  }
+
+  return { success: true }
 }

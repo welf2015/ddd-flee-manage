@@ -1,9 +1,24 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getPrepaidAccounts, getExpenseTransactions, getTopups } from "@/app/actions/expenses"
+import { Button } from "@/components/ui/button"
+import { getPrepaidAccounts, getExpenseTransactions, getTopups, deleteExpenseTransaction } from "@/app/actions/expenses"
 import useSWR from "swr"
 import { formatCurrency, formatRelativeTime } from "@/lib/utils"
+import { Trash2 } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
+import { createClient } from "@/lib/supabase/client"
 
 type AllowanceTabProps = {
   onAddTopup: (accountId?: string) => void
@@ -18,6 +33,29 @@ export function AllowanceTab({
   initialTransactions = [],
   initialTopups = [],
 }: AllowanceTabProps) {
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; transaction: any | null }>({
+    open: false,
+    transaction: null,
+  })
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
+
+  useState(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", data.user.id)
+          .single()
+          .then(({ data: profile }) => {
+            setUserRole(profile?.role || null)
+          })
+      }
+    })
+  })
+
   const initialAllowanceAccounts = initialAccounts.filter((a: any) => a.vendor?.vendor_type === "Allowance")
   const { data: accounts = initialAllowanceAccounts } = useSWR(
     "allowance-accounts",
@@ -34,7 +72,7 @@ export function AllowanceTab({
 
   const mainAccount = accounts[0]
 
-  const { data: transactions = initialTransactions } = useSWR(
+  const { data: transactions = initialTransactions, mutate: mutateTransactions } = useSWR(
     "allowance-transactions",
     async () => {
       const { data } = await getExpenseTransactions({ expenseType: "Allowance" })
@@ -89,6 +127,28 @@ export function AllowanceTab({
     }
   }
 
+  const handleDeleteTransaction = async () => {
+    if (!deleteDialog.transaction) return
+
+    setIsDeleting(true)
+    try {
+      const result = await deleteExpenseTransaction(deleteDialog.transaction.id)
+      if (result.success) {
+        toast.success("Expense transaction deleted successfully")
+        mutateTransactions()
+      } else {
+        toast.error(result.error || "Failed to delete transaction")
+      }
+    } catch (error) {
+      toast.error("An error occurred while deleting the transaction")
+    } finally {
+      setIsDeleting(false)
+      setDeleteDialog({ open: false, transaction: null })
+    }
+  }
+
+  const canDelete = userRole === "MD" || userRole === "ED"
+
   return (
     <div className="space-y-4">
       {/* Unified Transactions Table */}
@@ -107,6 +167,7 @@ export function AllowanceTab({
                     <th className="text-left p-3 text-sm font-medium text-muted-foreground">By</th>
                     <th className="text-left p-3 text-sm font-medium text-muted-foreground">Date</th>
                     <th className="text-right p-3 text-sm font-medium text-muted-foreground">Amount</th>
+                    {canDelete && <th className="text-right p-3 text-sm font-medium text-muted-foreground">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -153,6 +214,20 @@ export function AllowanceTab({
                             {formatCurrency(Math.abs(item.amount), "NGN")}
                           </p>
                         </td>
+                        {canDelete && (
+                          <td className="p-3 text-right">
+                            {(item.type === "topup" || item.type === "refund") && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => setDeleteDialog({ open: true, transaction: item })}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     )
                   })}
@@ -164,6 +239,41 @@ export function AllowanceTab({
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, transaction: null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Expense Transaction</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this allowance expense transaction?
+              {deleteDialog.transaction && (
+                <div className="mt-2 p-3 bg-muted rounded-md text-sm">
+                  <span className="font-medium block">
+                    {deleteDialog.transaction.booking?.job_id || "Manual Entry"} -{" "}
+                    {deleteDialog.transaction.driver?.full_name || "N/A"}
+                  </span>
+                  <span className="text-red-600 font-bold mt-1 block">
+                    {formatCurrency(deleteDialog.transaction.amount, "NGN")}
+                  </span>
+                </div>
+              )}
+              <span className="mt-2 text-destructive font-medium block">
+                This action cannot be undone and will be logged for accountability.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTransaction}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

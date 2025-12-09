@@ -329,3 +329,76 @@ export async function createManualOnboarding(formData: FormData) {
   revalidatePath("/dashboard/vehicle-management/onboarding")
   return { success: true, data: onboarding }
 }
+
+export async function updateOnboarding(onboardingId: string, data: any) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  // Get current onboarding data for logging
+  const { data: currentData } = await supabase.from("vehicle_onboarding").select("*").eq("id", onboardingId).single()
+
+  // Update onboarding
+  const updatePayload: any = {
+    vehicle_number: data.vehicle_number,
+    vehicle_type: data.vehicle_type,
+    make: data.make,
+    model: data.model,
+    year: data.year,
+    registration_date: data.registration_date,
+    registration_expiry_date: data.registration_expiry_date,
+    insurance_expiry_date: data.insurance_expiry_date,
+    road_worthiness_expiry_date: data.road_worthiness_expiry_date,
+    hackney_permit_expiry_date: data.hackney_permit_na ? null : data.hackney_permit_expiry_date,
+    vehicle_license_expiry_date: data.vehicle_license_expiry_date,
+    ownership_transfer_date: data.ownership_transfer_na ? null : data.ownership_transfer_date,
+    hackney_permit_na: data.hackney_permit_na,
+    ownership_transfer_na: data.ownership_transfer_na,
+    notes: data.notes,
+    updated_at: new Date().toISOString(),
+  }
+
+  const { error } = await supabase.from("vehicle_onboarding").update(updatePayload).eq("id", onboardingId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  // Get user profile for logging
+  const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).single()
+
+  // Log the action to system_activity_log
+  const changes = []
+  if (currentData.vehicle_number !== data.vehicle_number) changes.push("Vehicle Number")
+  if (currentData.vehicle_type !== data.vehicle_type) changes.push("Vehicle Type")
+  if (currentData.make !== data.make) changes.push("Make")
+  if (currentData.model !== data.model) changes.push("Model")
+  if (data.registration_date) changes.push("Registration Date")
+  if (data.registration_expiry_date) changes.push("Registration Expiry")
+  if (data.insurance_expiry_date) changes.push("Insurance Expiry")
+  if (data.road_worthiness_expiry_date) changes.push("Road Worthiness Expiry")
+  if (data.hackney_permit_expiry_date || data.hackney_permit_na) changes.push("Hackney Permit")
+  if (data.vehicle_license_expiry_date) changes.push("Vehicle License Expiry")
+  if (data.ownership_transfer_date || data.ownership_transfer_na) changes.push("Ownership Transfer")
+
+  await supabase.from("system_activity_log").insert({
+    module: "Vehicle Onboarding",
+    action: "Updated",
+    reference_id: data.vehicle_number || onboardingId,
+    description: `Updated onboarding: ${changes.join(", ")}`,
+    user_id: user.id,
+    user_name: profile?.full_name || "Unknown",
+    user_email: profile?.email || "",
+    old_value: JSON.stringify(currentData),
+    new_value: JSON.stringify(updatePayload),
+  })
+
+  revalidatePath("/dashboard/vehicle-management/onboarding")
+  return { success: true }
+}
