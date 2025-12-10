@@ -9,8 +9,9 @@ import MaintenanceStats from "@/components/maintenance/maintenance-stats"
 import { MaintenanceLogSheet } from "@/components/maintenance/maintenance-log-sheet"
 import { mutate } from "swr"
 import { CreateMaintenanceDialog } from "@/components/maintenance/create-maintenance-dialog"
+import MaintenanceLogsTable from "@/components/maintenance/maintenance-logs-table"
 
-export default function MaintenanceClient({ initialSchedules, vehicles }: any) {
+export default function MaintenanceClient({ initialSchedules, initialLogs, vehicles }: any) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [showLogSheet, setShowLogSheet] = useState(false)
 
@@ -55,6 +56,13 @@ export default function MaintenanceClient({ initialSchedules, vehicles }: any) {
       <MaintenanceStats />
 
       <Card className="p-6">
+        <MaintenanceLogsTable initialLogs={initialLogs} />
+      </Card>
+
+      <Card className="p-6">
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold">Maintenance Schedules</h2>
+        </div>
         <MaintenanceSchedulesTable initialSchedules={initialSchedules} vehicles={vehicles} />
       </Card>
 
