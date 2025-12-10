@@ -4,20 +4,19 @@ import { useState } from "react"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import MaintenanceSchedulesTable from "@/components/maintenance/maintenance-schedules-table"
 import MaintenanceStats from "@/components/maintenance/maintenance-stats"
 import { MaintenanceLogSheet } from "@/components/maintenance/maintenance-log-sheet"
 import { mutate } from "swr"
 import { CreateMaintenanceDialog } from "@/components/maintenance/create-maintenance-dialog"
-import MaintenanceLogsTable from "@/components/maintenance/maintenance-logs-table"
+import UnifiedMaintenanceTable from "@/components/maintenance/unified-maintenance-table"
 
 export default function MaintenanceClient({ initialSchedules, initialLogs, vehicles }: any) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [showLogSheet, setShowLogSheet] = useState(false)
 
   const handleMaintenanceLogSuccess = () => {
-    // Revalidate maintenance schedules
-    mutate("maintenance-schedules")
+    // Revalidate unified maintenance table
+    mutate("unified-maintenance")
     // Revalidate maintenance stats
     mutate("maintenance-stats")
     // Close the sheet
@@ -25,7 +24,7 @@ export default function MaintenanceClient({ initialSchedules, initialLogs, vehic
   }
 
   const handleScheduleCreated = () => {
-    mutate("maintenance-schedules")
+    mutate("unified-maintenance")
     mutate("maintenance-stats")
     setCreateDialogOpen(false)
   }
@@ -56,14 +55,7 @@ export default function MaintenanceClient({ initialSchedules, initialLogs, vehic
       <MaintenanceStats />
 
       <Card className="p-6">
-        <MaintenanceLogsTable initialLogs={initialLogs} />
-      </Card>
-
-      <Card className="p-6">
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold">Maintenance Schedules</h2>
-        </div>
-        <MaintenanceSchedulesTable initialSchedules={initialSchedules} vehicles={vehicles} />
+        <UnifiedMaintenanceTable initialLogs={initialLogs} initialSchedules={initialSchedules} />
       </Card>
 
       <CreateMaintenanceDialog

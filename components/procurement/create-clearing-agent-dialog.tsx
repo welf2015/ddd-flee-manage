@@ -2,13 +2,14 @@
 
 import type React from "react"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
+import { mutate } from "swr"
 
 type CreateClearingAgentDialogProps = {
   open: boolean
@@ -21,6 +22,10 @@ export function CreateClearingAgentDialog({ open, onOpenChange }: CreateClearing
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+
+    const form = e.currentTarget
+    const formData = new FormData(form)
+
     setIsLoading(true)
 
     const {
@@ -32,8 +37,6 @@ export function CreateClearingAgentDialog({ open, onOpenChange }: CreateClearing
       setIsLoading(false)
       return
     }
-
-    const formData = new FormData(e.currentTarget)
 
     const { error } = await supabase.from("clearing_agents").insert({
       name: formData.get("name"),
@@ -51,6 +54,8 @@ export function CreateClearingAgentDialog({ open, onOpenChange }: CreateClearing
       toast.error(error.message)
     } else {
       toast.success("Clearing agent added successfully")
+      mutate("clearing-agents")
+      form.reset()
       onOpenChange(false)
     }
   }
@@ -60,6 +65,7 @@ export function CreateClearingAgentDialog({ open, onOpenChange }: CreateClearing
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Clearing Agent</DialogTitle>
+          <DialogDescription>Add a new port clearing agent for vehicle imports</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">

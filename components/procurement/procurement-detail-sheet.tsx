@@ -20,10 +20,14 @@ import {
   assignClearingAgent,
   moveToOnboarding,
   uploadProcurementDocument,
+  deleteProcurement,
 } from "@/app/actions/procurement"
-import { DollarSign, Package, Truck, User, FileText, Clock, CheckCircle2, Upload, X, Download, Eye } from "lucide-react"
+import { DollarSign, Package, Truck, User, FileText, Clock, CheckCircle2, Upload, X, Download, Eye, Trash2 } from "lucide-react"
+import { toast } from "sonner"
+import { mutate as globalMutate } from "swr"
 import { formatRelativeTime, formatDateTime, formatCurrency } from "@/lib/utils"
 import { PostDealForm } from "@/components/procurement/post-deal-form" // Import PostDealForm
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
 interface ProcurementDetailSheetProps {
   open: boolean
@@ -49,6 +53,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
   const [selectedAgent, setSelectedAgent] = useState("")
   const [workerUrl, setWorkerUrl] = useState("")
   const [authKey, setAuthKey] = useState("")
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const { data: procurement, mutate } = useSWR(
     procurementId ? `procurement-${procurementId}` : null,
@@ -389,7 +394,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
 
   const handleMoveToOnboarding = async () => {
     setIsSubmitting(true)
-    
+
     // Optimistic update
     if (procurement) {
       mutate(
@@ -400,15 +405,29 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
         false
       )
     }
-    
+
     const result = await moveToOnboarding(procurementId)
-    
+
     if (result.success) {
       // Revalidate to get fresh data
       await mutate()
     } else {
       // Revert optimistic update on error
       await mutate()
+    }
+    setIsSubmitting(false)
+  }
+
+  const confirmDelete = async () => {
+    setIsSubmitting(true)
+    const result = await deleteProcurement(procurementId)
+
+    if (result.success) {
+      toast.success("Procurement deleted successfully")
+      globalMutate("procurements")
+      onOpenChange(false)
+    } else {
+      toast.error(result.error || "Failed to delete procurement")
     }
     setIsSubmitting(false)
   }
@@ -465,6 +484,20 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
         {/* SheetHeader and other components remain unchanged */}
 
         <div className="mt-6 space-y-6">
+          {/* Delete Button */}
+          <div className="flex justify-end">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={isSubmitting}
+              className="gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Procurement
+            </Button>
+          </div>
+
           {/* Action Buttons Based on Status */}
           <div className="flex flex-wrap gap-2">
             {procurement.status === "Negotiation" && (
@@ -1130,6 +1163,17 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
           </Tabs>
         </div>
       </SheetContent>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete Procurement"
+        description="Are you sure you want to delete this procurement? This action cannot be undone and will also delete all related timeline entries and documents."
+        onConfirm={confirmDelete}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </Sheet>
   )
 }

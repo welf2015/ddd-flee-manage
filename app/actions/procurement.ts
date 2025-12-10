@@ -658,6 +658,34 @@ export async function updatePostDealInfo(
   return { success: true }
 }
 
+export async function deleteProcurement(procurementId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  // Delete related timeline entries first
+  await supabase.from("procurement_timeline").delete().eq("procurement_id", procurementId)
+
+  // Delete related documents
+  await supabase.from("procurement_documents").delete().eq("procurement_id", procurementId)
+
+  // Delete the procurement
+  const { error } = await supabase.from("procurements").delete().eq("id", procurementId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath("/dashboard/procurement")
+  return { success: true }
+}
+
 export const negotiateProcurement = updateProcurementPrice
 export const closeProcurementDeal = closeDealWithVendor
 export const addShippingInfo = updateShippingInfo

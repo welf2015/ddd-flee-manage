@@ -3,9 +3,12 @@
 import { Button } from "@/components/ui/button"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
-import { Edit } from "lucide-react"
+import { Edit, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { EditVendorDialog } from "./edit-vendor-dialog"
+import { deleteVendor } from "@/app/actions/vendors"
+import { toast } from "sonner"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
 function getCountryFlag(countryName: string): string {
   const flagMap: Record<string, string> = {
@@ -33,6 +36,8 @@ function getCountryFlag(countryName: string): string {
 export function VendorsTable() {
   const supabase = createClient()
   const [editVendorId, setEditVendorId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
 
   const {
     data: vendors = [],
@@ -47,6 +52,22 @@ export function VendorsTable() {
     },
     { refreshInterval: 5000 },
   )
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return
+
+    setDeletingId(deleteConfirm.id)
+    const result = await deleteVendor(deleteConfirm.id)
+
+    if (result.success) {
+      toast.success("Vendor deleted successfully")
+      mutate()
+    } else {
+      toast.error(result.error || "Failed to delete vendor")
+    }
+    setDeletingId(null)
+    setDeleteConfirm(null)
+  }
 
   return (
     <>
@@ -83,9 +104,20 @@ export function VendorsTable() {
                   </p>
                 )}
               </div>
-              <Button variant="outline" size="icon" onClick={() => setEditVendorId(vendor.id)} className="ml-4">
-                <Edit className="h-4 w-4" />
-              </Button>
+              <div className="flex gap-2 ml-4">
+                <Button variant="outline" size="icon" onClick={() => setEditVendorId(vendor.id)}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setDeleteConfirm({ id: vendor.id, name: vendor.name })}
+                  disabled={deletingId === vendor.id}
+                  className="text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>
@@ -96,6 +128,17 @@ export function VendorsTable() {
         onOpenChange={(open) => !open && setEditVendorId(null)}
         vendorId={editVendorId}
         onVendorUpdated={mutate}
+      />
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Delete Vendor"
+        description={`Are you sure you want to delete ${deleteConfirm?.name}? This action cannot be undone.`}
+        onConfirm={confirmDelete}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
       />
     </>
   )

@@ -139,3 +139,89 @@ export async function updateMaintenanceStatus(
     return { success: false, error: error.message }
   }
 }
+
+export async function deleteMaintenanceLog(logId: string) {
+  try {
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { success: false, error: "Not authenticated" }
+    }
+
+    const { error } = await supabase.from("maintenance_logs").delete().eq("id", logId)
+
+    if (error) throw error
+
+    revalidatePath("/dashboard/vehicle-management/maintenance")
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
+
+export async function updateMaintenanceLog(
+  logId: string,
+  data: {
+    service_date?: string
+    maintenance_type?: string
+    service_centre?: string
+    cost?: number
+    current_mileage?: number
+    next_service_date?: string
+    nature_of_fault?: string
+    parts_replaced?: string
+    performed_by?: string
+    repair_duration_from?: string
+    repair_duration_to?: string
+    vehicle_downtime_days?: number
+    remarks?: string
+  },
+) {
+  try {
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { success: false, error: "Not authenticated" }
+    }
+
+    const { error } = await supabase.from("maintenance_logs").update(data).eq("id", logId)
+
+    if (error) throw error
+
+    revalidatePath("/dashboard/vehicle-management/maintenance")
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
+
+export async function deleteMaintenanceSchedule(scheduleId: string) {
+  try {
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { success: false, error: "Not authenticated" }
+    }
+
+    const { error } = await supabase.from("maintenance_schedules").delete().eq("id", scheduleId)
+
+    if (error) throw error
+
+    revalidatePath("/dashboard/vehicle-management/maintenance")
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}

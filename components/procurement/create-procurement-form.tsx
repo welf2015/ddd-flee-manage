@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createProcurement } from "@/app/actions/procurement"
 import { Plus, Upload, X } from "lucide-react"
-import useSWR from "swr"
+import useSWR, { mutate } from "swr"
 import { createClient } from "@/lib/supabase/client"
 import { AddVendorDialog } from "./add-vendor-dialog"
 import { toast } from "sonner"
@@ -136,6 +136,8 @@ export function CreateProcurementForm({ open, onOpenChange }: CreateProcurementF
         warranty_details: formData.warrantyDetails,
       })
 
+      toast.success("Procurement created successfully")
+      mutate("procurements")
       onOpenChange(false)
       // Reset form
       setFormData({
@@ -157,6 +159,7 @@ export function CreateProcurementForm({ open, onOpenChange }: CreateProcurementF
       setCurrency("NGN")
     } catch (error) {
       console.error("Error creating procurement:", error)
+      toast.error("Failed to create procurement")
     } finally {
       setIsSubmitting(false)
     }
@@ -174,9 +177,9 @@ export function CreateProcurementForm({ open, onOpenChange }: CreateProcurementF
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Procurement Order - Stage 1</DialogTitle>
-            <p className="text-sm text-muted-foreground">
+            <DialogDescription>
               Initial vehicle details and vendor selection. Additional details can be added after deal closure.
-            </p>
+            </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-6 mt-4">
