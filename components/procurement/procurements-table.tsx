@@ -3,19 +3,27 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Eye } from 'lucide-react'
+import { Eye, Edit, Trash2 } from "lucide-react"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
 import { useState } from "react"
-import { ProcurementDetailDialog } from "./procurement-detail-dialog"
 import { ProcurementDetailSheet } from "./procurement-detail-sheet"
+import { deleteProcurement } from "@/app/actions/procurement"
+import { toast } from "sonner"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
 export function ProcurementsTable() {
   const supabase = createClient()
   const [selectedProcurementId, setSelectedProcurementId] = useState<string | null>(null)
   const [showDetail, setShowDetail] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; number: string } | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const { data: procurements = [], isLoading } = useSWR(
+  const {
+    data: procurements = [],
+    isLoading,
+    mutate,
+  } = useSWR(
     "procurements",
     async () => {
       const { data } = await supabase
@@ -43,6 +51,22 @@ export function ProcurementsTable() {
       default:
         return "bg-gray-500/10 text-gray-500"
     }
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return
+
+    setDeletingId(deleteConfirm.id)
+    const result = await deleteProcurement(deleteConfirm.id)
+
+    if (result.success) {
+      toast.success("Procurement deleted successfully")
+      mutate(undefined, { revalidate: true })
+    } else {
+      toast.error(result.error || "Failed to delete procurement")
+    }
+    setDeletingId(null)
+    setDeleteConfirm(null)
   }
 
   return (
@@ -90,17 +114,38 @@ export function ProcurementsTable() {
                       </div>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedProcurementId(proc.id)
-                      setShowDetail(true)
-                    }}
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    View
-                  </Button>
+                  <div className="flex gap-2 ml-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedProcurementId(proc.id)
+                        setShowDetail(true)
+                      }}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        setSelectedProcurementId(proc.id)
+                        setShowDetail(true)
+                      }}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setDeleteConfirm({ id: proc.id, number: proc.procurement_number })}
+                      disabled={deletingId === proc.id}
+                      className="text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -113,8 +158,20 @@ export function ProcurementsTable() {
           open={showDetail}
           onOpenChange={setShowDetail}
           procurementId={selectedProcurementId}
+          onProcurementUpdated={() => mutate(undefined, { revalidate: true })}
         />
       )}
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Delete Procurement"
+        description={`Are you sure you want to delete procurement ${deleteConfirm?.number}? This action cannot be undone.`}
+        onConfirm={confirmDelete}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </>
   )
 }

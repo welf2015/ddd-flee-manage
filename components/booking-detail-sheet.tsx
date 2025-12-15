@@ -312,7 +312,7 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
   const handleDeleteDocument = async (documentId: string) => {
     if (!canDeleteDocuments) {
       const { toast } = await import("sonner")
-      toast.error("Only MD/ED can delete documents")
+      toast.error("Only MD/ED/Ops/Fleet can delete documents")
       return
     }
 
@@ -385,7 +385,12 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
       userRole === "ED" ||
       userRole === "Head of Operations" ||
       userRole === "Operations and Fleet Officer")
-  const canDelete = userRole === "MD" || userRole === "ED"
+  const canDelete =
+    userRole === "MD" ||
+    userRole === "ED" ||
+    userRole === "Head of Operations" ||
+    userRole === "Operations" ||
+    userRole === "Fleet Officer"
   const canDisapprove = displayBooking.status === "Open" && (userRole === "MD" || userRole === "ED")
   const canMarkAsPaid =
     displayBooking.status === "Completed" &&
@@ -397,7 +402,12 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
       userRole === "ED" ||
       userRole === "Head of Operations" ||
       userRole === "Operations and Fleet Officer")
-  const canDeleteDocuments = userRole === "MD" || userRole === "ED"
+  const canDeleteDocuments =
+    userRole === "MD" ||
+    userRole === "ED" ||
+    userRole === "Head of Operations" ||
+    userRole === "Operations" ||
+    userRole === "Fleet Officer"
 
   const handleApproveBooking = async () => {
     setUpdatingStatus(true)

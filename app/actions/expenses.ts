@@ -278,11 +278,15 @@ export async function deleteExpenseTransaction(transactionId: string) {
     return { success: false, error: "Not authenticated" }
   }
 
-  // Check if user is admin (MD or ED)
+  // Check if user is admin (MD, ED, Head of Operations, Operations, or Fleet Officer)
   const { data: profile } = await supabase.from("profiles").select("role, full_name").eq("id", user.id).single()
 
-  if (!profile || !["MD", "ED"].includes(profile.role)) {
-    return { success: false, error: "Only MD/ED can delete expense transactions" }
+  const allowedRoles = ["MD", "ED", "Head of Operations", "Operations", "Fleet Officer"]
+  if (!profile || !allowedRoles.includes(profile.role)) {
+    return {
+      success: false,
+      error: "Only MD, ED, Head of Operations, Operations, and Fleet Officer can delete expense transactions",
+    }
   }
 
   // Get transaction details before deletion for logging
@@ -337,11 +341,15 @@ export async function updateExpenseTransaction(
     return { success: false, error: "Not authenticated" }
   }
 
-  // Check if user is admin (MD or ED)
+  // Check if user is admin (MD, ED, Head of Operations, Operations, or Fleet Officer)
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
 
-  if (!profile || !["MD", "ED"].includes(profile.role)) {
-    return { success: false, error: "Only MD/ED can edit expense transactions" }
+  const allowedRoles = ["MD", "ED", "Head of Operations", "Operations", "Fleet Officer"]
+  if (!profile || !allowedRoles.includes(profile.role)) {
+    return {
+      success: false,
+      error: "Only MD, ED, Head of Operations, Operations, and Fleet Officer can edit expense transactions",
+    }
   }
 
   const { data: originalTransaction } = await supabase
@@ -437,14 +445,18 @@ export async function deleteTopup(topupId: string) {
     return { success: false, error: "Not authenticated" }
   }
 
-  // Check if user is admin (MD or ED)
+  // Check if user is admin (MD, ED, Head of Operations, Operations, or Fleet Officer)
   const { data: profile } = await supabase.from("profiles").select("role, full_name").eq("id", user.id).single()
 
   console.log("[v0] User profile:", profile)
 
-  if (!profile || !["MD", "ED"].includes(profile.role)) {
+  const allowedRoles = ["MD", "ED", "Head of Operations", "Operations", "Fleet Officer"]
+  if (!profile || !allowedRoles.includes(profile.role)) {
     console.log("[v0] User not authorized, role:", profile?.role)
-    return { success: false, error: "Only MD/ED can delete topup transactions" }
+    return {
+      success: false,
+      error: "Only MD, ED, Head of Operations, Operations, and Fleet Officer can delete topup transactions",
+    }
   }
 
   // Get topup details before deletion for logging

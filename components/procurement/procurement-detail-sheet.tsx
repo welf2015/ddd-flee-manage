@@ -22,7 +22,20 @@ import {
   uploadProcurementDocument,
   deleteProcurement,
 } from "@/app/actions/procurement"
-import { DollarSign, Package, Truck, User, FileText, Clock, CheckCircle2, Upload, X, Download, Eye, Trash2 } from "lucide-react"
+import {
+  DollarSign,
+  Package,
+  Truck,
+  User,
+  FileText,
+  Clock,
+  CheckCircle2,
+  Upload,
+  X,
+  Download,
+  Eye,
+  Trash2,
+} from "lucide-react"
 import { toast } from "sonner"
 import { mutate as globalMutate } from "swr"
 import { formatRelativeTime, formatDateTime, formatCurrency } from "@/lib/utils"
@@ -33,9 +46,15 @@ interface ProcurementDetailSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   procurementId: string
+  onProcurementUpdated?: () => void
 }
 
-export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: ProcurementDetailSheetProps) {
+export function ProcurementDetailSheet({
+  open,
+  onOpenChange,
+  procurementId,
+  onProcurementUpdated,
+}: ProcurementDetailSheetProps) {
   const supabase = createClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [negotiationAmount, setNegotiationAmount] = useState("")
@@ -90,7 +109,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
     if (!config.workerUrl || !config.authKey) {
       throw new Error("R2 upload worker not configured. Please check environment variables.")
     }
-    
+
     setWorkerUrl(config.workerUrl)
     setAuthKey(config.authKey)
     return config // Return config for immediate use
@@ -103,9 +122,9 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
   const handleNegotiate = async () => {
     if (!negotiationAmount) return
     setIsSubmitting(true)
-    
+
     const negotiatedPrice = Number.parseFloat(negotiationAmount)
-    
+
     // Optimistic update
     if (procurement) {
       mutate(
@@ -114,17 +133,18 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
           status: "Negotiation",
           negotiated_price: negotiatedPrice,
         },
-        false
+        false,
       )
     }
-    
+
     const result = await negotiateProcurement(procurementId, negotiatedPrice)
-    
+
     if (result.success) {
       setNegotiationAmount("")
       setNegotiationNote("")
       // Revalidate to get fresh data
       await mutate()
+      onProcurementUpdated?.()
     } else {
       // Revert optimistic update on error
       await mutate()
@@ -137,7 +157,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
       ? Number.parseFloat(negotiationAmount)
       : procurement.negotiated_price || procurement.initial_quote
     setIsSubmitting(true)
-    
+
     // Optimistic update
     if (procurement) {
       mutate(
@@ -146,15 +166,16 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
           status: "Deal Closed",
           final_price: dealPrice,
         },
-        false
+        false,
       )
     }
-    
+
     const result = await closeProcurementDeal(procurementId, dealPrice)
-    
+
     if (result.success) {
       // Revalidate to get fresh data
       await mutate()
+      onProcurementUpdated?.()
     } else {
       // Revert optimistic update on error
       await mutate()
@@ -172,7 +193,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
       // Get config - use state if available, otherwise fetch
       let currentWorkerUrl = workerUrl
       let currentAuthKey = authKey
-      
+
       if (!currentWorkerUrl || !currentAuthKey) {
         const config = await fetchWorkerConfig()
         currentWorkerUrl = config.workerUrl
@@ -190,7 +211,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
           if (!currentWorkerUrl) {
             throw new Error("Worker URL not available")
           }
-          
+
           const workerUrlObj = new URL(currentWorkerUrl)
           workerUrlObj.searchParams.set("filename", file.name)
           workerUrlObj.searchParams.set("folder", folder)
@@ -271,13 +292,13 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
             ...procurement,
             status: "Paid",
           },
-          false
+          false,
         )
       }
-      
+
       // Mark as paid
       const result = await markProcurementAsPaid(procurementId)
-      
+
       if (result.success) {
         setInvoiceFile(null)
         setMtcFile(null)
@@ -288,6 +309,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
         setNaddcFile(null)
         // Revalidate to get fresh data
         await mutate()
+        onProcurementUpdated?.()
       } else {
         // Revert optimistic update on error
         await mutate()
@@ -303,7 +325,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
   const handleAddShipping = async () => {
     if (!waybill || !shippingDuration) return
     setIsSubmitting(true)
-    
+
     // Optimistic update
     if (procurement) {
       mutate(
@@ -314,22 +336,23 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
           shipping_tracking_no: waybill,
           estimated_delivery_months: Number.parseInt(shippingDuration),
         },
-        false
+        false,
       )
     }
-    
+
     const result = await addShippingInfo(procurementId, {
       waybill_number: waybill,
       tracking_info: waybill,
       estimated_delivery_months: Number.parseInt(shippingDuration),
       shipping_date: new Date().toISOString().split("T")[0],
     })
-    
+
     if (result.success) {
       setWaybill("")
       setShippingDuration("")
       // Revalidate to get fresh data
       await mutate()
+      onProcurementUpdated?.()
     } else {
       // Revert optimistic update on error
       await mutate()
@@ -339,7 +362,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
 
   const handleMarkArrived = async () => {
     setIsSubmitting(true)
-    
+
     // Optimistic update
     if (procurement) {
       mutate(
@@ -347,15 +370,16 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
           ...procurement,
           status: "Arrived",
         },
-        false
+        false,
       )
     }
-    
+
     const result = await markAsArrived(procurementId)
-    
+
     if (result.success) {
       // Revalidate to get fresh data
       await mutate()
+      onProcurementUpdated?.()
     } else {
       // Revert optimistic update on error
       await mutate()
@@ -366,7 +390,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
   const handleAssignAgent = async () => {
     if (!selectedAgent) return
     setIsSubmitting(true)
-    
+
     // Optimistic update
     if (procurement) {
       mutate(
@@ -375,16 +399,17 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
           status: "Clearing",
           clearing_agent_id: selectedAgent,
         },
-        false
+        false,
       )
     }
-    
+
     const result = await assignClearingAgent(procurementId, selectedAgent)
-    
+
     if (result.success) {
       setSelectedAgent("")
       // Revalidate to get fresh data
       await mutate()
+      onProcurementUpdated?.()
     } else {
       // Revert optimistic update on error
       await mutate()
@@ -402,7 +427,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
           ...procurement,
           status: "Onboarding",
         },
-        false
+        false,
       )
     }
 
@@ -411,6 +436,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
     if (result.success) {
       // Revalidate to get fresh data
       await mutate()
+      onProcurementUpdated?.()
     } else {
       // Revert optimistic update on error
       await mutate()
@@ -425,6 +451,7 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
     if (result.success) {
       toast.success("Procurement deleted successfully")
       globalMutate("procurements")
+      onProcurementUpdated?.()
       onOpenChange(false)
     } else {
       toast.error(result.error || "Failed to delete procurement")
@@ -848,7 +875,6 @@ export function ProcurementDetailSheet({ open, onOpenChange, procurementId }: Pr
                       </label>
                     )}
                   </div>
-
                 </div>
                 <Button
                   onClick={handleMarkPaid}

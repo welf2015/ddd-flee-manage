@@ -928,7 +928,7 @@ export async function deleteBooking(bookingId: string) {
     return { success: false, error: "Not authenticated" }
   }
 
-  // Check user role - only MD and ED can delete
+  // Check user role - MD, ED, Head of Operations, Operations, and Fleet Officer can delete
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role, full_name, email")
@@ -942,9 +942,13 @@ export async function deleteBooking(bookingId: string) {
     return { success: false, error: `Failed to fetch user profile: ${profileError.message}` }
   }
 
-  if (!profile || !["MD", "ED"].includes(profile.role)) {
-    console.warn("🗑️ [Server Action] Unauthorized - role check failed:", { role: profile?.role, allowed: ["MD", "ED"] })
-    return { success: false, error: "Unauthorized: Only MD and ED can delete bookings" }
+  const allowedRoles = ["MD", "ED", "Head of Operations", "Operations", "Fleet Officer"]
+  if (!profile || !allowedRoles.includes(profile.role)) {
+    console.warn("🗑️ [Server Action] Unauthorized - role check failed:", { role: profile?.role, allowed: allowedRoles })
+    return {
+      success: false,
+      error: "Unauthorized: Only MD, ED, Head of Operations, Operations, and Fleet Officer can delete bookings",
+    }
   }
 
   // Get booking info before deleting (including assigned driver)

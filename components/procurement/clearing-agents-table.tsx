@@ -17,7 +17,11 @@ export function ClearingAgentsTable() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
 
-  const { data: agents = [], isLoading, mutate } = useSWR(
+  const {
+    data: agents = [],
+    isLoading,
+    mutate,
+  } = useSWR(
     "clearing-agents",
     async () => {
       const { data } = await supabase.from("clearing_agents").select("*").order("created_at", { ascending: false })
@@ -35,7 +39,7 @@ export function ClearingAgentsTable() {
 
     if (result.success) {
       toast.success("Clearing agent deleted successfully")
-      mutate()
+      mutate(undefined, { revalidate: true })
     } else {
       toast.error(result.error || "Failed to delete clearing agent")
     }
@@ -98,7 +102,7 @@ export function ClearingAgentsTable() {
         open={!!editAgentId}
         onOpenChange={(open) => !open && setEditAgentId(null)}
         agentId={editAgentId}
-        onAgentUpdated={mutate}
+        onAgentUpdated={() => mutate(undefined, { revalidate: true })}
       />
 
       <ConfirmDialog
