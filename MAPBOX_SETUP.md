@@ -14,9 +14,9 @@ This project uses Mapbox for address autocomplete and map visualization.
 2.  Find the `MAPBOX_TOKEN` constant at the top of the file.
 3.  Replace the placeholder string with your actual Mapbox Access Token.
 
-\`\`\`typescript
+```typescript
 const MAPBOX_TOKEN = "pk.eyJ1Ijoi..." // Your token here
-\`\`\`
+```
 
 ## 3. (Optional) Restrict Your Token
 

@@ -24,7 +24,7 @@ This document tracks all development activities, changes, and important informat
 
 ## Project Structure
 
-\`\`\`
+```
 ddd-flee-manage/
 ├── app/                          # Next.js App Router
 │   ├── actions/                  # Server Actions (data mutations)
@@ -66,7 +66,7 @@ ddd-flee-manage/
 │   └── utils/                   # Utility functions
 ├── scripts/                      # Database migration scripts
 └── public/                       # Static assets
-\`\`\`
+```
 
 ---
 
@@ -84,7 +84,7 @@ ddd-flee-manage/
 ### 📝 Code Patterns
 
 #### Server Actions Pattern
-\`\`\`typescript
+```typescript
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
@@ -104,7 +104,7 @@ export async function createEntity(formData: FormData) {
   revalidatePath("/dashboard/path")
   return { success: true, data }
 }
-\`\`\`
+```
 
 #### Component Pattern
 - Use Radix UI components from `components/ui/`

@@ -140,4 +140,3 @@ Run these SQL scripts in your Supabase SQL Editor in the following order:
   - User sees a success toast: "Driver [Name] auto-populated"
   - If vehicle has no assigned driver, driver field is cleared
 - **Team Impact:** Faster incident reporting, less manual data entry, fewer errors
-

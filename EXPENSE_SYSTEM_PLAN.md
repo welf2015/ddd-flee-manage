@@ -11,7 +11,7 @@ Create a comprehensive prepaid expense management system with three main categor
 ## Database Schema
 
 ### 1. Expense Vendors Table
-\`\`\`sql
+```sql
 expense_vendors
 - id (UUID)
 - vendor_name (TEXT) - "Total Energies", "Qoray Charging", "Nigerian Ports Authority", "Driver Allowance Pool"
@@ -21,10 +21,10 @@ expense_vendors
 - location (TEXT)
 - is_active (BOOLEAN)
 - created_at, updated_at
-\`\`\`
+```
 
 ### 2. Prepaid Accounts Table
-\`\`\`sql
+```sql
 prepaid_accounts
 - id (UUID)
 - vendor_id (UUID) → expense_vendors(id)
@@ -34,10 +34,10 @@ prepaid_accounts
 - total_spent (DECIMAL 12,2) DEFAULT 0
 - is_active (BOOLEAN)
 - created_at, updated_at
-\`\`\`
+```
 
 ### 3. Account Top-ups/Deposits Table
-\`\`\`sql
+```sql
 account_topups
 - id (UUID)
 - account_id (UUID) → prepaid_accounts(id)
@@ -48,10 +48,10 @@ account_topups
 - deposited_by (UUID) → profiles(id)
 - notes (TEXT)
 - created_at
-\`\`\`
+```
 
 ### 4. Expense Transactions Table
-\`\`\`sql
+```sql
 expense_transactions
 - id (UUID)
 - account_id (UUID) → prepaid_accounts(id)
@@ -66,7 +66,7 @@ expense_transactions
 - notes (TEXT)
 - created_by (UUID) → profiles(id)
 - created_at
-\`\`\`
+```
 
 ### 5. Update Existing Tables
 - **fuel_logs**: Add `expense_transaction_id` (UUID) → expense_transactions(id) to link fuel logs to expense transactions
@@ -85,7 +85,7 @@ expense_transactions
 **Route**: `/dashboard/expenses`
 
 **Layout**:
-\`\`\`
+```
 Expenses Page
 ├── Header: "Expense Management" + "Add Top-up" button
 ├── Summary Cards:
@@ -112,13 +112,13 @@ Expenses Page
         ├── Top-up History
         ├── Transaction History (by driver/trip)
         └── Add Top-up Button (enter total amount paid - clears negative)
-\`\`\`
+```
 
 ### 2. Enhanced Assign Driver Dialog
 **Current**: Only shows driver selection
 
 **Enhanced**:
-\`\`\`
+```
 Assign Driver Dialog
 ├── Driver Selection (existing)
 ├── Vehicle Display (existing)
@@ -134,7 +134,7 @@ Assign Driver Dialog
     └── Driver Allowance
         ├── Amount (NGN)
         └── Show Account Balance (shows negative amount if overdrawn)
-\`\`\`
+```
 
 **Validation**:
 - Show current account balance (can be negative - prepaid allows overdraft)
@@ -234,29 +234,29 @@ When fuel expense is added during driver assignment:
 ## Database Triggers
 
 ### 1. Update Account Balance on Top-up
-\`\`\`sql
+```sql
 CREATE TRIGGER update_account_balance_on_topup
 AFTER INSERT ON account_topups
 FOR EACH ROW
 EXECUTE FUNCTION update_account_balance();
-\`\`\`
+```
 
 ### 2. Update Account Balance on Transaction
-\`\`\`sql
+```sql
 CREATE TRIGGER update_account_balance_on_transaction
 AFTER INSERT ON expense_transactions
 FOR EACH ROW
 EXECUTE FUNCTION deduct_account_balance();
-\`\`\`
+```
 
 ### 3. Auto-create Fuel Log on Fuel Transaction
-\`\`\`sql
+```sql
 CREATE TRIGGER auto_create_fuel_log
 AFTER INSERT ON expense_transactions
 FOR EACH ROW
 WHEN (NEW.expense_type = 'Fuel')
 EXECUTE FUNCTION create_fuel_log_from_transaction();
-\`\`\`
+```
 
 ---
 
