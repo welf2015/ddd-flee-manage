@@ -57,13 +57,25 @@ export function VendorsTable() {
     if (!deleteConfirm) return
 
     setDeletingId(deleteConfirm.id)
+
+    // Optimistic update - remove from UI immediately
+    const currentVendors = vendors
+    mutate(
+      vendors.filter((v: any) => v.id !== deleteConfirm.id),
+      false
+    )
+
     const result = await deleteVendor(deleteConfirm.id)
 
     if (result.success) {
       toast.success("Vendor deleted successfully")
-      mutate()
+      await mutate()
     } else {
-      toast.error(result.error || "Failed to delete vendor")
+      // Revert optimistic update on error
+      mutate(currentVendors, false)
+      toast.error(result.error || "Failed to delete vendor", {
+        duration: 5000,
+      })
     }
     setDeletingId(null)
     setDeleteConfirm(null)

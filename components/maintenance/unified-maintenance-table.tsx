@@ -14,6 +14,8 @@ import { deleteMaintenanceLog, deleteMaintenanceSchedule } from "@/app/actions/m
 import { toast } from "sonner"
 import { EditMaintenanceLogDialog } from "./edit-maintenance-log-dialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import MaintenanceDetailSheet from "./maintenance-detail-sheet"
+import { MaintenanceLogSheet } from "./maintenance-log-sheet"
 
 const fetcher = async () => {
   const supabase = createClient()
@@ -200,7 +202,7 @@ export default function UnifiedMaintenanceTable({ initialLogs, initialSchedules 
                       : "N/A"}
                   </TableCell>
                   <TableCell>
-                    {record.record_type === "Schedule" ? getStatusBadge(record.status) : "-"}
+                    {record.record_type === "Schedule" ? getStatusBadge(record.status) : getStatusBadge("Completed")}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
@@ -242,6 +244,24 @@ export default function UnifiedMaintenanceTable({ initialLogs, initialSchedules 
         logId={editLogId}
         onLogUpdated={mutate}
       />
+
+      {/* View Dialog - shows details based on record type */}
+      {viewRecord && viewRecord.record_type === "Schedule" && (
+        <MaintenanceDetailSheet
+          schedule={viewRecord}
+          open={!!viewRecord}
+          onOpenChange={(open) => !open && setViewRecord(null)}
+          vehicles={[]}
+        />
+      )}
+
+      {viewRecord && viewRecord.record_type === "Log" && (
+        <MaintenanceLogSheet
+          log={viewRecord}
+          open={!!viewRecord}
+          onOpenChange={(open) => !open && setViewRecord(null)}
+        />
+      )}
 
       <ConfirmDialog
         open={!!deleteConfirm}

@@ -135,10 +135,19 @@ export async function completeOnboarding(onboardingId: string) {
     return { success: false, error: "Not authenticated" }
   }
 
-  // Get onboarding details
+  // Get onboarding details with full checklist item and category data
   const { data: onboarding } = await supabase
     .from("vehicle_onboarding")
-    .select("*, progress:vehicle_onboarding_progress(*)")
+    .select(`
+      *,
+      progress:vehicle_onboarding_progress(
+        *,
+        checklist_item:onboarding_checklist_items(
+          id,
+          category:onboarding_categories(name)
+        )
+      )
+    `)
     .eq("id", onboardingId)
     .single()
 
@@ -146,8 +155,14 @@ export async function completeOnboarding(onboardingId: string) {
     return { success: false, error: "Onboarding not found" }
   }
 
+  // For Trucks and Bikes, exclude Accessories category from completion check
+  const shouldExcludeAccessories = onboarding.vehicle_type === "Truck" || onboarding.vehicle_type === "Bike"
+  const relevantProgress = shouldExcludeAccessories
+    ? onboarding.progress.filter((p: any) => p.checklist_item?.category?.name !== "Accessories")
+    : onboarding.progress
+
   // Check if all required items are completed
-  const allCompleted = onboarding.progress.every((p: any) => p.is_completed)
+  const allCompleted = relevantProgress.every((p: any) => p.is_completed)
   if (!allCompleted) {
     return { success: false, error: "Not all checklist items are completed" }
   }

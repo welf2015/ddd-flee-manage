@@ -287,3 +287,62 @@ export async function updateVehicle(vehicleId: string, data: any) {
   revalidatePath("/dashboard/vehicles")
   return { success: true }
 }
+
+export async function deleteVehicle(vehicleId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  // Get vehicle data for logging
+  const { data: vehicle } = await supabase.from("vehicles").select("*").eq("id", vehicleId).single()
+
+  if (!vehicle) {
+    return { success: false, error: "Vehicle not found" }
+  }
+
+  // Check if vehicle is assigned to any active bookings
+  const { data: activeBookings } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("vehicle_id", vehicleId)
+    .in("status", ["Pending", "Confirmed", "In Progress"])
+
+  if (activeBookings && activeBookings.length > 0) {
+    return {
+      success: false,
+      error: `Cannot delete vehicle. It is assigned to ${activeBookings.length} active booking(s). Please complete or reassign these bookings first.`,
+    }
+  }
+
+  // Delete the vehicle
+  const { error } = await supabase.from("vehicles").delete().eq("id", vehicleId)
+
+  if (error) {
+    return { success: false, error: `Delete failed: ${error.message}` }
+  }
+
+  // Get user profile for logging
+  const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).single()
+
+  // Log the action
+  await supabase.from("system_activity_log").insert({
+    module: "Vehicles",
+    action: "Deleted",
+    reference_id: vehicle.vehicle_number || vehicleId,
+    description: `Deleted vehicle: ${vehicle.make} ${vehicle.model} (${vehicle.vehicle_number})`,
+    user_id: user.id,
+    user_name: profile?.full_name || "Unknown",
+    user_email: profile?.email || "",
+    old_value: JSON.stringify(vehicle),
+    new_value: null,
+  })
+
+  revalidatePath("/dashboard/vehicles")
+  return { success: true }
+}

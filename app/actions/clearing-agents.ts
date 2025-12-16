@@ -14,21 +14,21 @@ export async function deleteClearingAgent(agentId: string) {
     return { success: false, error: "Not authenticated" }
   }
 
-  // Check if agent is used in any procurements
-  const { data: procurements } = await supabase
+  // First, unassign agent from any procurements
+  const { error: unassignError } = await supabase
     .from("procurements")
-    .select("id")
+    .update({ clearing_agent_id: null })
     .eq("clearing_agent_id", agentId)
-    .limit(1)
 
-  if (procurements && procurements.length > 0) {
-    return { success: false, error: "Cannot delete clearing agent that is assigned to procurements" }
+  if (unassignError) {
+    return { success: false, error: `Failed to unassign clearing agent: ${unassignError.message}` }
   }
 
+  // Now delete the clearing agent
   const { error } = await supabase.from("clearing_agents").delete().eq("id", agentId)
 
   if (error) {
-    return { success: false, error: error.message }
+    return { success: false, error: `Delete failed: ${error.message}` }
   }
 
   revalidatePath("/dashboard/procurement")

@@ -14,21 +14,21 @@ export async function deleteVendor(vendorId: string) {
     return { success: false, error: "Not authenticated" }
   }
 
-  // Check if vendor is used in any procurements
-  const { data: procurements } = await supabase
+  // First, unassign vendor from any procurements
+  const { error: unassignError } = await supabase
     .from("procurements")
-    .select("id")
+    .update({ vendor_id: null })
     .eq("vendor_id", vendorId)
-    .limit(1)
 
-  if (procurements && procurements.length > 0) {
-    return { success: false, error: "Cannot delete vendor that is used in procurements" }
+  if (unassignError) {
+    return { success: false, error: `Failed to unassign vendor: ${unassignError.message}` }
   }
 
+  // Now delete the vendor
   const { error } = await supabase.from("vendors").delete().eq("id", vendorId)
 
   if (error) {
-    return { success: false, error: error.message }
+    return { success: false, error: `Delete failed: ${error.message}` }
   }
 
   revalidatePath("/dashboard/procurement")

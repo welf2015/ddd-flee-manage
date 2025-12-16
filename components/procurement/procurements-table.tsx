@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Eye, Edit, Trash2 } from "lucide-react"
+import { Eye, Trash2 } from "lucide-react"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
 import { useState } from "react"
@@ -125,16 +125,6 @@ export function ProcurementsTable() {
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       View
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => {
-                        setSelectedProcurementId(proc.id)
-                        setShowDetail(true)
-                      }}
-                    >
-                      <Edit className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="outline"

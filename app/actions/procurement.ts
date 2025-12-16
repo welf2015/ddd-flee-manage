@@ -519,11 +519,17 @@ export async function updateShippingInfo(
     return { success: false, error: "Not authenticated" }
   }
 
+  // Calculate expected arrival date
+  const shippingDate = new Date(data.shipping_date)
+  const expectedArrival = new Date(shippingDate)
+  expectedArrival.setMonth(expectedArrival.getMonth() + data.estimated_delivery_months)
+
   const { error } = await supabase
     .from("procurements")
     .update({
       ...data,
       status: "In Transit",
+      expected_arrival: expectedArrival.toISOString().split("T")[0],
     })
     .eq("id", procurementId)
 
@@ -627,6 +633,14 @@ export async function updatePostDealInfo(
     statusUpdate.status = "In Transit"
     timelineAction = "Shipping Details Added"
     timelineNotes = `Waybill: ${data.waybill_number}, Expected delivery: ${data.estimated_delivery_months} months`
+
+    // Calculate expected arrival date
+    if (data.shipping_date && data.estimated_delivery_months) {
+      const shippingDate = new Date(data.shipping_date)
+      const expectedArrival = new Date(shippingDate)
+      expectedArrival.setMonth(expectedArrival.getMonth() + data.estimated_delivery_months)
+      statusUpdate.expected_arrival = expectedArrival.toISOString().split("T")[0]
+    }
   } else if (data.clearing_date && data.license_plate_number) {
     statusUpdate.status = "Ready for Onboarding"
     timelineAction = "Clearing Completed"

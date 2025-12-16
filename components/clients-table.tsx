@@ -5,8 +5,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Eye, Mail, Phone, Star } from "lucide-react"
+import { Eye, Mail, Phone, Star, Edit, Trash2 } from "lucide-react"
 import { useState, useMemo } from "react"
+import { CreateClientDialog } from "@/components/create-client-dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { deleteClient } from "@/app/actions/clients"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 type Client = {
   id: string
@@ -25,7 +30,11 @@ type ClientsTableProps = {
 }
 
 export function ClientsTable({ clients, clientBookings, onViewClient }: ClientsTableProps) {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
+  const [editClient, setEditClient] = useState<Client | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const filteredClients = useMemo(() => {
     return clients.filter((client) => {
@@ -46,7 +55,30 @@ export function ClientsTable({ clients, clientBookings, onViewClient }: ClientsT
     return null
   }
 
+  const handleDelete = async () => {
+    if (!deleteConfirm) return
+
+    setIsDeleting(true)
+    const result = await deleteClient(deleteConfirm.id)
+
+    if (result.success) {
+      toast.success("Client deleted successfully")
+      setDeleteConfirm(null)
+      router.refresh()
+    } else {
+      toast.error(result.error || "Failed to delete client", {
+        duration: 5000,
+      })
+    }
+    setIsDeleting(false)
+  }
+
+  const handleEditSuccess = () => {
+    router.refresh()
+  }
+
   return (
+    <>
     <Card className="bg-background/50 backdrop-blur">
       <CardHeader>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -107,9 +139,23 @@ export function ClientsTable({ clients, clientBookings, onViewClient }: ClientsT
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => onViewClient(client)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => onViewClient(client)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setEditClient(client)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteConfirm({ id: client.id, name: client.name })}
+                          disabled={isDeleting}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
@@ -119,5 +165,24 @@ export function ClientsTable({ clients, clientBookings, onViewClient }: ClientsT
         )}
       </CardContent>
     </Card>
+
+    <CreateClientDialog
+      open={!!editClient}
+      onOpenChange={(open) => !open && setEditClient(null)}
+      client={editClient}
+      onSuccess={handleEditSuccess}
+    />
+
+    <ConfirmDialog
+      open={!!deleteConfirm}
+      onOpenChange={(open) => !open && setDeleteConfirm(null)}
+      title="Delete Client"
+      description={`Are you sure you want to delete ${deleteConfirm?.name}? This action cannot be undone.`}
+      onConfirm={handleDelete}
+      confirmText="Delete"
+      cancelText="Cancel"
+      variant="destructive"
+    />
+  </>
   )
 }

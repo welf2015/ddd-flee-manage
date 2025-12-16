@@ -15,7 +15,13 @@ const fetcher = async () => {
     .select(`
       *,
       assigned_to_profile:profiles!vehicle_onboarding_assigned_to_fkey(full_name),
-      vehicle_onboarding_progress(is_completed)
+      vehicle_onboarding_progress(
+        is_completed,
+        checklist_item:onboarding_checklist_items(
+          id,
+          category:onboarding_categories(name)
+        )
+      )
     `)
     .order("created_at", { ascending: false })
 
@@ -86,10 +92,19 @@ export function OnboardingTable({ search, onViewDetails }: OnboardingTableProps)
     )
   }
 
-  const getCompletionPercentage = (progressArray: any[]) => {
+  const getCompletionPercentage = (progressArray: any[], vehicleType: string) => {
     if (!progressArray || progressArray.length === 0) return 0
-    const completed = progressArray.filter((p) => p.is_completed).length
-    return Math.round((completed / progressArray.length) * 100)
+
+    // For Trucks and Bikes, exclude Accessories category from completion calculation
+    const shouldExcludeAccessories = vehicleType === "Truck" || vehicleType === "Bike"
+    const relevantItems = shouldExcludeAccessories
+      ? progressArray.filter((p) => p.checklist_item?.category?.name !== "Accessories")
+      : progressArray
+
+    if (relevantItems.length === 0) return 0
+
+    const completed = relevantItems.filter((p) => p.is_completed).length
+    return Math.round((completed / relevantItems.length) * 100)
   }
 
   return (
@@ -109,7 +124,7 @@ export function OnboardingTable({ search, onViewDetails }: OnboardingTableProps)
         </TableHeader>
         <TableBody>
           {filteredData?.map((item) => {
-            const completion = getCompletionPercentage(item.vehicle_onboarding_progress)
+            const completion = getCompletionPercentage(item.vehicle_onboarding_progress, item.vehicle_type)
             return (
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.vehicle_number || "TBD"}</TableCell>

@@ -4,8 +4,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Fuel, Wrench, AlertTriangle, Calendar } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Fuel, Wrench, AlertTriangle, Calendar, Edit, Trash2 } from "lucide-react"
 import { formatRelativeTime } from "@/lib/utils"
+import { useState } from "react"
+import { AddVehicleDialog } from "@/components/vehicles/add-vehicle-dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { deleteVehicle } from "@/app/actions/vehicles"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 type VehicleDetailDialogProps = {
   open: boolean
@@ -22,10 +29,39 @@ type VehicleDetailDialogProps = {
     next_service_date: string | null
     created_at: string
   } | null
+  onVehicleUpdated?: () => void
 }
 
-export function VehicleDetailDialog({ open, onOpenChange, vehicle }: VehicleDetailDialogProps) {
+export function VehicleDetailDialog({ open, onOpenChange, vehicle, onVehicleUpdated }: VehicleDetailDialogProps) {
+  const router = useRouter()
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   if (!vehicle) return null
+
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    const result = await deleteVehicle(vehicle.id)
+
+    if (result.success) {
+      toast.success("Vehicle deleted successfully")
+      setShowDeleteConfirm(false)
+      onOpenChange(false)
+      onVehicleUpdated?.()
+      router.refresh()
+    } else {
+      toast.error(result.error || "Failed to delete vehicle", {
+        duration: 5000,
+      })
+    }
+    setIsDeleting(false)
+  }
+
+  const handleEditSuccess = () => {
+    onVehicleUpdated?.()
+    router.refresh()
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -41,16 +77,32 @@ export function VehicleDetailDialog({ open, onOpenChange, vehicle }: VehicleDeta
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-background/95">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>{vehicle.vehicle_number}</span>
-            <Badge variant="outline" className={getStatusColor(vehicle.status)}>
-              {vehicle.status}
-            </Badge>
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-background/95">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>{vehicle.vehicle_number}</span>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className={getStatusColor(vehicle.status)}>
+                  {vehicle.status}
+                </Badge>
+                <Button variant="outline" size="sm" onClick={() => setShowEditDialog(true)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={isDeleting}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
 
         <div className="space-y-6">
           {/* Vehicle Information */}
@@ -142,5 +194,24 @@ export function VehicleDetailDialog({ open, onOpenChange, vehicle }: VehicleDeta
         </div>
       </DialogContent>
     </Dialog>
+
+    <AddVehicleDialog
+      open={showEditDialog}
+      onClose={() => setShowEditDialog(false)}
+      vehicle={vehicle}
+      onSuccess={handleEditSuccess}
+    />
+
+    <ConfirmDialog
+      open={showDeleteConfirm}
+      onOpenChange={setShowDeleteConfirm}
+      title="Delete Vehicle"
+      description={`Are you sure you want to delete ${vehicle.vehicle_number}? This action cannot be undone.`}
+      onConfirm={handleDelete}
+      confirmText="Delete"
+      cancelText="Cancel"
+      variant="destructive"
+    />
+  </>
   )
 }

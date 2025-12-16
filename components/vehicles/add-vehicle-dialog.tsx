@@ -2,23 +2,25 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { createVehicleWithOnboarding } from "@/app/actions/vehicles"
+import { createVehicleWithOnboarding, updateVehicle } from "@/app/actions/vehicles"
 import { toast } from "sonner"
 
 interface AddVehicleDialogProps {
   open: boolean
   onClose: () => void
   onSuccess?: () => void
+  vehicle?: any // If provided, we're editing
 }
 
-export function AddVehicleDialog({ open, onClose, onSuccess }: AddVehicleDialogProps) {
+export function AddVehicleDialog({ open, onClose, onSuccess, vehicle }: AddVehicleDialogProps) {
+  const isEditing = !!vehicle
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     vehicle_number: "",
@@ -30,19 +32,20 @@ export function AddVehicleDialog({ open, onClose, onSuccess }: AddVehicleDialogP
     createOnboarding: true,
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-
-    try {
-      const result = await createVehicleWithOnboarding(formData)
-
-      if (result.success) {
-        toast.success(
-          formData.createOnboarding ? "Vehicle added and onboarding initiated" : "Vehicle added successfully",
-        )
-        onSuccess?.()
-        onClose()
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (open) {
+      if (vehicle) {
+        setFormData({
+          vehicle_number: vehicle.vehicle_number || "",
+          vehicle_type: vehicle.vehicle_type || "",
+          make: vehicle.make || "",
+          model: vehicle.model || "",
+          year: vehicle.year || new Date().getFullYear(),
+          status: vehicle.status || "Active",
+          createOnboarding: true,
+        })
+      } else {
         setFormData({
           vehicle_number: "",
           vehicle_type: "",
@@ -52,8 +55,48 @@ export function AddVehicleDialog({ open, onClose, onSuccess }: AddVehicleDialogP
           status: "Active",
           createOnboarding: true,
         })
+      }
+    }
+  }, [open, vehicle])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      if (isEditing) {
+        // Update existing vehicle
+        const result = await updateVehicle(vehicle.id, formData)
+
+        if (result.success) {
+          toast.success("Vehicle updated successfully")
+          onSuccess?.()
+          onClose()
+        } else {
+          toast.error(result.error || "Failed to update vehicle")
+        }
       } else {
-        toast.error(result.error || "Failed to add vehicle")
+        // Create new vehicle
+        const result = await createVehicleWithOnboarding(formData)
+
+        if (result.success) {
+          toast.success(
+            formData.createOnboarding ? "Vehicle added and onboarding initiated" : "Vehicle added successfully",
+          )
+          onSuccess?.()
+          onClose()
+          setFormData({
+            vehicle_number: "",
+            vehicle_type: "",
+            make: "",
+            model: "",
+            year: new Date().getFullYear(),
+            status: "Active",
+            createOnboarding: true,
+          })
+        } else {
+          toast.error(result.error || "Failed to add vehicle")
+        }
       }
     } catch (error: any) {
       toast.error(error.message || "An error occurred")
@@ -66,7 +109,7 @@ export function AddVehicleDialog({ open, onClose, onSuccess }: AddVehicleDialogP
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Add New Vehicle</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit Vehicle" : "Add New Vehicle"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -134,23 +177,25 @@ export function AddVehicleDialog({ open, onClose, onSuccess }: AddVehicleDialogP
             />
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="createOnboarding"
-              checked={formData.createOnboarding}
-              onCheckedChange={(checked) => setFormData({ ...formData, createOnboarding: checked as boolean })}
-            />
-            <Label htmlFor="createOnboarding" className="cursor-pointer text-sm">
-              Create onboarding checklist for this vehicle
-            </Label>
-          </div>
+          {!isEditing && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="createOnboarding"
+                checked={formData.createOnboarding}
+                onCheckedChange={(checked) => setFormData({ ...formData, createOnboarding: checked as boolean })}
+              />
+              <Label htmlFor="createOnboarding" className="cursor-pointer text-sm">
+                Create onboarding checklist for this vehicle
+              </Label>
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading} className="bg-accent text-accent-foreground hover:bg-accent/90">
-              {loading ? "Adding..." : "Add Vehicle"}
+              {loading ? (isEditing ? "Saving..." : "Adding...") : (isEditing ? "Save" : "Add Vehicle")}
             </Button>
           </div>
         </form>

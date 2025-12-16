@@ -7,16 +7,59 @@ import { createClient } from '@/lib/supabase/client'
 
 const fetcher = async () => {
   const supabase = createClient()
-  
+
+  // Get current month date range
+  const now = new Date()
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
+  // Fetch schedules
   const { data: schedules } = await supabase
     .from('maintenance_schedules')
-    .select('status, estimated_cost, actual_cost')
-  
+    .select('status, estimated_cost, actual_cost, scheduled_date, completed_at')
+
+  // Fetch logs (already completed maintenance)
+  const { data: logs } = await supabase
+    .from('maintenance_logs')
+    .select('cost, service_date')
+
   const pending = schedules?.filter(s => s.status === 'Pending').length || 0
   const inProgress = schedules?.filter(s => s.status === 'In Progress').length || 0
   const completed = schedules?.filter(s => s.status === 'Completed').length || 0
-  const totalCost = schedules?.reduce((sum, s) => sum + (Number(s.actual_cost) || Number(s.estimated_cost) || 0), 0) || 0
-  
+
+  // Calculate total cost for current month
+  // Include BOTH schedules AND logs
+  let totalCost = 0
+
+  // Add costs from SCHEDULES (in current month)
+  const scheduleCost = schedules?.reduce((sum, s) => {
+    const scheduleDate = new Date(s.scheduled_date)
+    if (scheduleDate < firstDayOfMonth || scheduleDate > lastDayOfMonth) {
+      return sum
+    }
+
+    // Only count completed (actual cost) and in-progress/approved (estimated cost)
+    if (s.status === 'Completed' && s.actual_cost) {
+      return sum + Number(s.actual_cost)
+    } else if ((s.status === 'In Progress' || s.status === 'Approved') && s.estimated_cost) {
+      return sum + Number(s.estimated_cost)
+    }
+
+    return sum
+  }, 0) || 0
+
+  // Add costs from LOGS (in current month)
+  const logCost = logs?.reduce((sum, log) => {
+    const serviceDate = new Date(log.service_date)
+    if (serviceDate < firstDayOfMonth || serviceDate > lastDayOfMonth) {
+      return sum
+    }
+
+    return sum + (Number(log.cost) || 0)
+  }, 0) || 0
+
+  totalCost = scheduleCost + logCost
+
   return { pending, inProgress, completed, totalCost }
 }
 

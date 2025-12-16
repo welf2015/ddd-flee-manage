@@ -13,10 +13,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Eye, Wrench, MoreVertical } from "lucide-react"
+import { Eye, Wrench, MoreVertical, Edit, Trash2 } from "lucide-react"
 import { useState, useMemo } from "react"
-import { updateVehicleStatus } from "@/app/actions/vehicles"
+import { updateVehicleStatus, deleteVehicle } from "@/app/actions/vehicles"
 import { useRouter } from "next/navigation"
+import { AddVehicleDialog } from "@/components/vehicles/add-vehicle-dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { toast } from "sonner"
 
 type Vehicle = {
   id: string
@@ -38,6 +41,9 @@ type VehiclesTableProps = {
 
 export function VehiclesTable({ vehicles, onViewVehicle }: VehiclesTableProps) {
   const [searchQuery, setSearchQuery] = useState("")
+  const [editVehicle, setEditVehicle] = useState<Vehicle | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; number: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const router = useRouter()
 
   const filteredVehicles = useMemo(() => {
@@ -86,7 +92,30 @@ export function VehiclesTable({ vehicles, onViewVehicle }: VehiclesTableProps) {
     }
   }
 
+  const handleDelete = async () => {
+    if (!deleteConfirm) return
+
+    setIsDeleting(true)
+    const result = await deleteVehicle(deleteConfirm.id)
+
+    if (result.success) {
+      toast.success("Vehicle deleted successfully")
+      setDeleteConfirm(null)
+      router.refresh()
+    } else {
+      toast.error(result.error || "Failed to delete vehicle", {
+        duration: 5000,
+      })
+    }
+    setIsDeleting(false)
+  }
+
+  const handleEditSuccess = () => {
+    router.refresh()
+  }
+
   return (
+    <>
     <Card className="bg-background/50 backdrop-blur">
       <CardHeader>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -150,6 +179,11 @@ export function VehiclesTable({ vehicles, onViewVehicle }: VehiclesTableProps) {
                           <Eye className="h-4 w-4 mr-2" />
                           View Details
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditVehicle(vehicle)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Vehicle
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => handleStatusChange(vehicle.id, "In Maintenance")}>
                           <Wrench className="h-4 w-4 mr-2" />
                           Mark as Maintenance
@@ -159,6 +193,14 @@ export function VehiclesTable({ vehicles, onViewVehicle }: VehiclesTableProps) {
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleStatusChange(vehicle.id, "Inactive")}>
                           Mark as Inactive
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => setDeleteConfirm({ id: vehicle.id, number: vehicle.vehicle_number })}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Vehicle
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -170,5 +212,24 @@ export function VehiclesTable({ vehicles, onViewVehicle }: VehiclesTableProps) {
         )}
       </CardContent>
     </Card>
+
+    <AddVehicleDialog
+      open={!!editVehicle}
+      onClose={() => setEditVehicle(null)}
+      vehicle={editVehicle}
+      onSuccess={handleEditSuccess}
+    />
+
+    <ConfirmDialog
+      open={!!deleteConfirm}
+      onOpenChange={(open) => !open && setDeleteConfirm(null)}
+      title="Delete Vehicle"
+      description={`Are you sure you want to delete ${deleteConfirm?.number}? This action cannot be undone.`}
+      onConfirm={handleDelete}
+      confirmText="Delete"
+      cancelText="Cancel"
+      variant="destructive"
+    />
+  </>
   )
 }

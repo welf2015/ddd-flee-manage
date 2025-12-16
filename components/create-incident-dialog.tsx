@@ -22,14 +22,24 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Plus, Upload, CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createIncident } from "@/app/actions/incidents"
+import { createIncident, updateIncident } from "@/app/actions/incidents"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
-export function CreateIncidentDialog() {
-  const [open, setOpen] = useState(false)
+interface CreateIncidentDialogProps {
+  incident?: any
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  onSuccess?: () => void
+}
+
+export function CreateIncidentDialog({ incident, open: controlledOpen, onOpenChange, onSuccess }: CreateIncidentDialogProps = {}) {
+  const isEditing = !!incident
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen
+  const setOpen = onOpenChange || setInternalOpen
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -46,20 +56,94 @@ export function CreateIncidentDialog() {
   const [towContacted, setTowContacted] = useState(false)
   const router = useRouter()
 
-  const [formState, setFormState] = useState<any>({})
+  const [formState, setFormState] = useState<any>({
+    vehicle_id: "",
+    driver_id: "",
+    severity: "",
+    description: "",
+    location: "",
+    total_amount_spent: "",
+    third_parties_involved: "",
+    witnesses: "",
+    vehicle_towed_to: "",
+    immediate_action_taken: "",
+    insurance_reference: "",
+    repairs_authorized_by: "",
+    workshop_name: "",
+    final_comments: "",
+    resolved_by: "",
+  })
 
   useEffect(() => {
     if (open) {
       fetchData()
+
+      if (incident) {
+        // Pre-fill form when editing
+        setIncidentDate(incident.incident_date ? new Date(incident.incident_date) : new Date())
+        setIncidentTime(incident.incident_time || new Date().toTimeString().split(" ")[0].substring(0, 5))
+        setReturnDate(incident.date_returned_to_service ? new Date(incident.date_returned_to_service) : undefined)
+        setHasDowntime(incident.downtime || false)
+        setInsuranceFiled(incident.insurance_claim_filed || false)
+        setPoliceContacted(incident.police_contacted || false)
+        setTowContacted(incident.tow_service_contacted || false)
+        setImageUrl(incident.photo_url || "")
+
+        setFormState({
+          vehicle_id: incident.vehicle_id || "",
+          driver_id: incident.driver_id || "",
+          severity: incident.severity || "",
+          description: incident.description || "",
+          location: incident.location || "",
+          total_amount_spent: incident.total_amount_spent?.toString() || "",
+          third_parties_involved: incident.third_parties_involved || "",
+          witnesses: incident.witnesses || "",
+          vehicle_towed_to: incident.vehicle_towed_to || "",
+          immediate_action_taken: incident.immediate_action_taken || "",
+          insurance_reference: incident.insurance_reference || "",
+          repairs_authorized_by: incident.repairs_authorized_by || "",
+          workshop_name: incident.workshop_name || "",
+          final_comments: incident.final_comments || "",
+          resolved_by: incident.resolved_by || "",
+        })
+      } else {
+        // Reset to defaults when creating new
+        setIncidentDate(new Date())
+        setIncidentTime(new Date().toTimeString().split(" ")[0].substring(0, 5))
+        setReturnDate(undefined)
+        setHasDowntime(false)
+        setInsuranceFiled(false)
+        setPoliceContacted(false)
+        setTowContacted(false)
+        setImageUrl("")
+
+        setFormState({
+          vehicle_id: "",
+          driver_id: "",
+          severity: "",
+          description: "",
+          location: "",
+          total_amount_spent: "",
+          third_parties_involved: "",
+          witnesses: "",
+          vehicle_towed_to: "",
+          immediate_action_taken: "",
+          insurance_reference: "",
+          repairs_authorized_by: "",
+          workshop_name: "",
+          final_comments: "",
+          resolved_by: "",
+        })
+      }
     }
-  }, [open])
+  }, [open, incident])
 
   const fetchData = async () => {
     const supabase = createClient()
 
     const [vehiclesRes, driversRes, staffRes] = await Promise.all([
       supabase.from("vehicles").select("id, vehicle_number").order("vehicle_number"),
-      supabase.from("drivers").select("id, full_name").order("full_name"),
+      supabase.from("drivers").select("id, full_name, assigned_vehicle_id").order("full_name"),
       supabase
         .from("staff_directory")
         .select("id, full_name, position, department")
@@ -158,6 +242,21 @@ export function CreateIncidentDialog() {
     setFormState((prev: any) => ({ ...prev, [key]: value }))
   }
 
+  const handleVehicleChange = (vehicleId: string) => {
+    // Update vehicle_id
+    updateFormState("vehicle_id", vehicleId)
+
+    // Find the driver assigned to this vehicle
+    const assignedDriver = drivers.find((d) => d.assigned_vehicle_id === vehicleId)
+    if (assignedDriver) {
+      updateFormState("driver_id", assignedDriver.id)
+      toast.success(`Driver ${assignedDriver.full_name} auto-populated`)
+    } else {
+      // Clear driver if vehicle has no assigned driver
+      updateFormState("driver_id", "none")
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
@@ -199,10 +298,12 @@ export function CreateIncidentDialog() {
     if (formState.final_comments) formData.set("final_comments", formState.final_comments)
     if (formState.resolved_by && formState.resolved_by !== "none") formData.set("resolved_by", formState.resolved_by)
 
-    const result = await createIncident(formData)
+    const result = isEditing
+      ? await updateIncident(incident.id, formData)
+      : await createIncident(formData)
 
     if (result.success) {
-      toast.success("Incident reported successfully")
+      toast.success(isEditing ? "Incident updated successfully" : "Incident reported successfully")
       setOpen(false)
       setCurrentStep(1)
       setFormState({})
@@ -214,9 +315,10 @@ export function CreateIncidentDialog() {
       setInsuranceFiled(false)
       setPoliceContacted(false)
       setTowContacted(false)
+      onSuccess?.()
       router.refresh()
     } else {
-      toast.error(result.error || "Failed to create incident")
+      toast.error(result.error || `Failed to ${isEditing ? "update" : "create"} incident`)
     }
 
     setLoading(false)
@@ -233,15 +335,19 @@ export function CreateIncidentDialog() {
         }
       }}
     >
-      <DialogTrigger asChild>
-        <Button className="bg-accent hover:bg-accent/90">
-          <Plus className="mr-2 h-4 w-4" />
-          Report Incident
-        </Button>
-      </DialogTrigger>
+      {!isEditing && (
+        <DialogTrigger asChild>
+          <Button className="bg-accent hover:bg-accent/90">
+            <Plus className="mr-2 h-4 w-4" />
+            Report Incident
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-3xl bg-background/95 backdrop-blur-xl border-border/50 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Report New Incident - Step {currentStep} of 3</DialogTitle>
+          <DialogTitle>
+            {isEditing ? `Edit Incident - Step ${currentStep} of 3` : `Report New Incident - Step ${currentStep} of 3`}
+          </DialogTitle>
           <DialogDescription>
             {currentStep === 1 && "Provide basic incident information"}
             {currentStep === 2 && "Document parties involved and immediate response"}
@@ -249,7 +355,15 @@ export function CreateIncidentDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            // Prevent Enter key from submitting form except on submit button
+            if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
+              e.preventDefault()
+            }
+          }}
+        >
           {/* Step 1: Basic Information */}
           {currentStep === 1 && (
             <div className="space-y-4 py-4">
@@ -258,7 +372,7 @@ export function CreateIncidentDialog() {
                   <Label htmlFor="vehicle_id">Vehicle *</Label>
                   <Select
                     value={formState.vehicle_id}
-                    onValueChange={(value) => updateFormState("vehicle_id", value)}
+                    onValueChange={handleVehicleChange}
                     required
                   >
                     <SelectTrigger>
@@ -600,7 +714,7 @@ export function CreateIncidentDialog() {
                 </Button>
               ) : (
                 <Button type="submit" disabled={loading || uploading} className="bg-accent hover:bg-accent/90">
-                  {loading ? "Reporting..." : "Submit Report"}
+                  {loading ? (isEditing ? "Saving..." : "Reporting...") : (isEditing ? "Save" : "Submit Report")}
                 </Button>
               )}
             </div>

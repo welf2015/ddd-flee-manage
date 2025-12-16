@@ -183,8 +183,14 @@ export function OnboardingDetailSheet({ onboardingId, open, onClose }: Onboardin
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {(() => {
-                      const completedItems = onboarding.progress?.filter((p: any) => p.is_completed).length || 0
-                      const totalItems = onboarding.progress?.length || 0
+                      // For Trucks and Bikes, exclude Accessories category from completion calculation
+                      const shouldExcludeAccessories = onboarding.vehicle_type === "Truck" || onboarding.vehicle_type === "Bike"
+                      const relevantProgress = shouldExcludeAccessories
+                        ? onboarding.progress?.filter((p: any) => p.checklist_item?.category?.name !== "Accessories")
+                        : onboarding.progress
+
+                      const completedItems = relevantProgress?.filter((p: any) => p.is_completed).length || 0
+                      const totalItems = relevantProgress?.length || 0
                       const completionPercentage = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0
                       const allCompleted = completedItems === totalItems && totalItems > 0
 
@@ -219,7 +225,13 @@ export function OnboardingDetailSheet({ onboardingId, open, onClose }: Onboardin
 
                 {/* Checklist by Category */}
                 {(() => {
-                  const groupedProgress = onboarding.progress?.reduce((acc: any, item: any) => {
+                  // Filter out Accessories category for Trucks and Bikes
+                  const shouldHideAccessories = onboarding.vehicle_type === "Truck" || onboarding.vehicle_type === "Bike"
+                  const filteredProgress = shouldHideAccessories
+                    ? onboarding.progress?.filter((item: any) => item.checklist_item?.category?.name !== "Accessories")
+                    : onboarding.progress
+
+                  const groupedProgress = filteredProgress?.reduce((acc: any, item: any) => {
                     const categoryName = item.checklist_item?.category?.name || "Other"
                     if (!acc[categoryName]) acc[categoryName] = []
                     acc[categoryName].push(item)

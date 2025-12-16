@@ -35,13 +35,25 @@ export function ClearingAgentsTable() {
     if (!deleteConfirm) return
 
     setDeletingId(deleteConfirm.id)
+
+    // Optimistic update - remove from UI immediately
+    const currentAgents = agents
+    mutate(
+      agents.filter((a: any) => a.id !== deleteConfirm.id),
+      false
+    )
+
     const result = await deleteClearingAgent(deleteConfirm.id)
 
     if (result.success) {
       toast.success("Clearing agent deleted successfully")
-      mutate(undefined, { revalidate: true })
+      await mutate()
     } else {
-      toast.error(result.error || "Failed to delete clearing agent")
+      // Revert optimistic update on error
+      mutate(currentAgents, false)
+      toast.error(result.error || "Failed to delete clearing agent", {
+        duration: 5000,
+      })
     }
     setDeletingId(null)
     setDeleteConfirm(null)

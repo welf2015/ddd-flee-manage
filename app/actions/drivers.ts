@@ -146,3 +146,103 @@ export async function updateDriverVehicle(driverId: string, vehicleId: string | 
   revalidatePath("/dashboard/drivers")
   return { success: true }
 }
+
+export async function updateDriver(driverId: string, data: any) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  const assignedVehicleId = data.assigned_vehicle_id
+  const vehicleId = !assignedVehicleId || assignedVehicleId === "none" ? null : assignedVehicleId
+
+  const updateData = {
+    full_name: data.full_name,
+    email: data.email || null,
+    phone: data.phone,
+    address: data.address || null,
+    license_number: data.license_number,
+    license_expiry: data.license_expiry || null,
+    photo_url: data.photo_url || null,
+    emergency_contact_name: data.emergency_contact_name || null,
+    emergency_contact_phone: data.emergency_contact_phone || null,
+    emergency_contact_relationship: data.emergency_contact_relationship || null,
+    assigned_vehicle_id: vehicleId,
+    status: data.status,
+    updated_at: new Date().toISOString(),
+  }
+
+  const { error } = await supabase.from("drivers").update(updateData).eq("id", driverId)
+
+  if (error) {
+    console.error("Error updating driver:", error)
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath("/dashboard/drivers")
+  return { success: true }
+}
+
+export async function deleteDriver(driverId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  // Get driver data for logging
+  const { data: driver } = await supabase.from("drivers").select("*").eq("id", driverId).single()
+
+  if (!driver) {
+    return { success: false, error: "Driver not found" }
+  }
+
+  // Check if driver is assigned to any active bookings
+  const { data: activeBookings } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("assigned_driver_id", driverId)
+    .in("status", ["Pending", "Confirmed", "In Progress"])
+
+  if (activeBookings && activeBookings.length > 0) {
+    return {
+      success: false,
+      error: `Cannot delete driver. They are assigned to ${activeBookings.length} active booking(s). Please complete or reassign these bookings first.`,
+    }
+  }
+
+  // Delete the driver
+  const { error } = await supabase.from("drivers").delete().eq("id", driverId)
+
+  if (error) {
+    return { success: false, error: `Delete failed: ${error.message}` }
+  }
+
+  // Get user profile for logging
+  const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).single()
+
+  // Log the action
+  await supabase.from("system_activity_log").insert({
+    module: "Drivers",
+    action: "Deleted",
+    reference_id: driver.license_number || driverId,
+    description: `Deleted driver: ${driver.full_name}`,
+    user_id: user.id,
+    user_name: profile?.full_name || "Unknown",
+    user_email: profile?.email || "",
+    old_value: JSON.stringify(driver),
+    new_value: null,
+  })
+
+  revalidatePath("/dashboard/drivers")
+  return { success: true }
+}

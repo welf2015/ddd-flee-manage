@@ -35,12 +35,14 @@ import {
   Download,
   Eye,
   Trash2,
+  Edit,
 } from "lucide-react"
 import { toast } from "sonner"
 import { mutate as globalMutate } from "swr"
 import { formatRelativeTime, formatDateTime, formatCurrency } from "@/lib/utils"
 import { PostDealForm } from "@/components/procurement/post-deal-form" // Import PostDealForm
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { UpdateProcurementDialog } from "@/components/procurement/update-procurement-dialog"
 
 interface ProcurementDetailSheetProps {
   open: boolean
@@ -73,6 +75,7 @@ export function ProcurementDetailSheet({
   const [workerUrl, setWorkerUrl] = useState("")
   const [authKey, setAuthKey] = useState("")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false)
 
   const { data: procurement, mutate } = useSWR(
     procurementId ? `procurement-${procurementId}` : null,
@@ -511,8 +514,28 @@ export function ProcurementDetailSheet({
         {/* SheetHeader and other components remain unchanged */}
 
         <div className="mt-6 space-y-6">
-          {/* Delete Button */}
-          <div className="flex justify-end">
+          {/* Top Action Buttons */}
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowUpdateDialog(true)}
+              disabled={isSubmitting}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Update Procurement Details
+            </Button>
+            {procurement.status === "In Transit" && (
+              <Button
+                onClick={handleMarkArrived}
+                disabled={isSubmitting}
+                variant="outline"
+                size="sm"
+              >
+                <Package className="h-4 w-4 mr-2" />
+                Mark as Arrived
+              </Button>
+            )}
             <Button
               variant="destructive"
               size="sm"
@@ -892,18 +915,6 @@ export function ProcurementDetailSheet({
               </div>
             )}
 
-            {procurement.status === "In Transit" && procurement.expected_arrival && (
-              <Button
-                onClick={handleMarkArrived}
-                disabled={isSubmitting}
-                variant="outline"
-                className="w-full bg-transparent"
-              >
-                <Package className="h-4 w-4 mr-2" />
-                Mark as Arrived
-              </Button>
-            )}
-
             {procurement.status === "Arrived" && (
               <div className="flex gap-2 w-full">
                 <Select value={selectedAgent} onValueChange={setSelectedAgent}>
@@ -1199,6 +1210,16 @@ export function ProcurementDetailSheet({
         confirmText="Delete"
         cancelText="Cancel"
         variant="destructive"
+      />
+
+      <UpdateProcurementDialog
+        open={showUpdateDialog}
+        onOpenChange={setShowUpdateDialog}
+        procurementId={procurementId}
+        onProcurementUpdated={() => {
+          mutate()
+          onProcurementUpdated?.()
+        }}
       />
     </Sheet>
   )

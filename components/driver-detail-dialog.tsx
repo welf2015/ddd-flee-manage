@@ -8,26 +8,35 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { User, Phone, Award as IdCard, Calendar, Truck, Star, Briefcase } from "lucide-react"
+import { User, Phone, Award as IdCard, Calendar, Truck, Star, Briefcase, Edit, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { updateDriverVehicle } from "@/app/actions/drivers"
+import { updateDriverVehicle, deleteDriver } from "@/app/actions/drivers"
 import { useToast } from "@/hooks/use-toast"
+import { CreateDriverDialog } from "@/components/create-driver-dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 type DriverDetailDialogProps = {
   driver: any
   open: boolean
   onOpenChange: (open: boolean) => void
+  onDriverUpdated?: () => void
 }
 
-export function DriverDetailDialog({ driver, open, onOpenChange }: DriverDetailDialogProps) {
+export function DriverDetailDialog({ driver, open, onOpenChange, onDriverUpdated }: DriverDetailDialogProps) {
+  const router = useRouter()
   const [ratings, setRatings] = useState<any[]>([])
   const [jobHistory, setJobHistory] = useState<any[]>([])
   const [averageRating, setAverageRating] = useState(0)
   const [vehicles, setVehicles] = useState<any[]>([])
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(driver?.vehicles?.id || "")
   const [isUpdating, setIsUpdating] = useState(false)
-  const { toast } = useToast()
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const { toast: toastHook } = useToast()
 
   useEffect(() => {
     if (open && driver) {
@@ -80,9 +89,9 @@ export function DriverDetailDialog({ driver, open, onOpenChange }: DriverDetailD
     setIsUpdating(true)
     const vehicleId = selectedVehicleId === "none" || selectedVehicleId === "" ? null : selectedVehicleId
     const result = await updateDriverVehicle(driver.id, vehicleId)
-    
+
     if (result.success) {
-      toast({
+      toastHook({
         title: "Vehicle assigned",
         description: vehicleId ? "Vehicle has been assigned to driver" : "Vehicle assignment removed",
       })
@@ -93,19 +102,43 @@ export function DriverDetailDialog({ driver, open, onOpenChange }: DriverDetailD
         .select("*, vehicles:assigned_vehicle_id(*)")
         .eq("id", driver.id)
         .single()
-      
+
       if (updatedDriver) {
         driver.vehicles = updatedDriver.vehicles
         setSelectedVehicleId(updatedDriver.vehicles?.id || "")
       }
     } else {
-      toast({
+      toastHook({
         title: "Error",
         description: result.error || "Failed to assign vehicle",
         variant: "destructive",
       })
     }
     setIsUpdating(false)
+  }
+
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    const result = await deleteDriver(driver.id)
+
+    if (result.success) {
+      toast.success("Driver deleted successfully")
+      setShowDeleteConfirm(false)
+      onOpenChange(false)
+      onDriverUpdated?.()
+      router.refresh()
+    } else {
+      toast.error(result.error || "Failed to delete driver", {
+        duration: 5000,
+      })
+    }
+    setIsDeleting(false)
+  }
+
+  const handleEditSuccess = () => {
+    onDriverUpdated?.()
+    router.refresh()
+    fetchDriverData()
   }
 
   const getStatusColor = (status: string) => {
@@ -122,19 +155,35 @@ export function DriverDetailDialog({ driver, open, onOpenChange }: DriverDetailD
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] bg-background/95 backdrop-blur-xl border-border/50">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="text-2xl">{driver.full_name}</DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1">Driver Profile & Performance</p>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] bg-background/95 backdrop-blur-xl border-border/50">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-2xl">{driver.full_name}</DialogTitle>
+                <p className="text-sm text-muted-foreground mt-1">Driver Profile & Performance</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className={getStatusColor(driver.status)}>
+                  {driver.status}
+                </Badge>
+                <Button variant="outline" size="sm" onClick={() => setShowEditDialog(true)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={isDeleting}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
             </div>
-            <Badge variant="outline" className={getStatusColor(driver.status)}>
-              {driver.status}
-            </Badge>
-          </div>
-        </DialogHeader>
+          </DialogHeader>
 
         <ScrollArea className="max-h-[calc(90vh-120px)]">
           <div className="space-y-4">
@@ -292,5 +341,24 @@ export function DriverDetailDialog({ driver, open, onOpenChange }: DriverDetailD
         </ScrollArea>
       </DialogContent>
     </Dialog>
+
+    <CreateDriverDialog
+      open={showEditDialog}
+      onOpenChange={setShowEditDialog}
+      driver={driver}
+      onSuccess={handleEditSuccess}
+    />
+
+    <ConfirmDialog
+      open={showDeleteConfirm}
+      onOpenChange={setShowDeleteConfirm}
+      title="Delete Driver"
+      description={`Are you sure you want to delete ${driver.full_name}? This action cannot be undone.`}
+      onConfirm={handleDelete}
+      confirmText="Delete"
+      cancelText="Cancel"
+      variant="destructive"
+    />
+  </>
   )
 }

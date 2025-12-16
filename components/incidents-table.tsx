@@ -5,15 +5,24 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Eye } from "lucide-react"
+import { Eye, Edit, Trash2 } from "lucide-react"
 import { useState } from "react"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
 import { IncidentDetailSheet } from "./incident-detail-sheet"
+import { CreateIncidentDialog } from "./create-incident-dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { deleteIncident } from "@/app/actions/incidents"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 export function IncidentsTable() {
+  const router = useRouter()
   const supabase = createClient()
   const [selectedIncident, setSelectedIncident] = useState<string | null>(null)
+  const [editIncident, setEditIncident] = useState<any>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; number: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
 
   const { data: incidents = [] } = useSWR(
@@ -22,7 +31,7 @@ export function IncidentsTable() {
       try {
         const { data, error } = await supabase
           .from("incidents")
-          .select("id, incident_number, vehicle_id, driver_id, incident_date, description, severity, status, location")
+          .select("*")
           .order("incident_date", { ascending: false })
 
         if (error) {
@@ -96,6 +105,28 @@ export function IncidentsTable() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!deleteConfirm) return
+
+    setIsDeleting(true)
+    const result = await deleteIncident(deleteConfirm.id)
+
+    if (result.success) {
+      toast.success("Incident deleted successfully")
+      setDeleteConfirm(null)
+      router.refresh()
+    } else {
+      toast.error(result.error || "Failed to delete incident", {
+        duration: 5000,
+      })
+    }
+    setIsDeleting(false)
+  }
+
+  const handleEditSuccess = () => {
+    router.refresh()
+  }
+
   const filteredIncidents = incidents.filter(
     (incident: any) =>
       incident.incident_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -148,9 +179,23 @@ export function IncidentsTable() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedIncident(incident.id)}>
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedIncident(incident.id)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setEditIncident(incident)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeleteConfirm({ id: incident.id, number: incident.incident_number })}
+                        disabled={isDeleting}
+                        className="text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -166,6 +211,24 @@ export function IncidentsTable() {
           onOpenChange={(open) => !open && setSelectedIncident(null)}
         />
       )}
+
+      <CreateIncidentDialog
+        incident={editIncident}
+        open={!!editIncident}
+        onOpenChange={(open) => !open && setEditIncident(null)}
+        onSuccess={handleEditSuccess}
+      />
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Delete Incident"
+        description={`Are you sure you want to delete ${deleteConfirm?.number}? This action cannot be undone.`}
+        onConfirm={handleDelete}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </>
   )
 }

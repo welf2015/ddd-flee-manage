@@ -9,6 +9,11 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { CalendarIcon } from "lucide-react"
+import { format } from "date-fns"
+import { cn } from "@/lib/utils"
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
@@ -16,6 +21,8 @@ import { Upload } from "lucide-react"
 
 export function CreateIncidentDialog({ open, onOpenChange, onSuccess }: any) {
   const [incidentType, setIncidentType] = useState("Accident")
+  const [incidentDate, setIncidentDate] = useState<Date | undefined>(new Date())
+  const [incidentTime, setIncidentTime] = useState(new Date().toTimeString().split(" ")[0].substring(0, 5))
   const [description, setDescription] = useState("")
   const [location, setLocation] = useState("")
   const [injuries, setInjuries] = useState("")
@@ -108,8 +115,8 @@ export function CreateIncidentDialog({ open, onOpenChange, onSuccess }: any) {
 
     const { error } = await supabase.from("incidents").insert({
       incident_type: incidentType,
-      incident_date: new Date().toISOString().split("T")[0],
-      incident_time: new Date().toTimeString().split(" ")[0],
+      incident_date: incidentDate ? format(incidentDate, "yyyy-MM-dd") : new Date().toISOString().split("T")[0],
+      incident_time: incidentTime,
       description,
       location,
       injuries_damages: injuries,
@@ -174,6 +181,44 @@ export function CreateIncidentDialog({ open, onOpenChange, onSuccess }: any) {
                 placeholder="Where did it happen?"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Incident Date *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !incidentDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {incidentDate ? format(incidentDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={incidentDate}
+                    onSelect={setIncidentDate}
+                    disabled={(date) => date > new Date()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Incident Time *</Label>
+              <Input
+                type="time"
+                value={incidentTime}
+                onChange={(e) => setIncidentTime(e.target.value)}
               />
             </div>
           </div>

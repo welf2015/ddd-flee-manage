@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, CheckCircle } from "lucide-react"
+import { Search, Plus, CheckCircle, Edit, Trash2 } from "lucide-react"
 import { AddVehicleDialog } from "@/components/vehicles/add-vehicle-dialog"
-import { markVehicleAsOnboarded } from "@/app/actions/vehicles"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { markVehicleAsOnboarded, deleteVehicle } from "@/app/actions/vehicles"
 import { toast } from "sonner"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
 
 const fetcher = async () => {
   const supabase = createClient()
@@ -23,9 +25,13 @@ const fetcher = async () => {
 }
 
 export function VehiclesClient() {
+  const router = useRouter()
   const [search, setSearch] = useState("")
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [loadingOnboard, setLoadingOnboard] = useState<string | null>(null)
+  const [editVehicle, setEditVehicle] = useState<any>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; number: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const { data: vehicles, mutate } = useSWR("vehicles", fetcher, {
     refreshInterval: 5000,
@@ -54,6 +60,30 @@ export function VehiclesClient() {
     } finally {
       setLoadingOnboard(null)
     }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return
+
+    setIsDeleting(true)
+    const result = await deleteVehicle(deleteConfirm.id)
+
+    if (result.success) {
+      toast.success("Vehicle deleted successfully")
+      setDeleteConfirm(null)
+      mutate()
+      router.refresh()
+    } else {
+      toast.error(result.error || "Failed to delete vehicle", {
+        duration: 5000,
+      })
+    }
+    setIsDeleting(false)
+  }
+
+  const handleEditSuccess = () => {
+    mutate()
+    router.refresh()
   }
 
   return (
@@ -106,15 +136,33 @@ export function VehiclesClient() {
                     <Badge variant={vehicle.status === "Active" ? "default" : "secondary"}>{vehicle.status}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleMarkAsOnboarded(vehicle.id)}
-                      disabled={loadingOnboard === vehicle.id}
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      {loadingOnboard === vehicle.id ? "Marking..." : "Mark as Onboarded"}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditVehicle(vehicle)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleMarkAsOnboarded(vehicle.id)}
+                        disabled={loadingOnboard === vehicle.id}
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        {loadingOnboard === vehicle.id ? "Marking..." : "Mark as Onboarded"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDeleteConfirm({ id: vehicle.id, number: vehicle.vehicle_number })}
+                        disabled={isDeleting}
+                        className="text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -131,6 +179,24 @@ export function VehiclesClient() {
       </Card>
 
       <AddVehicleDialog open={showAddDialog} onClose={() => setShowAddDialog(false)} onSuccess={() => mutate()} />
+
+      <AddVehicleDialog
+        open={!!editVehicle}
+        onClose={() => setEditVehicle(null)}
+        vehicle={editVehicle}
+        onSuccess={handleEditSuccess}
+      />
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Delete Vehicle"
+        description={`Are you sure you want to delete ${deleteConfirm?.number}? This action cannot be undone.`}
+        onConfirm={handleDelete}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   )
 }
