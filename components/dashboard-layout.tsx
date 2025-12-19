@@ -42,6 +42,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
   const [open, setOpen] = useState(false)
   const [vehicleManagementOpen, setVehicleManagementOpen] = useState(false)
+  const [expensesOpen, setExpensesOpen] = useState(false)
   const [isNavigating, setIsNavigating] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
@@ -53,6 +54,9 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
       pathname === "/dashboard/incidents"
     ) {
       setVehicleManagementOpen(true)
+    }
+    if (pathname.startsWith("/dashboard/expenses")) {
+      setExpensesOpen(true)
     }
   }, [pathname])
 
@@ -89,7 +93,16 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
     },
     { name: "Clients", href: "/dashboard/clients", icon: Building2 },
     { name: "Procurement", href: "/dashboard/procurement", icon: ShoppingCart },
-    { name: "Expenses", href: "/dashboard/expenses", icon: Wallet },
+    {
+      name: "Expenses",
+      href: "/dashboard/expenses",
+      icon: Wallet,
+      hasSubmenu: true,
+      submenu: [
+        { name: "Main Expenses", href: "/dashboard/expenses", icon: Wallet },
+        { name: "Driver Expenses", href: "/dashboard/expenses/drivers", icon: Wallet },
+      ],
+    },
     { name: "Inventory", href: "/dashboard/inventory", icon: Package },
     { name: "Sales Insights", href: "/dashboard/sales-insights", icon: TrendingUp },
     { name: "Reports", href: "/dashboard/reports", icon: TrendingUp },
@@ -118,7 +131,8 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
           const Icon = item.icon
           const isActive =
             pathname === item.href || (pathname.startsWith(item.href + "/") && item.href !== "/dashboard")
-          const isSubmenuOpen = vehicleManagementOpen && item.hasSubmenu
+          const isSubmenuOpen =
+            (item.name === "Vehicle Management" && vehicleManagementOpen) || (item.name === "Expenses" && expensesOpen)
 
           return (
             <div key={item.href}>
@@ -130,7 +144,13 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
                       "w-full justify-between h-11",
                       isActive && "bg-accent text-accent-foreground hover:bg-accent/90",
                     )}
-                    onClick={() => setVehicleManagementOpen(!vehicleManagementOpen)}
+                    onClick={() => {
+                      if (item.name === "Vehicle Management") {
+                        setVehicleManagementOpen(!vehicleManagementOpen)
+                      } else if (item.name === "Expenses") {
+                        setExpensesOpen(!expensesOpen)
+                      }
+                    }}
                   >
                     <div className="flex items-center gap-3">
                       <Icon className="h-6 w-6" />

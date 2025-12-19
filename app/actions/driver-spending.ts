@@ -307,7 +307,6 @@ export async function topUpDriverSpending(driverId: string, amount: number, desc
     return { success: false, error: txError.message }
   }
 
-  // Update account balance
   const { error: updateError } = await supabase
     .from("driver_spending_accounts")
     .update({
@@ -481,6 +480,188 @@ export async function resetDailySpending() {
   }
 
   revalidatePath("/dashboard/expenses")
+  return { success: true }
+}
+
+export async function addDriverTopup(data: { driver_id: string; amount: number; notes?: string }) {
+  const supabase = await createClient()
+
+  const { data: account, error: accountError } = await supabase
+    .from("driver_spending_accounts")
+    .select("*")
+    .eq("driver_id", data.driver_id)
+    .maybeSingle()
+
+  if (accountError) {
+    return { success: false, error: accountError.message }
+  }
+
+  let accountId = account?.id
+  let currentBalance = Number(account?.current_balance || 0)
+
+  // Create account if it doesn't exist
+  if (!account) {
+    const { data: newAccount, error: createError } = await supabase
+      .from("driver_spending_accounts")
+      .insert({
+        driver_id: data.driver_id,
+        current_balance: 0,
+        spending_limit: 50000,
+      })
+      .select()
+      .single()
+
+    if (createError) {
+      return { success: false, error: createError.message }
+    }
+
+    accountId = newAccount.id
+    currentBalance = 0
+  }
+
+  const newBalance = currentBalance + data.amount
+
+  const { error: txError } = await supabase.from("driver_spending_transactions").insert({
+    driver_id: data.driver_id,
+    account_id: accountId,
+    transaction_type: "topup",
+    amount: data.amount,
+    description: data.notes || "Account top-up",
+    balance_after: newBalance,
+  })
+
+  if (txError) {
+    return { success: false, error: txError.message }
+  }
+
+  const { error: updateError } = await supabase
+    .from("driver_spending_accounts")
+    .update({
+      current_balance: newBalance,
+      total_topped_up: Number(account?.total_topped_up || 0) + data.amount,
+    })
+    .eq("id", accountId)
+
+  if (updateError) {
+    return { success: false, error: updateError.message }
+  }
+
+  revalidatePath("/dashboard/expenses/drivers")
+  return { success: true }
+}
+
+export async function updateDriverTransaction(data: {
+  transactionId: string
+  amount: number
+  notes?: string
+  adjustmentType?: string | null
+}) {
+  const supabase = await createClient()
+
+  const { data: transaction, error: txError } = await supabase
+    .from("driver_spending_transactions")
+    .select("*, driver_spending_accounts(*)")
+    .eq("id", data.transactionId)
+    .single()
+
+  if (txError || !transaction) {
+    return { success: false, error: "Transaction not found" }
+  }
+
+  const oldAmount = Number(transaction.amount)
+  const newAmount = data.amount
+  const difference = newAmount - oldAmount
+
+  const { error: updateError } = await supabase
+    .from("driver_spending_transactions")
+    .update({
+      amount: newAmount,
+      description: data.notes || transaction.description,
+    })
+    .eq("id", data.transactionId)
+
+  if (updateError) {
+    return { success: false, error: updateError.message }
+  }
+
+  if (difference !== 0 && data.adjustmentType) {
+    const account = transaction.driver_spending_accounts
+    const currentBalance = Number(account.current_balance)
+
+    // For expense adjustments: if amount increased, deduct more (manual_debit)
+    // if amount decreased, add back (refund)
+    const balanceChange = transaction.transaction_type === "expense" ? -difference : difference
+    const newBalance = currentBalance + balanceChange
+
+    // Create adjustment transaction
+    await supabase.from("driver_spending_transactions").insert({
+      driver_id: transaction.driver_id,
+      account_id: transaction.account_id,
+      transaction_type: data.adjustmentType,
+      amount: Math.abs(difference),
+      description: `Adjustment for transaction ${data.transactionId}`,
+      balance_after: newBalance,
+    })
+
+    await supabase
+      .from("driver_spending_accounts")
+      .update({ current_balance: newBalance })
+      .eq("id", transaction.account_id)
+  }
+
+  revalidatePath("/dashboard/expenses/drivers")
+  return { success: true }
+}
+
+export async function deleteDriverTransaction(transactionId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  const { data: profile } = await supabase.from("user_profiles").select("role").eq("user_id", user.id).single()
+
+  if (!profile || !["MD", "ED", "Fleet Officer"].includes(profile.role)) {
+    return { success: false, error: "Unauthorized: Insufficient permissions" }
+  }
+
+  const { data: transaction, error: txError } = await supabase
+    .from("driver_spending_transactions")
+    .select("*, driver_spending_accounts(*)")
+    .eq("id", transactionId)
+    .single()
+
+  if (txError || !transaction) {
+    return { success: false, error: "Transaction not found" }
+  }
+
+  const account = transaction.driver_spending_accounts
+  const currentBalance = Number(account.current_balance)
+  const amount = Number(transaction.amount)
+
+  let newBalance = currentBalance
+  if (transaction.transaction_type === "topup" || transaction.transaction_type === "refund") {
+    newBalance = currentBalance - amount // Remove the addition
+  } else if (transaction.transaction_type === "expense" || transaction.transaction_type === "manual_debit") {
+    newBalance = currentBalance + amount // Reverse the deduction
+  }
+
+  const { error: deleteError } = await supabase.from("driver_spending_transactions").delete().eq("id", transactionId)
+
+  if (deleteError) {
+    return { success: false, error: deleteError.message }
+  }
+
+  await supabase
+    .from("driver_spending_accounts")
+    .update({ current_balance: newBalance })
+    .eq("id", transaction.account_id)
+
+  revalidatePath("/dashboard/expenses/drivers")
   return { success: true }
 }
 

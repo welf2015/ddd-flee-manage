@@ -11,12 +11,8 @@ import { formatCurrency } from "@/lib/utils"
 import { FuelTab } from "./fuel-tab"
 import { TicketingTab } from "./ticketing-tab"
 import { AllowanceTab } from "./allowance-tab"
-import { DriverSpendingTab } from "./driver-spending-tab"
 import { AddTopupDialog } from "./add-topup-dialog"
-import { FuelMeter } from "./fuel-meter"
 import { getPrepaidAccounts } from "@/app/actions/expenses"
-import { TopUpDriverDialog } from "./top-up-driver-dialog"
-import { SpendingLimitsDialog } from "./spending-limits-dialog"
 
 type ExpensesClientProps = {
   initialAccounts?: any[]
@@ -26,7 +22,6 @@ type ExpensesClientProps = {
   initialFuelTopups?: any[]
   initialTicketingTopups?: any[]
   initialAllowanceTopups?: any[]
-  initialDriverSpendingAccounts?: any[]
 }
 
 export function ExpensesClient({
@@ -37,14 +32,10 @@ export function ExpensesClient({
   initialFuelTopups = [],
   initialTicketingTopups = [],
   initialAllowanceTopups = [],
-  initialDriverSpendingAccounts = [],
 }: ExpensesClientProps) {
   const [showTopupDialog, setShowTopupDialog] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("fuel")
-  const [showDriverTopUpDialog, setShowDriverTopUpDialog] = useState(false)
-  const [showDriverSettingsDialog, setShowDriverSettingsDialog] = useState(false)
-  const [driverSpendingKey, setDriverSpendingKey] = useState(0)
   const supabase = createClient()
 
   // Get all prepaid accounts - use initial data from server, then revalidate
@@ -70,29 +61,26 @@ export function ExpensesClient({
   })
 
   // Get weekly topups for fuel tab
-  const { data: weeklyFuelTopups = 0 } = useSWR(
-    activeTab === "fuel" ? "weekly-fuel-topups" : null,
-    async () => {
-      const { getTopups } = await import("@/app/actions/expenses")
-      const fuelAccount = accounts.find((a: any) => a.vendor?.vendor_type === "Fuel")
-      if (!fuelAccount) return 0
+  const { data: weeklyFuelTopups = 0 } = useSWR(activeTab === "fuel" ? "weekly-fuel-topups" : null, async () => {
+    const { getTopups } = await import("@/app/actions/expenses")
+    const fuelAccount = accounts.find((a: any) => a.vendor?.vendor_type === "Fuel")
+    if (!fuelAccount) return 0
 
-      const { data: topups } = await getTopups(fuelAccount.id)
-      if (!topups) return 0
+    const { data: topups } = await getTopups(fuelAccount.id)
+    if (!topups) return 0
 
-      // Filter for current week
-      const now = new Date()
-      const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay())
-      weekStart.setHours(0, 0, 0, 0)
+    // Filter for current week
+    const now = new Date()
+    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay())
+    weekStart.setHours(0, 0, 0, 0)
 
-      const weeklyTopups = topups.filter((t: any) => {
-        const topupDate = new Date(t.topup_date)
-        return topupDate >= weekStart
-      })
+    const weeklyTopups = topups.filter((t: any) => {
+      const topupDate = new Date(t.topup_date)
+      return topupDate >= weekStart
+    })
 
-      return weeklyTopups.reduce((sum: number, t: any) => sum + Number(t.amount), 0)
-    },
-  )
+    return weeklyTopups.reduce((sum: number, t: any) => sum + Number(t.amount), 0)
+  })
 
   // Calculate balances by type
   const fuelBalance = accounts
@@ -107,53 +95,25 @@ export function ExpensesClient({
     .filter((a: any) => a.vendor?.vendor_type === "Allowance")
     .reduce((sum: number, a: any) => sum + Number(a.current_balance || 0), 0)
 
-  const driverSpendingBalance = initialDriverSpendingAccounts.reduce(
-    (sum: number, a: any) => sum + Number(a.current_balance || 0),
-    0,
-  )
-
-  // Get active tab data
   const activeBalance =
-    activeTab === "fuel"
-      ? fuelBalance
-      : activeTab === "ticketing"
-        ? ticketingBalance
-        : activeTab === "driver-spending"
-          ? driverSpendingBalance
-          : allowanceBalance
+    activeTab === "fuel" ? fuelBalance : activeTab === "ticketing" ? ticketingBalance : allowanceBalance
 
   const handleAddTopup = (accountId?: string) => {
     setSelectedAccount(accountId || null)
     setShowTopupDialog(true)
   }
 
-  const refreshDriverSpending = () => {
-    setDriverSpendingKey((prev) => prev + 1)
-  }
-
   return (
     <>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold">Expense Management</h1>
+          <h1 className="text-2xl font-bold">Main Expense Management</h1>
           <p className="text-sm text-muted-foreground">Manage prepaid accounts for fuel, ticketing, and allowances</p>
         </div>
-        {activeTab === "driver-spending" ? (
-          <div className="flex gap-2">
-            <Button onClick={() => setShowDriverTopUpDialog(true)} className="bg-accent hover:bg-accent/90">
-              <Plus className="h-4 w-4 mr-2" />
-              Top Up
-            </Button>
-            <Button onClick={() => setShowDriverSettingsDialog(true)} variant="outline">
-              Settings
-            </Button>
-          </div>
-        ) : (
-          <Button onClick={() => handleAddTopup()} className="bg-accent hover:bg-accent/90">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Top-up
-          </Button>
-        )}
+        <Button onClick={() => handleAddTopup()} className="bg-accent hover:bg-accent/90">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Top-up
+        </Button>
       </div>
 
       {/* Summary Cards - Dynamic based on active tab */}
@@ -161,14 +121,7 @@ export function ExpensesClient({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              {activeTab === "fuel"
-                ? "Fuel"
-                : activeTab === "ticketing"
-                  ? "Ticketing"
-                  : activeTab === "driver-spending"
-                    ? "Driver Spending"
-                    : "Allowance"}{" "}
-              Balance
+              {activeTab === "fuel" ? "Fuel" : activeTab === "ticketing" ? "Ticketing" : "Allowance"} Balance
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -188,13 +141,11 @@ export function ExpensesClient({
         </Card>
       </div>
 
-      {/* Tabs */}
       <Tabs defaultValue="fuel" className="w-full" onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="fuel">Fuel</TabsTrigger>
           <TabsTrigger value="ticketing">Ticketing</TabsTrigger>
           <TabsTrigger value="allowance">Allowance</TabsTrigger>
-          <TabsTrigger value="driver-spending">Driver Spending</TabsTrigger>
         </TabsList>
 
         <TabsContent value="fuel" className="space-y-4 mt-4">
@@ -223,10 +174,6 @@ export function ExpensesClient({
             initialTopups={initialAllowanceTopups}
           />
         </TabsContent>
-
-        <TabsContent value="driver-spending" className="space-y-4 mt-4">
-          <DriverSpendingTab key={driverSpendingKey} />
-        </TabsContent>
       </Tabs>
 
       {showTopupDialog && (
@@ -236,26 +183,8 @@ export function ExpensesClient({
           accountId={selectedAccount || undefined}
         />
       )}
-
-      {showDriverTopUpDialog && (
-        <TopUpDriverDialog
-          open={showDriverTopUpDialog}
-          onOpenChange={setShowDriverTopUpDialog}
-          onSuccess={() => {
-            refreshDriverSpending()
-          }}
-        />
-      )}
-
-      {showDriverSettingsDialog && (
-        <SpendingLimitsDialog
-          open={showDriverSettingsDialog}
-          onOpenChange={setShowDriverSettingsDialog}
-          onSuccess={() => {
-            refreshDriverSpending()
-          }}
-        />
-      )}
     </>
   )
 }
+
+export default ExpensesClient

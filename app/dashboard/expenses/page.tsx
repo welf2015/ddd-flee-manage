@@ -26,7 +26,6 @@ export default async function ExpensesPage() {
 
   // Pre-fetch transactions and top-ups for all accounts
   const { getExpenseTransactions, getTopups } = await import("@/app/actions/expenses")
-  const { getDriverSpendingAccounts } = await import("@/app/actions/driver-spending")
 
   const [fuelAccounts, ticketingAccounts, allowanceAccounts] = [
     initialAccounts.filter((a: any) => a.vendor?.vendor_type === "Fuel"),
@@ -38,23 +37,15 @@ export default async function ExpensesPage() {
   const ticketingAccount = ticketingAccounts[0]
   const allowanceAccount = allowanceAccounts[0]
 
-  const [
-    fuelTransactions,
-    ticketingTransactions,
-    allowanceTransactions,
-    fuelTopups,
-    ticketingTopups,
-    allowanceTopups,
-    driverSpendingData,
-  ] = await Promise.all([
-    getExpenseTransactions({ expenseType: "Fuel" }).then((r) => r.data || []),
-    getExpenseTransactions({ expenseType: "Ticketing" }).then((r) => r.data || []),
-    getExpenseTransactions({ expenseType: "Allowance" }).then((r) => r.data || []),
-    fuelAccount ? getTopups(fuelAccount.id).then((r) => r.data || []) : Promise.resolve([]),
-    ticketingAccount ? getTopups(ticketingAccount.id).then((r) => r.data || []) : Promise.resolve([]),
-    allowanceAccount ? getTopups(allowanceAccount.id).then((r) => r.data || []) : Promise.resolve([]),
-    getDriverSpendingAccounts().then((r) => r.data || []),
-  ])
+  const [fuelTransactions, ticketingTransactions, allowanceTransactions, fuelTopups, ticketingTopups, allowanceTopups] =
+    await Promise.all([
+      getExpenseTransactions({ expenseType: "Fuel" }).then((r) => r.data || []),
+      getExpenseTransactions({ expenseType: "Ticketing" }).then((r) => r.data || []),
+      getExpenseTransactions({ expenseType: "Allowance" }).then((r) => r.data || []),
+      fuelAccount ? getTopups(fuelAccount.id).then((r) => r.data || []) : Promise.resolve([]),
+      ticketingAccount ? getTopups(ticketingAccount.id).then((r) => r.data || []) : Promise.resolve([]),
+      allowanceAccount ? getTopups(allowanceAccount.id).then((r) => r.data || []) : Promise.resolve([]),
+    ])
 
   const handleSignOut = async () => {
     "use server"
@@ -73,7 +64,6 @@ export default async function ExpensesPage() {
         initialFuelTopups={fuelTopups}
         initialTicketingTopups={ticketingTopups}
         initialAllowanceTopups={allowanceTopups}
-        initialDriverSpendingAccounts={driverSpendingData}
       />
     </DashboardLayout>
   )
