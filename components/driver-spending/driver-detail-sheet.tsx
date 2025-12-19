@@ -41,7 +41,7 @@ export default function DriverDetailSheet({ open, onOpenChange, driver }: Driver
         data: { user },
       } = await supabase.auth.getUser()
       if (user) {
-        const { data: profile } = await supabase.from("user_profiles").select("role").eq("user_id", user.id).single()
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
         setUserRole(profile?.role || null)
       }
     }
@@ -91,7 +91,7 @@ export default function DriverDetailSheet({ open, onOpenChange, driver }: Driver
                       <p className="font-semibold text-lg">{driver.full_name}</p>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Phone className="h-3 w-3" />
-                        {driver.phone_number}
+                        {driver.phone || driver.phone_number}
                       </div>
                     </div>
                   </div>
@@ -99,11 +99,15 @@ export default function DriverDetailSheet({ open, onOpenChange, driver }: Driver
                   <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                     <div>
                       <p className="text-sm text-muted-foreground">Current Balance</p>
-                      <p className="text-2xl font-bold">₦{driver.current_balance?.toLocaleString() || "0"}</p>
+                      <p className="text-2xl font-bold">
+                        ₦{(driver.account?.current_balance || driver.current_balance || 0).toLocaleString()}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Spending Limit</p>
-                      <p className="text-2xl font-bold">₦{driver.spending_limit?.toLocaleString() || "0"}</p>
+                      <p className="text-2xl font-bold">
+                        ₦{(driver.account?.spending_limit || driver.spending_limit || 0).toLocaleString()}
+                      </p>
                     </div>
                   </div>
                 </div>

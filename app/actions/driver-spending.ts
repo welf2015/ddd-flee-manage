@@ -623,7 +623,7 @@ export async function deleteDriverTransaction(transactionId: string) {
     return { success: false, error: "Unauthorized" }
   }
 
-  const { data: profile } = await supabase.from("user_profiles").select("role").eq("user_id", user.id).single()
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
 
   if (!profile || !["MD", "ED", "Fleet Officer"].includes(profile.role)) {
     return { success: false, error: "Unauthorized: Insufficient permissions" }

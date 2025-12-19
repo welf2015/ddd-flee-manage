@@ -17,14 +17,22 @@ import { createBrowserClient } from "@/lib/supabase/client"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
-export default function DriverTransactionsTab() {
+type DriverTransactionsTabProps = {
+  initialTransactions?: any[]
+}
+
+export default function DriverTransactionsTab({ initialTransactions = [] }: DriverTransactionsTabProps) {
   const [search, setSearch] = useState("")
   const [editTransaction, setEditTransaction] = useState<any>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
 
-  const { data: transactions, mutate } = useSWR("/api/driver-spending/transactions", fetcher, { refreshInterval: 5000 })
+  const { data: transactions = initialTransactions, mutate } = useSWR("/api/driver-spending/transactions", fetcher, {
+    fallbackData: initialTransactions,
+    revalidateOnMount: false,
+    refreshInterval: 5000,
+  })
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -33,7 +41,7 @@ export default function DriverTransactionsTab() {
         data: { user },
       } = await supabase.auth.getUser()
       if (user) {
-        const { data: profile } = await supabase.from("profiles").select("role").eq("user_id", user.id).single()
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
         setUserRole(profile?.role || null)
       }
     }

@@ -1,10 +1,77 @@
-import { Suspense } from "react"
+import { redirect } from "next/navigation"
+import { createClient } from "@/lib/supabase/server"
+import { DashboardLayout } from "@/components/dashboard-layout"
 import DriverExpensesClient from "./driver-expenses-client"
+import { getAllDriversWithAccounts } from "@/app/actions/driver-spending"
 
-export default function DriverExpensesPage() {
+export const metadata = {
+  title: "Driver Spending",
+  description: "Manage driver spending accounts and allowances",
+}
+
+export const revalidate = 0
+
+export default async function DriverExpensesPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect("/auth/login")
+  }
+
+  // Pre-fetch drivers with their spending accounts
+  const { data: drivers = [] } = await getAllDriversWithAccounts()
+
+  // Pre-fetch all driver spending transactions
+  const { data: allTransactions = [], error } = await supabase
+    .from("driver_spending_transactions")
+    .select(
+      `
+      *,
+      driver:drivers(id, full_name, phone_number, status),
+      booking:bookings(job_id)
+    `,
+    )
+    .order("transaction_date", { ascending: false })
+    .limit(100)
+
+  if (error) {
+    console.error("Error fetching driver transactions:", error)
+  }
+
+  // Calculate summary data
+  const totalBalance = drivers.reduce((sum, d: any) => sum + Number(d.account?.current_balance || 0), 0)
+
+  // Calculate weekly spending (last 7 days)
+  const weekStart = new Date()
+  weekStart.setDate(weekStart.getDate() - 7)
+  const weeklySpending = (allTransactions || [])
+    .filter(
+      (t: any) =>
+        (t.transaction_type === "expense" || t.transaction_type === "manual_debit") &&
+        new Date(t.transaction_date) >= weekStart,
+    )
+    .reduce((sum, t: any) => sum + Number(t.amount), 0)
+
+  const handleSignOut = async () => {
+    "use server"
+    const supabase = await createClient()
+    await supabase.auth.signOut()
+    redirect("/auth/login")
+  }
+
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <DriverExpensesClient />
-    </Suspense>
+    <DashboardLayout onSignOut={handleSignOut}>
+      <DriverExpensesClient
+        initialDrivers={drivers}
+        initialTransactions={allTransactions || []}
+        initialSummary={{
+          totalBalance,
+          weeklySpending,
+        }}
+      />
+    </DashboardLayout>
   )
 }

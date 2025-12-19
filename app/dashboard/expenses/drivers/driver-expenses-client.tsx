@@ -12,15 +12,48 @@ import AddDriverTopupDialog from "@/components/driver-spending/add-driver-topup-
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
-export default function DriverExpensesClient() {
+type DriverExpensesClientProps = {
+  initialDrivers?: any[]
+  initialTransactions?: any[]
+  initialSummary?: {
+    totalBalance: number
+    weeklySpending: number
+  }
+}
+
+export default function DriverExpensesClient({
+  initialDrivers = [],
+  initialTransactions = [],
+  initialSummary = { totalBalance: 0, weeklySpending: 0 },
+}: DriverExpensesClientProps) {
   const [showTopupDialog, setShowTopupDialog] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
 
-  // Fetch summary data
-  const { data: summary } = useSWR("/api/driver-spending/summary", fetcher, { refreshInterval: 5000 })
+  // Fetch summary data with SWR - use initial data from server, then revalidate
+  const { data: summary = initialSummary } = useSWR(
+    "/api/driver-spending/summary",
+    fetcher,
+    {
+      fallbackData: initialSummary,
+      revalidateOnMount: false, // Use initial data immediately
+      refreshInterval: 5000, // Refresh every 5 seconds
+    },
+  )
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold">Driver Spending Management</h1>
+          <p className="text-sm text-muted-foreground">Track and manage driver spending accounts and allowances</p>
+        </div>
+        <Button onClick={() => setShowTopupDialog(true)} className="bg-accent hover:bg-accent/90">
+          <Plus className="mr-2 h-4 w-4" />
+          Add Top-up
+        </Button>
+      </div>
+
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
@@ -46,14 +79,6 @@ export default function DriverExpensesClient() {
         </Card>
       </div>
 
-      {/* Add Top-up Button */}
-      <div className="flex justify-end">
-        <Button onClick={() => setShowTopupDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Top-up
-        </Button>
-      </div>
-
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
@@ -62,11 +87,11 @@ export default function DriverExpensesClient() {
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
-          <DriverTransactionsTab />
+          <DriverTransactionsTab initialTransactions={initialTransactions} />
         </TabsContent>
 
         <TabsContent value="drivers" className="mt-6">
-          <DriversListTab />
+          <DriversListTab initialDrivers={initialDrivers} />
         </TabsContent>
       </Tabs>
 

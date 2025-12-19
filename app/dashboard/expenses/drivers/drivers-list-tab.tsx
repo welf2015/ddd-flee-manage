@@ -9,10 +9,18 @@ import DriverDetailSheet from "@/components/driver-spending/driver-detail-sheet"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
-export default function DriversListTab() {
+type DriversListTabProps = {
+  initialDrivers?: any[]
+}
+
+export default function DriversListTab({ initialDrivers = [] }: DriversListTabProps) {
   const [selectedDriver, setSelectedDriver] = useState<any>(null)
 
-  const { data: drivers } = useSWR("/api/driver-spending/drivers", fetcher, { refreshInterval: 5000 })
+  const { data: drivers = initialDrivers } = useSWR("/api/driver-spending/drivers", fetcher, {
+    fallbackData: initialDrivers,
+    revalidateOnMount: false,
+    refreshInterval: 5000,
+  })
 
   return (
     <div className="space-y-4">
@@ -31,29 +39,22 @@ export default function DriversListTab() {
                   </div>
                   <div>
                     <p className="font-semibold">{driver.full_name}</p>
-                    <p className="text-sm text-muted-foreground">{driver.phone_number}</p>
+                    <p className="text-sm text-muted-foreground">{driver.phone}</p>
                   </div>
                 </div>
-                {driver.current_job_id ? (
-                  <Badge variant="default" className="flex items-center gap-1">
-                    <Briefcase className="h-3 w-3" />
-                    On Job
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary">Available</Badge>
-                )}
+                <Badge variant={driver.status === "Active" ? "default" : "secondary"}>{driver.status || "Active"}</Badge>
               </div>
 
               <div className="mt-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Current Balance</span>
-                  <span className="font-semibold">₦{driver.current_balance?.toLocaleString() || "0"}</span>
+                  <span className="font-semibold">
+                    ₦{driver.account?.current_balance?.toLocaleString() || "0"}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">This Week</span>
-                  <span className="font-semibold text-red-600">
-                    -₦{driver.weekly_spending?.toLocaleString() || "0"}
-                  </span>
+                  <span className="text-muted-foreground">Spending Limit</span>
+                  <span className="font-semibold">₦{driver.account?.spending_limit?.toLocaleString() || "0"}</span>
                 </div>
               </div>
             </CardContent>
