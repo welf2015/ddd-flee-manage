@@ -6,21 +6,21 @@ This document provides technical specifications for integrating the Expo mobile 
 ## Database Connection
 
 ### Supabase Configuration
-```javascript
+\`\`\`javascript
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = 'YOUR_SUPABASE_URL'
 const supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY'
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-```
+\`\`\`
 
 ## Authentication
 
 ### Driver Login
 Drivers log in using their email and password:
 
-```javascript
+\`\`\`javascript
 const { data, error } = await supabase.auth.signInWithPassword({
   email: driverEmail,
   password: driverPassword
@@ -37,14 +37,14 @@ const { data: driver } = await supabase
   .select('*')
   .eq('email', driverEmail)
   .single()
-```
+\`\`\`
 
 ## Daily Inspection Flow
 
 ### 1. Check if Inspection Already Exists
 Before starting a new inspection, check if one already exists for today:
 
-```javascript
+\`\`\`javascript
 const today = new Date().toISOString().split('T')[0]
 
 const { data: existingInspection } = await supabase
@@ -57,10 +57,10 @@ const { data: existingInspection } = await supabase
 if (existingInspection) {
   // Show existing inspection or allow editing
 }
-```
+\`\`\`
 
 ### 2. Create New Inspection
-```javascript
+\`\`\`javascript
 const { data: inspection, error } = await supabase
   .from('vehicle_inspections')
   .insert({
@@ -81,7 +81,7 @@ const { data: inspection, error } = await supabase
   })
   .select()
   .single()
-```
+\`\`\`
 
 ### 3. Upload Photos with Watermark
 
@@ -107,7 +107,7 @@ Before uploading, watermark the image with:
 2. GPS coordinates
 3. Location address (if available)
 
-```javascript
+\`\`\`javascript
 import * as Location from 'expo-location'
 import * as ImageManipulator from 'expo-image-manipulator'
 
@@ -166,17 +166,17 @@ const { error: photoError } = await supabase
     location_address: `${address[0]?.street}, ${address[0]?.city}`,
     captured_at: new Date().toISOString()
   })
-```
+\`\`\`
 
 ## Inspection Checklist Structure
 
 ### All Fields Follow This Pattern:
-```javascript
+\`\`\`javascript
 {
   field_name: 'OK' | 'Not OK' | 'NA',
   field_name_remarks: 'Optional text remarks'
 }
-```
+\`\`\`
 
 ### Categories and Fields:
 
@@ -257,7 +257,7 @@ const { error: photoError } = await supabase
 
 ## Example Complete Inspection Submission
 
-```javascript
+\`\`\`javascript
 const submitInspection = async () => {
   try {
     // 1. Create inspection record
@@ -313,7 +313,7 @@ const submitInspection = async () => {
     alert('Failed to submit inspection')
   }
 }
-```
+\`\`\`
 
 ## Required Photos
 Drivers MUST upload photos for:

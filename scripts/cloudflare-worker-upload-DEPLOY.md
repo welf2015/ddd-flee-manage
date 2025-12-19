@@ -2,7 +2,7 @@
 
 Copy this code and paste it into your Cloudflare Worker editor:
 
-```javascript
+\`\`\`javascript
 export default {
   async fetch(request, env) {
     const url = new URL(request.url)
@@ -108,7 +108,7 @@ export default {
     return new Response("Method not allowed", { status: 405, headers: corsHeaders })
   },
 }
-```
+\`\`\`
 
 ## Key Changes from Current Deployed Version:
 

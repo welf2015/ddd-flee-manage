@@ -100,14 +100,14 @@ Run these SQL scripts in your Supabase SQL Editor in the following order:
 **Purpose:** Adds DELETE policies for all inventory-related tables
 **Required for:** Deleting inventory items, categories, transactions, adjustments, and collections
 
-```sql
+\`\`\`sql
 -- This script adds DELETE policies for:
 - inventory_categories
 - inventory_parts
 - inventory_transactions
 - stock_adjustments
 - inventory_collections
-```
+\`\`\`
 
 ---
 

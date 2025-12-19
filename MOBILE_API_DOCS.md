@@ -8,9 +8,9 @@
 
 All endpoints require authentication using Bearer token in the Authorization header:
 
-```
+\`\`\`
 Authorization: Bearer YOUR_ACCESS_TOKEN
-```
+\`\`\`
 
 You can get the access token from Supabase auth after login.
 
@@ -32,7 +32,7 @@ Get list of bookings with filters.
 - `offset` (optional): Pagination offset (default: 0)
 
 **Response:**
-```json
+\`\`\`json
 {
   "success": true,
   "bookings": [
@@ -49,7 +49,7 @@ Get list of bookings with filters.
   ],
   "total": 10
 }
-```
+\`\`\`
 
 ---
 
@@ -60,7 +60,7 @@ Get list of bookings with filters.
 Get detailed information about a specific booking.
 
 **Response:**
-```json
+\`\`\`json
 {
   "success": true,
   "booking": {
@@ -74,7 +74,7 @@ Get detailed information about a specific booking.
     "expenses": [ ... ]
   }
 }
-```
+\`\`\`
 
 ---
 
@@ -85,7 +85,7 @@ Get detailed information about a specific booking.
 Create a new booking.
 
 **Request Body:**
-```json
+\`\`\`json
 {
   "client_id": "uuid (optional if providing client details)",
   "client_name": "John Doe",
@@ -105,16 +105,16 @@ Create a new booking.
   "proposed_client_budget": 50000,
   "requires_waybill": true
 }
-```
+\`\`\`
 
 **Response:**
-```json
+\`\`\`json
 {
   "success": true,
   "booking": { ... },
   "message": "Booking created successfully"
 }
-```
+\`\`\`
 
 ---
 
@@ -125,12 +125,12 @@ Create a new booking.
 Update the status of a booking.
 
 **Request Body:**
-```json
+\`\`\`json
 {
   "status": "In Progress",
   "notes": "Driver en route (optional)"
 }
-```
+\`\`\`
 
 **Valid Statuses:**
 - `Pending`
@@ -141,13 +141,13 @@ Update the status of a booking.
 - `Cancelled`
 
 **Response:**
-```json
+\`\`\`json
 {
   "success": true,
   "booking": { ... },
   "message": "Status updated successfully"
 }
-```
+\`\`\`
 
 ---
 
@@ -158,21 +158,21 @@ Update the status of a booking.
 Assign driver and/or vehicle to a booking.
 
 **Request Body:**
-```json
+\`\`\`json
 {
   "driver_id": "uuid (optional)",
   "vehicle_id": "uuid (optional)"
 }
-```
+\`\`\`
 
 **Response:**
-```json
+\`\`\`json
 {
   "success": true,
   "booking": { ... },
   "message": "Assignment successful"
 }
-```
+\`\`\`
 
 ---
 
@@ -187,7 +187,7 @@ Upload waybill or fuel receipt.
 - `document_type`: "Waybill" or "Fuel Receipt"
 
 **Example (JavaScript):**
-```javascript
+\`\`\`javascript
 const formData = new FormData()
 formData.append('file', fileBlob, 'waybill.jpg')
 formData.append('document_type', 'Waybill')
@@ -199,16 +199,16 @@ fetch(`/api/mobile/bookings/${bookingId}/upload`, {
   },
   body: formData
 })
-```
+\`\`\`
 
 **Response:**
-```json
+\`\`\`json
 {
   "success": true,
   "file_url": "https://...",
   "message": "Waybill uploaded successfully"
 }
-```
+\`\`\`
 
 ---
 
@@ -219,23 +219,23 @@ fetch(`/api/mobile/bookings/${bookingId}/upload`, {
 Mark a job as completed with documents.
 
 **Request Body:**
-```json
+\`\`\`json
 {
   "waybill_url": "https://... (optional)",
   "fuel_receipt_url": "https://... (optional)",
   "incident_report": "Any incidents (optional)",
   "actual_cost": 48000
 }
-```
+\`\`\`
 
 **Response:**
-```json
+\`\`\`json
 {
   "success": true,
   "booking": { ... },
   "message": "Job closed successfully"
 }
-```
+\`\`\`
 
 ---
 
@@ -246,12 +246,12 @@ Mark a job as completed with documents.
 Delete a booking (admin only).
 
 **Response:**
-```json
+\`\`\`json
 {
   "success": true,
   "message": "Booking deleted successfully"
 }
-```
+\`\`\`
 
 ---
 
@@ -265,17 +265,17 @@ Get drivers, vehicles, and clients for selection.
 - `type` (optional): "drivers", "vehicles", or "clients". If not provided, returns all.
 
 **Response (all):**
-```json
+\`\`\`json
 {
   "success": true,
   "drivers": [ ... ],
   "vehicles": [ ... ],
   "clients": [ ... ]
 }
-```
+\`\`\`
 
 **Response (specific type):**
-```json
+\`\`\`json
 {
   "success": true,
   "drivers": [
@@ -287,7 +287,7 @@ Get drivers, vehicles, and clients for selection.
     }
   ]
 }
-```
+\`\`\`
 
 ---
 
@@ -295,12 +295,12 @@ Get drivers, vehicles, and clients for selection.
 
 All endpoints return errors in this format:
 
-```json
+\`\`\`json
 {
   "success": false,
   "error": "Error message here"
 }
-```
+\`\`\`
 
 **Common HTTP Status Codes:**
 - `400` - Bad Request (missing/invalid parameters)
@@ -320,29 +320,29 @@ CORS is automatically handled by Vercel for all API routes. The mobile app can m
 ## Testing Locally
 
 1. Start development server:
-   ```bash
+   \`\`\`bash
    npm run dev
-   ```
+   \`\`\`
 
 2. API will be available at:
-   ```
+   \`\`\`
    http://localhost:3000/api/mobile
-   ```
+   \`\`\`
 
 3. Get auth token from Supabase:
-   ```javascript
+   \`\`\`javascript
    const { data } = await supabase.auth.signInWithPassword({
      email: 'user@example.com',
      password: 'password'
    })
    const token = data.session.access_token
-   ```
+   \`\`\`
 
 4. Make requests:
-   ```javascript
+   \`\`\`javascript
    fetch('http://localhost:3000/api/mobile/bookings/list', {
      headers: {
        'Authorization': `Bearer ${token}`
      }
    })
-   ```
+   \`\`\`

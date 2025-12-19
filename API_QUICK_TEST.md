@@ -9,7 +9,7 @@
 4. Or check Network tab > any request > Authorization header
 
 **Option B - Direct Login:**
-```bash
+\`\`\`bash
 curl -X POST https://<your-project>.supabase.co/auth/v1/token?grant_type=password \
   -H "apikey: <your-anon-key>" \
   -H "Content-Type: application/json" \
@@ -17,7 +17,7 @@ curl -X POST https://<your-project>.supabase.co/auth/v1/token?grant_type=passwor
     "email": "your@email.com",
     "password": "your-password"
   }'
-```
+\`\`\`
 
 Copy the `access_token` from response.
 
@@ -25,34 +25,34 @@ Copy the `access_token` from response.
 
 ## 2. Set Token Variable
 
-```bash
+\`\`\`bash
 export TOKEN="your_access_token_here"
-```
+\`\`\`
 
 ---
 
 ## 3. Test Endpoints
 
 ### Get Resources (Drivers, Vehicles, Clients)
-```bash
+\`\`\`bash
 curl -X GET "http://localhost:3000/api/mobile/resources" \
   -H "Authorization: Bearer $TOKEN" | jq
-```
+\`\`\`
 
 ### List All Bookings
-```bash
+\`\`\`bash
 curl -X GET "http://localhost:3000/api/mobile/bookings/list" \
   -H "Authorization: Bearer $TOKEN" | jq
-```
+\`\`\`
 
 ### List Pending Bookings
-```bash
+\`\`\`bash
 curl -X GET "http://localhost:3000/api/mobile/bookings/list?status=Pending" \
   -H "Authorization: Bearer $TOKEN" | jq
-```
+\`\`\`
 
 ### Create Booking
-```bash
+\`\`\`bash
 curl -X POST "http://localhost:3000/api/mobile/bookings/create" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -65,10 +65,10 @@ curl -X POST "http://localhost:3000/api/mobile/bookings/create" \
     "proposed_client_budget": 50000,
     "requires_waybill": true
   }' | jq
-```
+\`\`\`
 
 ### Update Status (use booking ID from above)
-```bash
+\`\`\`bash
 curl -X PATCH "http://localhost:3000/api/mobile/bookings/BOOKING_ID/status" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -76,16 +76,16 @@ curl -X PATCH "http://localhost:3000/api/mobile/bookings/BOOKING_ID/status" \
     "status": "In Progress",
     "notes": "Driver en route"
   }' | jq
-```
+\`\`\`
 
 ### Get Booking Details
-```bash
+\`\`\`bash
 curl -X GET "http://localhost:3000/api/mobile/bookings/BOOKING_ID" \
   -H "Authorization: Bearer $TOKEN" | jq
-```
+\`\`\`
 
 ### Close Job
-```bash
+\`\`\`bash
 curl -X POST "http://localhost:3000/api/mobile/bookings/BOOKING_ID/close" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -93,18 +93,18 @@ curl -X POST "http://localhost:3000/api/mobile/bookings/BOOKING_ID/close" \
     "actual_cost": 48000,
     "incident_report": "Completed successfully"
   }' | jq
-```
+\`\`\`
 
 ---
 
 ## 4. Test File Upload
 
-```bash
+\`\`\`bash
 curl -X POST "http://localhost:3000/api/mobile/bookings/BOOKING_ID/upload" \
   -H "Authorization: Bearer $TOKEN" \
   -F "file=@/path/to/image.jpg" \
   -F "document_type=Waybill" | jq
-```
+\`\`\`
 
 ---
 

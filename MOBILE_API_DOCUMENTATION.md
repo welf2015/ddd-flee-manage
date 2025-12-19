@@ -6,17 +6,17 @@ This API provides mobile access to the Fleet Management System for both drivers 
 
 ## Base URL
 
-```
+\`\`\`
 https://your-domain.com/api/mobile
-```
+\`\`\`
 
 ## Authentication
 
 All API endpoints require authentication using Supabase session tokens. Include the token in the Authorization header:
 
-```
+\`\`\`
 Authorization: Bearer YOUR_SESSION_TOKEN
-```
+\`\`\`
 
 ## Endpoints
 
@@ -27,22 +27,22 @@ Authorization: Bearer YOUR_SESSION_TOKEN
 Login for drivers and administrators.
 
 **Request Body:**
-```json
+\`\`\`json
 {
   "email": "driver@example.com",
   "password": "password123"
 }
-```
+\`\`\`
 
 **Response:**
-```json
+\`\`\`json
 {
   "user": { "id": "...", "email": "..." },
   "session": { "access_token": "...", "refresh_token": "..." },
   "profile": { "full_name": "John Doe", "role": "Staff" },
   "role": "Staff"
 }
-```
+\`\`\`
 
 ---
 
@@ -53,7 +53,7 @@ Login for drivers and administrators.
 Get driver profile, assigned vehicle, and inspection count.
 
 **Response:**
-```json
+\`\`\`json
 {
   "profile": {
     "id": "...",
@@ -72,14 +72,14 @@ Get driver profile, assigned vehicle, and inspection count.
   },
   "inspectionCount": 45
 }
-```
+\`\`\`
 
 #### POST `/driver/inspections`
 
 Submit a vehicle inspection with photos.
 
 **Request Body:**
-```json
+\`\`\`json
 {
   "vehicleId": "vehicle-uuid",
   "odometerReading": 45000,
@@ -100,10 +100,10 @@ Submit a vehicle inspection with photos.
     }
   ]
 }
-```
+\`\`\`
 
 **Response:**
-```json
+\`\`\`json
 {
   "success": true,
   "inspection": {
@@ -113,7 +113,7 @@ Submit a vehicle inspection with photos.
     "status": "Completed"
   }
 }
-```
+\`\`\`
 
 ---
 
@@ -124,7 +124,7 @@ Submit a vehicle inspection with photos.
 Get all new/pending bookings for approval.
 
 **Response:**
-```json
+\`\`\`json
 {
   "bookings": [
     {
@@ -139,33 +139,33 @@ Get all new/pending bookings for approval.
     }
   ]
 }
-```
+\`\`\`
 
 #### POST `/admin/approve-booking`
 
 Approve or reject a booking.
 
 **Request Body:**
-```json
+\`\`\`json
 {
   "bookingId": "booking-uuid",
   "action": "approve"
 }
-```
+\`\`\`
 
 **Response:**
-```json
+\`\`\`json
 {
   "success": true
 }
-```
+\`\`\`
 
 #### GET `/admin/stats`
 
 Get dashboard statistics.
 
 **Response:**
-```json
+\`\`\`json
 {
   "totalVehicles": 50,
   "activeVehicles": 45,
@@ -173,7 +173,7 @@ Get dashboard statistics.
   "pendingBookings": 12,
   "totalRevenue": 150000000
 }
-```
+\`\`\`
 
 ---
 
@@ -188,7 +188,7 @@ Get dashboard statistics.
 
 ### Example Expo Code
 
-```typescript
+\`\`\`typescript
 import { Camera } from 'expo-camera';
 import * as Location from 'expo-location';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
@@ -231,7 +231,7 @@ async function captureWithWatermark() {
     capturedAt: new Date().toISOString()
   };
 }
-```
+\`\`\`
 
 ---
 
@@ -245,13 +245,13 @@ async function captureWithWatermark() {
 
 ### Notification Flow
 
-```
+\`\`\`
 Backend Action → OneSignal API → Push Notification → Mobile App
-```
+\`\`\`
 
 ### Example Server-Side (Node.js)
 
-```typescript
+\`\`\`typescript
 async function sendNotification(userId: string, message: string) {
   // Get user's OneSignal player ID from profile
   const { data: profile } = await supabase
@@ -276,7 +276,7 @@ async function sendNotification(userId: string, message: string) {
     })
   });
 }
-```
+\`\`\`
 
 ---
 
@@ -284,7 +284,7 @@ async function sendNotification(userId: string, message: string) {
 
 For PWA functionality, create a service worker:
 
-```javascript
+\`\`\`javascript
 // public/sw.js
 self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('/api/')) {
@@ -296,21 +296,21 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
-```
+\`\`\`
 
 Register in your app:
 
-```typescript
+\`\`\`typescript
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js');
 }
-```
+\`\`\`
 
 ---
 
 ## Environment Variables Required
 
-```env
+\`\`\`env
 # R2 Storage
 R2_ACCOUNT_ID=your-account-id
 R2_ACCESS_KEY_ID=your-access-key
@@ -325,7 +325,7 @@ ONESIGNAL_REST_API_KEY=your-rest-api-key
 # Supabase (already configured)
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-```
+\`\`\`
 
 ---
 
@@ -352,7 +352,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 
 ## Example Expo App Structure
 
-```
+\`\`\`
 mobile-app/
 ├── src/
 │   ├── screens/
@@ -371,7 +371,7 @@ mobile-app/
 │       ├── location.ts
 │       └── notifications.ts
 └── app.json
-```
+\`\`\`
 
 ---
 
