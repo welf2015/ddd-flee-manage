@@ -47,14 +47,10 @@ export default function DriversListTab({ initialDrivers = [] }: DriversListTabPr
 
               <div className="mt-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Current Balance</span>
-                  <span className="font-semibold">
-                    ₦{driver.account?.current_balance?.toLocaleString() || "0"}
+                  <span className="text-muted-foreground">This Week Spent</span>
+                  <span className="font-semibold text-orange-600">
+                    ₦{driver.account?.weekly_spent?.toLocaleString() || "0"}
                   </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Spending Limit</span>
-                  <span className="font-semibold">₦{driver.account?.spending_limit?.toLocaleString() || "0"}</span>
                 </div>
               </div>
             </CardContent>

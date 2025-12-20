@@ -18,9 +18,10 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 interface AddDriverTopupDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSuccess?: () => void
 }
 
-export default function AddDriverTopupDialog({ open, onOpenChange }: AddDriverTopupDialogProps) {
+export default function AddDriverTopupDialog({ open, onOpenChange, onSuccess }: AddDriverTopupDialogProps) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     driverId: "",
@@ -45,6 +46,7 @@ export default function AddDriverTopupDialog({ open, onOpenChange }: AddDriverTo
         toast.success("Top-up added successfully")
         onOpenChange(false)
         setFormData({ driverId: "", amount: "", notes: "" })
+        onSuccess?.()
       } else {
         toast.error(result.error || "Failed to add top-up")
       }

@@ -4,11 +4,12 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Plus, Wallet, TrendingUp } from "lucide-react"
+import { Plus, Wallet, TrendingUp, DollarSign } from "lucide-react"
 import useSWR from "swr"
-import DriverTransactionsTab from "./driver-transactions-tab"
 import DriversListTab from "./drivers-list-tab"
 import AddDriverTopupDialog from "@/components/driver-spending/add-driver-topup-dialog"
+import WeekFilterSelector from "@/components/driver-spending/week-filter-selector"
+import DriverTransactionsTable from "@/components/driver-spending/driver-transactions-table"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -18,27 +19,52 @@ type DriverExpensesClientProps = {
   initialSummary?: {
     totalBalance: number
     weeklySpending: number
+    dailySpending?: number
+    totalSpent?: number
   }
 }
 
 export default function DriverExpensesClient({
   initialDrivers = [],
   initialTransactions = [],
-  initialSummary = { totalBalance: 0, weeklySpending: 0 },
+  initialSummary = { totalBalance: 0, weeklySpending: 0, dailySpending: 0, totalSpent: 0 },
 }: DriverExpensesClientProps) {
   const [showTopupDialog, setShowTopupDialog] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
 
-  // Fetch summary data with SWR - use initial data from server, then revalidate
-  const { data: summary = initialSummary } = useSWR(
+  // Week Filtering State
+  // Default to "all" so the Total Spent sum matches the visible table rows
+  const [selectedWeek, setSelectedWeek] = useState<string>("all")
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
+
+  // Fetch summary data with SWR
+  const { data: summary = initialSummary, mutate: mutateSummary } = useSWR(
     "/api/driver-spending/summary",
     fetcher,
     {
       fallbackData: initialSummary,
-      revalidateOnMount: false, // Use initial data immediately
-      refreshInterval: 5000, // Refresh every 5 seconds
+      revalidateOnMount: false,
+      refreshInterval: 30000, // Reduced polling to 30s
     },
   )
+
+  // Fetch transactions based on filter
+  const { data: transactions = initialTransactions, isLoading: transactionsLoading, mutate: mutateTransactions } = useSWR(
+    `/api/driver-spending/transactions?week=${selectedWeek}&year=${selectedYear}`,
+    fetcher,
+    {
+      fallbackData: initialTransactions,
+      refreshInterval: 30000
+    }
+  )
+
+  const handleTransactionDeleted = () => {
+    mutateSummary()
+    mutateTransactions()
+  }
+
+  // Wallet Visual Logic - Simplified
+  // We don't need pipes anymore for the shared wallet simple view
 
   return (
     <div className="space-y-6">
@@ -48,28 +74,48 @@ export default function DriverExpensesClient({
           <h1 className="text-2xl font-bold">Driver Spending Management</h1>
           <p className="text-sm text-muted-foreground">Track and manage driver spending accounts and allowances</p>
         </div>
-        <Button onClick={() => setShowTopupDialog(true)} className="bg-accent hover:bg-accent/90">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Top-up
-        </Button>
+        <div className="flex items-center gap-2">
+          <WeekFilterSelector
+            selectedWeek={selectedWeek}
+            selectedYear={selectedYear}
+            onWeekChange={setSelectedWeek}
+            onYearChange={setSelectedYear}
+          />
+          <Button onClick={() => setShowTopupDialog(true)} className="bg-accent hover:bg-accent/90">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Top-up
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Wallet Balance Card (Central Wallet) */}
+        <Card className="col-span-1 md:col-span-1 border-primary/20 bg-primary/5">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Spending Balance</CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Available Balance</CardTitle>
+            <Wallet className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₦{summary?.totalBalance?.toLocaleString() || "0"}</div>
-            <p className="text-xs text-muted-foreground">Across all drivers</p>
+            <div className="text-3xl font-bold text-primary">₦{summary?.totalBalance?.toLocaleString() || "0"}</div>
+            <p className="text-xs text-muted-foreground mt-1">Shared driver wallet</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Spent This Week</CardTitle>
+            <CardTitle className="text-sm font-medium">Spent Today</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">₦{summary?.dailySpending?.toLocaleString() || "0"}</div>
+            <p className="text-xs text-muted-foreground">Total spent today</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Spent This Week</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -82,12 +128,16 @@ export default function DriverExpensesClient({
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="all">All Transactions</TabsTrigger>
-          <TabsTrigger value="drivers">By Driver</TabsTrigger>
+          <TabsTrigger value="all">Transactions</TabsTrigger>
+          <TabsTrigger value="drivers">Driver Balances</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
-          <DriverTransactionsTab initialTransactions={initialTransactions} />
+          <DriverTransactionsTable
+            transactions={transactions}
+            isLoading={transactionsLoading}
+            onTransactionDeleted={handleTransactionDeleted}
+          />
         </TabsContent>
 
         <TabsContent value="drivers" className="mt-6">
@@ -96,7 +146,14 @@ export default function DriverExpensesClient({
       </Tabs>
 
       {/* Add Top-up Dialog */}
-      <AddDriverTopupDialog open={showTopupDialog} onOpenChange={setShowTopupDialog} />
+      <AddDriverTopupDialog
+        open={showTopupDialog}
+        onOpenChange={setShowTopupDialog}
+        onSuccess={() => {
+          mutateSummary()
+          mutateTransactions()
+        }}
+      />
     </div>
   )
 }

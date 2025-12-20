@@ -14,6 +14,7 @@ import ConfirmDialog from "@/components/ui/confirm-dialog"
 import { deleteDriverTransaction } from "@/app/actions/driver-spending"
 import { toast } from "sonner"
 import { createBrowserClient } from "@/lib/supabase/client"
+import WeekFilterSelector from "@/components/driver-spending/week-filter-selector"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -27,8 +28,12 @@ export default function DriverTransactionsTab({ initialTransactions = [] }: Driv
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [selectedWeek, setSelectedWeek] = useState("current")
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
 
-  const { data: transactions = initialTransactions, mutate } = useSWR("/api/driver-spending/transactions", fetcher, {
+  const { data: transactions = initialTransactions, mutate } = useSWR(
+    `/api/driver-spending/transactions?week=${selectedWeek}&year=${selectedYear}`, 
+    fetcher, {
     fallbackData: initialTransactions,
     revalidateOnMount: false,
     refreshInterval: 5000,
@@ -93,14 +98,22 @@ export default function DriverTransactionsTab({ initialTransactions = [] }: Driv
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>All Driver Transactions</CardTitle>
-          <div className="relative w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by driver, job, or type..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-8"
+          <div className="flex items-center gap-4">
+            <WeekFilterSelector
+              selectedWeek={selectedWeek}
+              selectedYear={selectedYear}
+              onWeekChange={setSelectedWeek}
+              onYearChange={setSelectedYear}
             />
+            <div className="relative w-64">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by driver, job, or type..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8"
+              />
+            </div>
           </div>
         </div>
       </CardHeader>

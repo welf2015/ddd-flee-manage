@@ -53,10 +53,10 @@ export function NotificationsBell() {
         const alerts = await getExpiringComplianceItems()
         const lowStock = await getLowStockItems()
 
-        setComplianceAlerts(alerts)
-        setLowStockAlerts(lowStock)
+        setComplianceAlerts(alerts || [])
+        setLowStockAlerts(lowStock || [])
 
-        const totalCount = notifications.length + pendingCount + alerts.length + lowStock.length
+        const totalCount = (notifications?.length || 0) + pendingCount + (alerts?.length || 0) + (lowStock?.length || 0)
         const prevCount = prevCountRef.current
 
         const hasPlayedInSession = sessionStorage.getItem("hasPlayedNotificationSound")
@@ -80,7 +80,7 @@ export function NotificationsBell() {
     const interval = setInterval(fetchCount, 60000)
 
     return () => clearInterval(interval)
-  }, [notifications.length])
+  }, [notifications?.length])
 
   const playNotificationSound = () => {
     if (audioRef.current) {
@@ -142,7 +142,7 @@ export function NotificationsBell() {
             <div className="p-4 text-center text-muted-foreground text-sm">No new notifications</div>
           ) : (
             <div className="flex flex-col">
-              {notifications.map((notification: any) => (
+              {notifications?.map((notification: any) => (
                 <button
                   key={notification.id}
                   onClick={() => handleDatabaseNotificationClick(notification)}
@@ -159,7 +159,7 @@ export function NotificationsBell() {
                 </button>
               ))}
 
-              {count - notifications.length - complianceAlerts.length - lowStockAlerts.length > 0 && (
+              {count - (notifications?.length || 0) - (complianceAlerts?.length || 0) - (lowStockAlerts?.length || 0) > 0 && (
                 <button
                   className="flex items-start gap-3 p-4 hover:bg-muted/50 text-left transition-colors border-b"
                   onClick={handleNotificationClick}
@@ -170,9 +170,9 @@ export function NotificationsBell() {
                   <div>
                     <div className="font-medium text-sm">Pending Inspections</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      You have {count - notifications.length - complianceAlerts.length - lowStockAlerts.length} vehicle
+                      You have {count - (notifications?.length || 0) - (complianceAlerts?.length || 0) - (lowStockAlerts?.length || 0)} vehicle
                       inspection
-                      {count - notifications.length - complianceAlerts.length - lowStockAlerts.length !== 1 ? "s" : ""}{" "}
+                      {count - (notifications?.length || 0) - (complianceAlerts?.length || 0) - (lowStockAlerts?.length || 0) !== 1 ? "s" : ""}{" "}
                       waiting for review.
                     </div>
                     <div className="text-xs text-blue-600 mt-2 font-medium">Review now</div>
