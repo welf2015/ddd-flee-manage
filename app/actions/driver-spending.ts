@@ -19,7 +19,7 @@ function getWeekNumber(date: Date): number {
 async function getCentralWallet() {
   const supabase = await createClient()
 
-  // 1. Try to find the account directly by a specific flag or name if we added one, 
+  // 1. Try to find the account directly by a specific flag or name if we added one,
   // but simpler is to find the "Central Wallet" driver first.
   let { data: centralDriver } = await supabase
     .from("drivers")
@@ -65,7 +65,7 @@ async function getCentralWallet() {
         weekly_spent: 0,
         daily_spent: 0,
         week_start_date: new Date().toISOString().split("T")[0],
-        total_topped_up: 0
+        total_topped_up: 0,
       })
       .select("*")
       .single()
@@ -88,19 +88,27 @@ export async function getDriversWithAllowanceSpending() {
 
 export async function getAllActiveDrivers() {
   const supabase = await createClient()
-  const { data, error } = await supabase.from("drivers").select("id, full_name, phone, status").eq("status", "Active").order("full_name", { ascending: true })
+  const { data, error } = await supabase
+    .from("drivers")
+    .select("id, full_name, phone, status")
+    .eq("status", "Active")
+    .order("full_name", { ascending: true })
   if (error) return { success: false, error: error.message, data: [] }
   return { success: true, data: data || [] }
 }
 
 export async function getAllDriversWithAccounts() {
-  // This might be used to list drivers. Since individual accounts don't matter now, 
+  // This might be used to list drivers. Since individual accounts don't matter now,
   // we return drivers and maybe attach the Global Balance?
   // Or users might expect to see individual spending.
   // We should return drivers and their INDIVIDUAL usage (calculated from transactions).
 
   const supabase = await createClient()
-  const { data: drivers } = await supabase.from("drivers").select("id, full_name, phone, status").eq("status", "Active").order("full_name", { ascending: true })
+  const { data: drivers } = await supabase
+    .from("drivers")
+    .select("id, full_name, phone, status")
+    .eq("status", "Active")
+    .order("full_name", { ascending: true })
 
   // We need to fetch individual spending for display
   // But the balance is GLOBAL.
@@ -119,7 +127,9 @@ export async function createDriverSpendingAccount(driverId: string, spendingLimi
 
 export async function topUpDriverSpending(driverId: string, amount: number, description?: string) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   try {
     const { account } = await getCentralWallet()
@@ -127,7 +137,7 @@ export async function topUpDriverSpending(driverId: string, amount: number, desc
     const now = new Date()
 
     // We insert the transaction linked to the Central Wallet Account
-    // But driver_id? If the user selected a specific driver for the topup, 
+    // But driver_id? If the user selected a specific driver for the topup,
     // we could log it, OR (better for Shared Wallet) we assign it to the Central Driver ID.
     // Usually Top-ups are "System" level.
     // Let's use the account.driver_id (Central Wallet Driver)
@@ -141,13 +151,14 @@ export async function topUpDriverSpending(driverId: string, amount: number, desc
       balance_after: newBalance,
       week_number: getWeekNumber(now),
       year: now.getFullYear(),
-      created_by: user?.id
+      created_by: user?.id,
     })
 
-    await supabase.from("driver_spending_accounts")
+    await supabase
+      .from("driver_spending_accounts")
       .update({
         current_balance: newBalance,
-        total_topped_up: Number(account.total_topped_up || 0) + amount
+        total_topped_up: Number(account.total_topped_up || 0) + amount,
       })
       .eq("id", account.id)
 
@@ -159,9 +170,16 @@ export async function topUpDriverSpending(driverId: string, amount: number, desc
 }
 
 // New function for recording expense
-export async function recordDriverExpense(realDriverId: string, amount: number, description: string, bookingId?: string) {
+export async function recordDriverExpense(
+  realDriverId: string,
+  amount: number,
+  description: string,
+  bookingId?: string,
+) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   try {
     const { account } = await getCentralWallet()
@@ -186,16 +204,16 @@ export async function recordDriverExpense(realDriverId: string, amount: number, 
       week_number: getWeekNumber(now),
       year: now.getFullYear(),
       created_by: user?.id,
-      // booking_id: bookingId // Assuming schema has this, usually linked via bookings table or notes? 
+      // booking_id: bookingId // Assuming schema has this, usually linked via bookings table or notes?
       // The schema from previous grep showed `booking:bookings(job_id)` in query, implying foreign key exists or we join.
-      // Let's check `booking_id` column existence from `expenses.ts`. It passed `booking_id` in `createExpenseTransaction`.
+      // I'll check `booking_id` column existence from `expenses.ts`. It passed `booking_id` in `createExpenseTransaction`.
       // Wait, `driver_spending_transactions` might not have `booking_id`.
       // Let's check `transactions/route.ts`: `.select('..., booking:bookings(job_id)')`
       // Yes, it has booking linkage.
       // But verify if `driver_spending_transactions` has `booking_id` column or if the join was via something else.
       // Usually if I can select `booking:bookings(...)` it means there is a `booking_id` FK.
-      // I'll try to insert it if I can pass it. 
-      // `driver-spending.ts` didn't have `recordDriverExpense` before? 
+      // I'll try to insert it if I can pass it.
+      // `driver-spending.ts` didn't have `recordDriverExpense` before?
       // Ah, I missed it in the file view.
 
       // I'll assume `booking` relation is via `booking_id` if possible.
@@ -207,10 +225,11 @@ export async function recordDriverExpense(realDriverId: string, amount: number, 
     const isNewWeek = now.getTime() - weekStart.getTime() > 7 * 24 * 60 * 60 * 1000
 
     // Simple accumulation for now
-    await supabase.from("driver_spending_accounts")
+    await supabase
+      .from("driver_spending_accounts")
       .update({
         current_balance: newBalance,
-        // We should also track total_spent if column exists? 
+        // We should also track total_spent if column exists?
         // schema check: `weekly_spent`, `daily_spent`.
         // Let's just update balance for now to be safe, logic elsewhere calculates totals from transactions.
       })
@@ -229,7 +248,12 @@ export async function topUpDriverAccount(driverId: string, amount: number, descr
   return topUpDriverSpending(driverId, amount, description)
 }
 
-export async function updateDriverTransaction(data: { transactionId: string; amount: number; notes?: string; adjustmentType?: string | null }) {
+export async function updateDriverTransaction(data: {
+  transactionId: string
+  amount: number
+  notes?: string
+  adjustmentType?: string | null
+}) {
   const supabase = await createClient()
 
   // Fetch tx
@@ -259,29 +283,30 @@ export async function updateDriverTransaction(data: { transactionId: string; amo
     // If expense: increase in amount = decrease in balance.
     // If topup: increase in amount = increase in balance.
 
-    if (transaction.transaction_type === 'expense') {
+    if (transaction.transaction_type === "expense") {
       newBalance = currentBalance - difference // Exp increased (diff > 0) -> Balance decreases
-    } else { // top_up
+    } else {
+      // top_up
       newBalance = currentBalance + difference
     }
 
     // Update Transaction
-    await supabase.from("driver_spending_transactions")
+    await supabase
+      .from("driver_spending_transactions")
       .update({
         amount: newAmount,
         description: data.notes || transaction.description,
-        balance_after: newBalance
+        balance_after: newBalance,
       })
       .eq("id", data.transactionId)
 
     // Update Account
-    await supabase.from("driver_spending_accounts")
+    await supabase
+      .from("driver_spending_accounts")
       .update({ current_balance: newBalance })
       .eq("id", transaction.account_id)
   } else if (data.notes) {
-    await supabase.from("driver_spending_transactions")
-      .update({ description: data.notes })
-      .eq("id", data.transactionId)
+    await supabase.from("driver_spending_transactions").update({ description: data.notes }).eq("id", data.transactionId)
   }
 
   revalidatePath("/dashboard/expenses")
@@ -290,11 +315,14 @@ export async function updateDriverTransaction(data: { transactionId: string; amo
 
 export async function deleteDriverTransaction(transactionId: string) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) return { success: false, error: "Unauthorized" }
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-  if (!profile || !["MD", "ED", "Fleet Officer"].includes(profile.role)) return { success: false, error: "Unauthorized" }
+  if (!profile || !["MD", "ED", "Fleet Officer"].includes(profile.role))
+    return { success: false, error: "Unauthorized" }
 
   const { data: transaction, error: txError } = await supabase
     .from("driver_spending_transactions")
@@ -319,7 +347,10 @@ export async function deleteDriverTransaction(transactionId: string) {
   }
 
   await supabase.from("driver_spending_transactions").delete().eq("id", transactionId)
-  await supabase.from("driver_spending_accounts").update({ current_balance: newBalance }).eq("id", transaction.account_id)
+  await supabase
+    .from("driver_spending_accounts")
+    .update({ current_balance: newBalance })
+    .eq("id", transaction.account_id)
 
   revalidatePath("/dashboard/expenses")
   return { success: true }
@@ -327,7 +358,11 @@ export async function deleteDriverTransaction(transactionId: string) {
 
 export async function getDriverSpendingTransactions(driverId: string) {
   const supabase = await createClient()
-  const { data, error } = await supabase.from("driver_spending_transactions").select("*, booking:bookings(job_id), created_by_profile:profiles(full_name)").eq("driver_id", driverId).order("created_at", { ascending: false })
+  const { data, error } = await supabase
+    .from("driver_spending_transactions")
+    .select("*, booking:bookings(job_id), created_by_profile:profiles(full_name)")
+    .eq("driver_id", driverId)
+    .order("created_at", { ascending: false })
   if (error) return { success: false, error: error.message }
   return { success: true, data }
 }
@@ -338,14 +373,52 @@ export async function addDriverTopup(data: { driver_id: string; amount: number; 
 
 export async function resetWeeklySpending() {
   const supabase = await createClient()
-  await supabase.from("driver_spending_accounts").update({ weekly_spent: 0, week_start_date: new Date().toISOString().split("T")[0] }).eq("is_active", true)
+  await supabase
+    .from("driver_spending_accounts")
+    .update({ weekly_spent: 0, week_start_date: new Date().toISOString().split("T")[0] })
+    .eq("is_active", true)
   revalidatePath("/dashboard/expenses")
   return { success: true }
 }
 
 export async function resetDailySpending() {
   const supabase = await createClient()
-  await supabase.from("driver_spending_accounts").update({ daily_spent: 0, last_daily_reset: new Date().toISOString() }).eq("is_active", true)
+  await supabase
+    .from("driver_spending_accounts")
+    .update({ daily_spent: 0, last_daily_reset: new Date().toISOString() })
+    .eq("is_active", true)
+  revalidatePath("/dashboard/expenses")
+  return { success: true }
+}
+
+export async function updateSpendingLimit(driverId: string, spendingLimit: number) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  // Check if user has permission
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+  const allowedRoles = ["MD", "ED", "Head of Operations", "Fleet Officer"]
+
+  if (!profile || !allowedRoles.includes(profile.role)) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  // Update spending limit for the driver's account
+  const { error } = await supabase
+    .from("driver_spending_accounts")
+    .update({ spending_limit: spendingLimit })
+    .eq("driver_id", driverId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
   revalidatePath("/dashboard/expenses")
   return { success: true }
 }

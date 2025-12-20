@@ -24,17 +24,28 @@ export default async function DriverExpensesPage() {
   // Pre-fetch drivers with their spending accounts
   const { data: drivers = [] } = await getAllDriversWithAccounts()
 
-  // Pre-fetch all driver spending transactions
+  // Get current week number
+  const now = new Date()
+  const yearStart = new Date(Date.UTC(now.getFullYear(), 0, 1))
+  const dayNum = now.getUTCDay() || 7
+  const weekStart = new Date(now)
+  weekStart.setUTCDate(now.getUTCDate() + 4 - dayNum)
+  const currentWeekNumber = Math.ceil(((weekStart.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+
+  // Pre-fetch driver spending transactions for current week
   const { data: allTransactions = [], error } = await supabase
     .from("driver_spending_transactions")
     .select(
       `
       *,
-      driver:drivers(id, full_name, phone_number, status),
+      driver:drivers(id, full_name, phone, status),
       booking:bookings(job_id)
     `,
     )
-    .order("transaction_date", { ascending: false })
+    .eq("week_number", currentWeekNumber)
+    .eq("year", now.getFullYear())
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
     .limit(100)
 
   if (error) {
@@ -44,14 +55,23 @@ export default async function DriverExpensesPage() {
   // Calculate summary data
   const totalBalance = drivers.reduce((sum, d: any) => sum + Number(d.account?.current_balance || 0), 0)
 
-  // Calculate weekly spending (last 7 days)
-  const weekStart = new Date()
-  weekStart.setDate(weekStart.getDate() - 7)
+  // Calculate weekly and daily spending
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
   const weeklySpending = (allTransactions || [])
     .filter(
       (t: any) =>
+        (t.transaction_type === "expense" || t.transaction_type === "manual_debit") && t.direction === "DEBIT",
+    )
+    .reduce((sum, t: any) => sum + Number(t.amount), 0)
+
+  const dailySpending = (allTransactions || [])
+    .filter(
+      (t: any) =>
         (t.transaction_type === "expense" || t.transaction_type === "manual_debit") &&
-        new Date(t.transaction_date) >= weekStart,
+        t.direction === "DEBIT" &&
+        new Date(t.created_at) >= today,
     )
     .reduce((sum, t: any) => sum + Number(t.amount), 0)
 
@@ -70,6 +90,7 @@ export default async function DriverExpensesPage() {
         initialSummary={{
           totalBalance,
           weeklySpending,
+          dailySpending,
         }}
       />
     </DashboardLayout>

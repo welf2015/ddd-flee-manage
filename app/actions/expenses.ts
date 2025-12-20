@@ -233,12 +233,19 @@ export async function getTopups(accountId?: string) {
 export async function getWeeklyExpenses(expenseType?: string) {
   const supabase = await createClient()
   const now = new Date()
-  const weekStart = new Date(now.setDate(now.getDate() - now.getDay()))
+
+  // Calculate Monday of current week as start
+  const dayOfWeek = now.getDay()
+  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek // If Sunday, go back 6 days, otherwise go to Monday
+  const weekStart = new Date(now)
+  weekStart.setDate(now.getDate() + diff)
   weekStart.setHours(0, 0, 0, 0)
+
+  console.log("[v0] Weekly calculation - Start date:", weekStart.toISOString(), "Current date:", now.toISOString())
 
   let query = supabase
     .from("expense_transactions")
-    .select("amount, expense_type")
+    .select("amount, expense_type, transaction_date")
     .gte("transaction_date", weekStart.toISOString())
 
   if (expenseType) {
@@ -248,10 +255,14 @@ export async function getWeeklyExpenses(expenseType?: string) {
   const { data, error } = await query
 
   if (error) {
+    console.error("[v0] Error fetching weekly expenses:", error)
     return { data: 0, error }
   }
 
+  console.log("[v0] Weekly transactions found:", data?.length)
   const total = data?.reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0
+  console.log("[v0] Weekly total for", expenseType || "all types:", total)
+
   return { data: total, error: null }
 }
 

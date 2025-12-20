@@ -98,15 +98,15 @@ export default function DriverDetailSheet({ open, onOpenChange, driver }: Driver
 
                   <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                     <div>
-                      <p className="text-sm text-muted-foreground">Current Balance</p>
-                      <p className="text-2xl font-bold">
-                        ₦{(driver.account?.current_balance || driver.current_balance || 0).toLocaleString()}
+                      <p className="text-sm text-muted-foreground">Spent Today</p>
+                      <p className="text-2xl font-bold text-orange-600">
+                        ₦{(driver.account?.daily_spent || driver.daily_spent || 0).toLocaleString()}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Spending Limit</p>
-                      <p className="text-2xl font-bold">
-                        ₦{(driver.account?.spending_limit || driver.spending_limit || 0).toLocaleString()}
+                      <p className="text-sm text-muted-foreground">Spent This Week</p>
+                      <p className="text-2xl font-bold text-orange-600">
+                        ₦{(driver.account?.weekly_spent || driver.weekly_spent || 0).toLocaleString()}
                       </p>
                     </div>
                   </div>

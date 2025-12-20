@@ -69,9 +69,11 @@ export function ExpensesClient({
     const { data: topups } = await getTopups(fuelAccount.id)
     if (!topups) return 0
 
-    // Filter for current week
     const now = new Date()
-    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay())
+    const dayOfWeek = now.getDay()
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+    const weekStart = new Date(now)
+    weekStart.setDate(now.getDate() + diff)
     weekStart.setHours(0, 0, 0, 0)
 
     const weeklyTopups = topups.filter((t: any) => {
@@ -125,8 +127,12 @@ export function ExpensesClient({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(activeBalance, "NGN")}</div>
-            <p className="text-xs text-muted-foreground">{activeBalance < 0 ? "Overdrawn" : "Available"}</p>
+            <div className={`text-2xl font-bold ${activeBalance < 0 ? "text-red-600" : ""}`}>
+              {formatCurrency(activeBalance, "NGN")}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {activeBalance < 0 ? "Overdrawn - needs top-up" : "Available balance"}
+            </p>
           </CardContent>
         </Card>
 

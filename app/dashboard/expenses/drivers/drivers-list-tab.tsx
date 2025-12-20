@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { User, Briefcase } from "lucide-react"
+import { User } from "lucide-react"
 import useSWR from "swr"
 import DriverDetailSheet from "@/components/driver-spending/driver-detail-sheet"
 
@@ -16,11 +16,37 @@ type DriversListTabProps = {
 export default function DriversListTab({ initialDrivers = [] }: DriversListTabProps) {
   const [selectedDriver, setSelectedDriver] = useState<any>(null)
 
-  const { data: drivers = initialDrivers } = useSWR("/api/driver-spending/drivers", fetcher, {
+  const { data: drivers = initialDrivers, isLoading } = useSWR("/api/driver-spending/drivers", fetcher, {
     fallbackData: initialDrivers,
     revalidateOnMount: false,
     refreshInterval: 5000,
   })
+
+  if (isLoading && !drivers?.length) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <Card key={i} className="animate-pulse">
+            <CardContent className="pt-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-full bg-gray-200" />
+                  <div className="space-y-2">
+                    <div className="h-4 w-24 bg-gray-200 rounded" />
+                    <div className="h-3 w-32 bg-gray-200 rounded" />
+                  </div>
+                </div>
+                <div className="h-5 w-16 bg-gray-200 rounded" />
+              </div>
+              <div className="mt-4 space-y-2">
+                <div className="h-3 w-full bg-gray-200 rounded" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -39,17 +65,19 @@ export default function DriversListTab({ initialDrivers = [] }: DriversListTabPr
                   </div>
                   <div>
                     <p className="font-semibold">{driver.full_name}</p>
-                    <p className="text-sm text-muted-foreground">{driver.phone}</p>
+                    <p className="text-sm text-muted-foreground">{driver.phone || driver.phone_number}</p>
                   </div>
                 </div>
-                <Badge variant={driver.status === "Active" ? "default" : "secondary"}>{driver.status || "Active"}</Badge>
+                <Badge variant={driver.current_job_id ? "default" : "secondary"}>
+                  {driver.current_job_id ? `Job ${driver.current_job_id}` : "Available"}
+                </Badge>
               </div>
 
               <div className="mt-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">This Week Spent</span>
+                  <span className="text-muted-foreground">Spent This Week</span>
                   <span className="font-semibold text-orange-600">
-                    ₦{driver.account?.weekly_spent?.toLocaleString() || "0"}
+                    ₦{(driver.account?.weekly_spent || driver.weekly_spent || 0).toLocaleString()}
                   </span>
                 </div>
               </div>

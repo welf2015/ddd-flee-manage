@@ -19,48 +19,47 @@ export async function GET() {
       return NextResponse.json([], { status: 200 })
     }
 
-    // Get spending accounts (Central only really matters, but we might want to see if any exist)
-    // Actually, we don't care about individual accounts anymore.
-    // We want individual SPENDING stats (from transactions).
-
-    // Calculate Weekly Spent (Last 7 Days)
     const now = new Date()
-    const weekAgo = new Date()
-    weekAgo.setDate(now.getDate() - 7)
+    const todayStart = new Date(now)
+    todayStart.setHours(0, 0, 0, 0)
+
+    const dayOfWeek = now.getDay()
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+    const weekStart = new Date(now)
+    weekStart.setDate(now.getDate() + diff)
+    weekStart.setHours(0, 0, 0, 0)
 
     const { data: recentExpenses } = await supabase
       .from("driver_spending_transactions")
-      .select("driver_id, amount, created_at")
+      .select("driver_id, amount, transaction_date")
       .eq("transaction_type", "expense")
-      .gte("created_at", weekAgo.toISOString())
+      .gte("transaction_date", weekStart.toISOString())
 
-    // Get current jobs to check driver status
     const { data: activeBookings } = await supabase
       .from("bookings")
-      .select("driver_id, job_id")
+      .select("assigned_driver_id, job_id")
       .in("status", ["In Progress", "Ongoing"])
 
-    // Combine data
     const driversWithData = drivers?.map((driver) => {
-      // Aggregate spending for this driver
-      const driverExpenses = recentExpenses?.filter(e => e.driver_id === driver.id)
-      const weeklySpent = driverExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0
+      const driverExpenses = recentExpenses?.filter((e) => e.driver_id === driver.id) || []
+      const weeklySpent = driverExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
 
-      const currentJob = activeBookings?.find((b) => b.driver_id === driver.id)
+      const todayExpenses = driverExpenses.filter((e) => new Date(e.transaction_date) >= todayStart)
+      const dailySpent = todayExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
+
+      const currentJob = activeBookings?.find((b) => b.assigned_driver_id === driver.id)
 
       return {
         id: driver.id,
         full_name: driver.full_name,
-        phone_number: driver.phone,
+        phone: driver.phone,
         current_job_id: currentJob?.job_id || null,
-        current_balance: 0, // No individual balance
-        spending_limit: 0, // No limit
         weekly_spent: weeklySpent,
+        daily_spent: dailySpent,
         account: {
-          current_balance: 0,
-          spending_limit: 0,
           weekly_spent: weeklySpent,
-        }
+          daily_spent: dailySpent,
+        },
       }
     })
 

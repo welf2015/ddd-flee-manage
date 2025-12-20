@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import useSWR from "swr"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -34,7 +34,7 @@ export function FuelTab() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
 
-  useState(() => {
+  useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
@@ -48,7 +48,7 @@ export function FuelTab() {
           })
       }
     })
-  })
+  }, [])
 
   const { data: accountsResult, isLoading: accountsLoading } = useSWR(
     "fuel-prepaid-accounts",
@@ -91,6 +91,22 @@ export function FuelTab() {
   const currentBalance = mainAccount?.current_balance || 0
   const totalDeposited = mainAccount?.total_deposited || 0
   const totalSpent = mainAccount?.total_spent || 0
+
+  const weekStart = new Date()
+  const dayOfWeek = weekStart.getDay()
+  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+  weekStart.setDate(weekStart.getDate() + diff)
+  weekStart.setHours(0, 0, 0, 0)
+
+  const weeklySpent = transactions
+    .filter((t: any) => new Date(t.transaction_date) >= weekStart)
+    .reduce((sum, t: any) => sum + Number(t.amount), 0)
+
+  const weeklyTopups = topups
+    .filter((t: any) => new Date(t.topup_date) >= weekStart)
+    .reduce((sum, t: any) => sum + Number(t.amount), 0)
+
+  const weeklyClosingBalance = weeklyTopups - weeklySpent
 
   const remainingLiters = currentBalance / fuelRate
   const totalPurchasedLiters = totalDeposited / fuelRate
@@ -160,6 +176,22 @@ export function FuelTab() {
 
   return (
     <div className="space-y-4">
+      {/* Weekly closing balance card */}
+      <Card className="border-blue-200 bg-blue-50/50">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-medium">Closing Balance This Week</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className={`text-3xl font-bold ${weeklyClosingBalance < 0 ? "text-red-600" : "text-green-600"}`}>
+            ₦{weeklyClosingBalance.toLocaleString()}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Top-ups: ₦{weeklyTopups.toLocaleString()} - Spent: ₦{weeklySpent.toLocaleString()}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Fuel balance card */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <div className="space-y-1">
@@ -200,6 +232,7 @@ export function FuelTab() {
         </CardContent>
       </Card>
 
+      {/* All Transactions card */}
       <Card>
         <CardHeader>
           <CardTitle>All Transactions</CardTitle>

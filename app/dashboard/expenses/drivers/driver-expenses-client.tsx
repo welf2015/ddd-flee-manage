@@ -32,39 +32,30 @@ export default function DriverExpensesClient({
   const [showTopupDialog, setShowTopupDialog] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
 
-  // Week Filtering State
-  // Default to "all" so the Total Spent sum matches the visible table rows
-  const [selectedWeek, setSelectedWeek] = useState<string>("all")
+  const [selectedWeek, setSelectedWeek] = useState<string>("current")
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
 
   // Fetch summary data with SWR
-  const { data: summary = initialSummary, mutate: mutateSummary } = useSWR(
-    "/api/driver-spending/summary",
-    fetcher,
-    {
-      fallbackData: initialSummary,
-      revalidateOnMount: false,
-      refreshInterval: 30000, // Reduced polling to 30s
-    },
-  )
+  const { data: summary = initialSummary, mutate: mutateSummary } = useSWR("/api/driver-spending/summary", fetcher, {
+    fallbackData: initialSummary,
+    revalidateOnMount: false,
+    refreshInterval: 30000,
+  })
 
   // Fetch transactions based on filter
-  const { data: transactions = initialTransactions, isLoading: transactionsLoading, mutate: mutateTransactions } = useSWR(
-    `/api/driver-spending/transactions?week=${selectedWeek}&year=${selectedYear}`,
-    fetcher,
-    {
-      fallbackData: initialTransactions,
-      refreshInterval: 30000
-    }
-  )
+  const {
+    data: transactions = initialTransactions,
+    isLoading: transactionsLoading,
+    mutate: mutateTransactions,
+  } = useSWR(`/api/driver-spending/transactions?week=${selectedWeek}&year=${selectedYear}`, fetcher, {
+    fallbackData: initialTransactions,
+    refreshInterval: 30000,
+  })
 
   const handleTransactionDeleted = () => {
     mutateSummary()
     mutateTransactions()
   }
-
-  // Wallet Visual Logic - Simplified
-  // We don't need pipes anymore for the shared wallet simple view
 
   return (
     <div className="space-y-6">
@@ -90,15 +81,16 @@ export default function DriverExpensesClient({
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        {/* Wallet Balance Card (Central Wallet) */}
-        <Card className="col-span-1 md:col-span-1 border-primary/20 bg-primary/5">
+        <Card className="col-span-1 md:grid-cols-1 border-primary/20 bg-primary/5">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Available Balance</CardTitle>
+            <CardTitle className="text-sm font-medium">Closing Balance</CardTitle>
             <Wallet className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-primary">₦{summary?.totalBalance?.toLocaleString() || "0"}</div>
-            <p className="text-xs text-muted-foreground mt-1">Shared driver wallet</p>
+            <div className={`text-3xl font-bold ${summary?.totalBalance < 0 ? "text-red-600" : "text-primary"}`}>
+              ₦{summary?.totalBalance?.toLocaleString() || "0"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Current available balance</p>
           </CardContent>
         </Card>
 

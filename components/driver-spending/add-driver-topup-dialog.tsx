@@ -1,19 +1,14 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import useSWR from "swr"
 import { addDriverTopup } from "@/app/actions/driver-spending"
 import { toast } from "sonner"
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 interface AddDriverTopupDialogProps {
   open: boolean
@@ -24,12 +19,9 @@ interface AddDriverTopupDialogProps {
 export default function AddDriverTopupDialog({ open, onOpenChange, onSuccess }: AddDriverTopupDialogProps) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    driverId: "",
     amount: "",
     notes: "",
   })
-
-  const { data: drivers } = useSWR("/api/drivers", fetcher)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,15 +29,15 @@ export default function AddDriverTopupDialog({ open, onOpenChange, onSuccess }: 
 
     try {
       const result = await addDriverTopup({
-        driver_id: formData.driverId,
+        driver_id: "CENTRAL_WALLET", // Will be handled by getCentralWallet() function
         amount: Number.parseFloat(formData.amount),
-        notes: formData.notes,
+        notes: formData.notes || "Central Driver Wallet Top-up",
       })
 
       if (result.success) {
-        toast.success("Top-up added successfully")
+        toast.success("Top-up added to driver wallet successfully")
         onOpenChange(false)
-        setFormData({ driverId: "", amount: "", notes: "" })
+        setFormData({ amount: "", notes: "" })
         onSuccess?.()
       } else {
         toast.error(result.error || "Failed to add top-up")
@@ -61,28 +53,11 @@ export default function AddDriverTopupDialog({ open, onOpenChange, onSuccess }: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Driver Top-up</DialogTitle>
-          <DialogDescription>Add funds to a driver's spending account</DialogDescription>
+          <DialogTitle>Add Driver Wallet Top-up</DialogTitle>
+          <DialogDescription>Add funds to the central driver spending wallet</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="driver">Driver</Label>
-            <Select value={formData.driverId} onValueChange={(value) => setFormData({ ...formData, driverId: value })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select driver" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.isArray(drivers) &&
-                  drivers.map((driver: any) => (
-                    <SelectItem key={driver.id} value={driver.id}>
-                      {driver.full_name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="amount">Amount (₦)</Label>
             <Input
