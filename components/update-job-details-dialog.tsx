@@ -72,6 +72,7 @@ export function UpdateJobDetailsDialog({ open, onOpenChange, booking }: UpdateJo
     timeline: booking.timeline || "24-48 hours",
     number_of_loads: booking.number_of_loads?.toString() || "1",
     budget: booking.proposed_client_budget?.toString() || "",
+    job_date: booking.job_date ? new Date(booking.job_date).toISOString().split("T")[0] : "",
   })
 
   const supabase = createClient()
@@ -134,15 +135,15 @@ export function UpdateJobDetailsDialog({ open, onOpenChange, booking }: UpdateJo
         initialDestinations.length > 0
           ? initialDestinations
           : [
-              {
-                from: "",
-                to: "",
-                fromLat: null,
-                fromLng: null,
-                toLat: null,
-                toLng: null,
-              },
-            ],
+            {
+              from: "",
+              to: "",
+              fromLat: null,
+              fromLng: null,
+              toLat: null,
+              toLng: null,
+            },
+          ],
       )
 
       setFormData({
@@ -155,6 +156,7 @@ export function UpdateJobDetailsDialog({ open, onOpenChange, booking }: UpdateJo
         timeline: booking.timeline || "24-48 hours",
         number_of_loads: booking.number_of_loads?.toString() || "1",
         budget: booking.proposed_client_budget?.toString() || "",
+        job_date: booking.job_date ? new Date(booking.job_date).toISOString().split("T")[0] : "",
       })
 
       setClientSearchTerm(booking.company_name || booking.client_name || "")
@@ -164,10 +166,10 @@ export function UpdateJobDetailsDialog({ open, onOpenChange, booking }: UpdateJo
   const selectClient = (client: any) => {
     setFormData({
       ...formData,
+      ...formData,
       company_name: client.company_name || client.name || "",
       client_name: client.name || "",
-      client_address: client.address || "",
-      client_contact: client.phone || "",
+      // client_address and client_contact are not in formData state
     })
     setClientSearchTerm(client.company_name || client.name || "")
     setShowClientSuggestions(false)
@@ -251,15 +253,11 @@ export function UpdateJobDetailsDialog({ open, onOpenChange, booking }: UpdateJo
         setFormData({
           ...formData,
           pickup_location: placeName,
-          pickup_lat: lat,
-          pickup_lng: lng,
         })
       } else {
         setFormData({
           ...formData,
           dropoff_location: placeName,
-          dropoff_lat: lat,
-          dropoff_lng: lng,
         })
       }
     }
@@ -333,7 +331,7 @@ export function UpdateJobDetailsDialog({ open, onOpenChange, booking }: UpdateJo
               },
             }
             if (currentMap.getSource("route")) {
-              ;(currentMap.getSource("route") as mapboxgl.GeoJSONSource).setData(lineGeometry)
+              ; (currentMap.getSource("route") as mapboxgl.GeoJSONSource).setData(lineGeometry)
             } else {
               if (currentMap.isStyleLoaded()) {
                 addRouteLayer(currentMap, lineGeometry)
@@ -413,7 +411,9 @@ export function UpdateJobDetailsDialog({ open, onOpenChange, booking }: UpdateJo
       form.append("route", routeString || formData.route)
       form.append("timeline", formData.timeline)
       form.append("number_of_loads", formData.number_of_loads)
+      form.append("number_of_loads", formData.number_of_loads)
       form.append("budget", formData.budget)
+      form.append("job_date", formData.job_date)
 
       console.log("[v0] 📝 Form data prepared:", {
         route: routeString || formData.route,
@@ -579,6 +579,18 @@ export function UpdateJobDetailsDialog({ open, onOpenChange, booking }: UpdateJo
                     onChange={(e) => setFormData({ ...formData, number_of_loads: e.target.value })}
                     required
                   />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="job_date">Job Date</Label>
+                  <Input
+                    id="job_date"
+                    name="job_date"
+                    type="date"
+                    value={formData.job_date}
+                    onChange={(e) => setFormData({ ...formData, job_date: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">Effective date for reports</p>
                 </div>
 
                 <div className="grid gap-2">

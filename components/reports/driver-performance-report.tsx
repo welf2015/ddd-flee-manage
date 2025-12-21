@@ -25,10 +25,10 @@ export function DriverPerformanceReport({ timePeriod = "weekly" }: DriverPerform
       }
 
       // Get bookings with driver info
-      let bookingsQuery = supabase.from("bookings").select("assigned_driver_id, status, created_at")
+      let bookingsQuery = supabase.from("bookings").select("assigned_driver_id, status, job_date")
 
       if (startDateISO) {
-        bookingsQuery = bookingsQuery.gte("created_at", startDateISO)
+        bookingsQuery = bookingsQuery.gte("job_date", startDateISO)
       }
 
       const { data: bookings } = await bookingsQuery

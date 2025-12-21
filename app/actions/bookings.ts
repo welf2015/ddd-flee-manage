@@ -105,6 +105,7 @@ export async function createBooking(formData: FormData) {
     request_details: formData.get("request_details") as string,
     status: "Open",
     created_by: user.id,
+    job_date: new Date().toISOString(), // Default to creation time
     requires_waybill: formData.get("requires_waybill") === "true",
   }
 
@@ -166,6 +167,7 @@ export async function assignDriverToBooking(bookingId: string, driverId: string)
       assigned_driver_id: driverId,
       assigned_vehicle_id: driver.assigned_vehicle_id,
       status: "Assigned",
+      job_date: new Date().toISOString(), // Update job_date to assignment time as requested
     })
     .eq("id", bookingId)
 
@@ -704,6 +706,11 @@ export async function updateBooking(bookingId: string, formData: FormData) {
     updated_at: new Date().toISOString(),
   }
 
+  const jobDate = formData.get("job_date") as string
+  if (jobDate) {
+    updateData.job_date = new Date(jobDate).toISOString()
+  }
+
   if (budgetValue) {
     updateData.proposed_client_budget = Number.parseFloat(budgetValue)
   }
@@ -776,6 +783,7 @@ export async function assignDriverWithExpenses(
     assigned_driver_id: driverId,
     assigned_vehicle_id: driver.assigned_vehicle_id,
     status: "Assigned",
+    job_date: new Date().toISOString(), // Update job_date to assignment time
   }
 
   if (expenses) {

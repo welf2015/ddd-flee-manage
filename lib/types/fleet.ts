@@ -74,6 +74,7 @@ export interface Booking {
   created_by: string | null
   approved_by: string | null
   payment_status: PaymentStatus | null
+  job_date: string
   created_at: string
   updated_at: string
 }

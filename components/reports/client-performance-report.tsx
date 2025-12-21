@@ -18,10 +18,10 @@ export function ClientPerformanceReport({ timePeriod = "weekly" }: ClientPerform
   const { data: clientData = [] } = useSWR(
     `client-performance-${timePeriod}`,
     async () => {
-      let query = supabase.from("bookings").select("client_name, client_id, status, proposed_client_budget, created_at")
+      let query = supabase.from("bookings").select("client_name, client_id, status, proposed_client_budget, job_date")
 
       if (startDateISO) {
-        query = query.gte("created_at", startDateISO)
+        query = query.gte("job_date", startDateISO)
       }
 
       const { data } = await query

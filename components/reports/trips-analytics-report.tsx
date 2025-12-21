@@ -19,11 +19,11 @@ export function TripsAnalyticsReport({ timePeriod = "weekly" }: TripsAnalyticsRe
     async () => {
       let query = supabase
         .from("bookings")
-        .select("created_at, status")
-        .order("created_at", { ascending: true })
+        .select("job_date, status")
+        .order("job_date", { ascending: true })
 
       if (startDateISO) {
-        query = query.gte("created_at", startDateISO)
+        query = query.gte("job_date", startDateISO)
       }
 
       const { data } = await query
@@ -33,7 +33,7 @@ export function TripsAnalyticsReport({ timePeriod = "weekly" }: TripsAnalyticsRe
       // Group by date
       const grouped: any = {}
       data.forEach((booking: any) => {
-        const date = new Date(booking.created_at).toLocaleDateString()
+        const date = new Date(booking.job_date).toLocaleDateString()
         if (!grouped[date]) grouped[date] = { date, total: 0, completed: 0, inTransit: 0 }
         grouped[date].total++
         if (booking.status === "Completed") grouped[date].completed++
@@ -46,10 +46,10 @@ export function TripsAnalyticsReport({ timePeriod = "weekly" }: TripsAnalyticsRe
   )
 
   const { data: stats } = useSWR(`trips-stats-${timePeriod}`, async () => {
-    let query = supabase.from("bookings").select("status, created_at")
+    let query = supabase.from("bookings").select("status, job_date")
 
     if (startDateISO) {
-      query = query.gte("created_at", startDateISO)
+      query = query.gte("job_date", startDateISO)
     }
 
     const { data } = await query
