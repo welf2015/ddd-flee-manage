@@ -2,6 +2,8 @@ export type UserRole = "MD" | "ED" | "Accountant" | "Head of Operations" | "Staf
 
 export type BookingStatus = "Open" | "Review" | "Negotiation" | "Approved" | "Closed"
 
+export type PaymentStatus = "Unpaid" | "Invoice Sent" | "Paid"
+
 export type VehicleType = "Truck" | "Car" | "Bike"
 
 export type VehicleStatus = "Active" | "In Maintenance" | "Inactive"
@@ -71,6 +73,7 @@ export interface Booking {
   negotiation_notes: string | null
   created_by: string | null
   approved_by: string | null
+  payment_status: PaymentStatus | null
   created_at: string
   updated_at: string
 }

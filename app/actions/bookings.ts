@@ -452,6 +452,41 @@ export async function markBookingAsPaid(bookingId: string) {
   return { success: true }
 }
 
+export async function markBookingAsInvoiceSent(bookingId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" }
+  }
+
+  const { error } = await supabase
+    .from("bookings")
+    .update({
+      payment_status: "Invoice Sent",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", bookingId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  // Add timeline event
+  await supabase.from("job_timeline").insert({
+    booking_id: bookingId,
+    action_type: "Invoice Sent",
+    action_by: user.id,
+    notes: "Invoice has been sent to the client",
+  })
+
+  revalidatePath("/dashboard/bookings")
+  return { success: true }
+}
+
 export async function uploadWaybill(bookingId: string, fileUrl: string) {
   const supabase = await createClient()
 

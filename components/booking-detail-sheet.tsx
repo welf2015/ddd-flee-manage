@@ -392,22 +392,29 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
     userRole === "Operations" ||
     userRole === "Fleet Officer"
   const canDisapprove = displayBooking.status === "Open" && (userRole === "MD" || userRole === "ED")
-  const canMarkAsPaid =
-    displayBooking.status === "Completed" &&
-    displayBooking.payment_status === "Unpaid" &&
-    (userRole === "Accountant" || userRole === "MD" || userRole === "ED")
   const canUpdateJobDetails =
     userRole !== "Accountant" &&
     (userRole === "MD" ||
       userRole === "ED" ||
       userRole === "Head of Operations" ||
       userRole === "Operations and Fleet Officer")
+
   const canDeleteDocuments =
     userRole === "MD" ||
     userRole === "ED" ||
     userRole === "Head of Operations" ||
     userRole === "Operations" ||
     userRole === "Fleet Officer"
+
+  const canMarkAsInvoiceSent =
+    displayBooking.status === "Completed" &&
+    (displayBooking.payment_status === "Unpaid" || !displayBooking.payment_status) &&
+    (userRole === "Accountant" || userRole === "MD" || userRole === "ED")
+
+  const canMarkAsPaid =
+    displayBooking.status === "Completed" &&
+    displayBooking.payment_status === "Invoice Sent" &&
+    (userRole === "Accountant" || userRole === "MD" || userRole === "ED")
 
   const handleApproveBooking = async () => {
     setUpdatingStatus(true)
@@ -469,6 +476,38 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
       await mutateBooking()
       const { toast } = await import("sonner")
       toast.error(result.error || "Failed to mark payment as paid")
+    }
+    setUpdatingStatus(false)
+  }
+
+  const handleMarkAsInvoiceSent = async () => {
+    setUpdatingStatus(true)
+    const { markBookingAsInvoiceSent } = await import("@/app/actions/bookings")
+
+    // Optimistic update
+    if (currentBooking) {
+      mutateBooking(
+        {
+          ...currentBooking,
+          payment_status: "Invoice Sent",
+        },
+        false,
+      )
+    }
+
+    const result = await markBookingAsInvoiceSent(booking.id)
+
+    if (result.success) {
+      // Revalidate to get fresh data
+      await mutateBooking()
+      onUpdate()
+      const { toast } = await import("sonner")
+      toast.success("Marked as Invoice Sent")
+    } else {
+      // Revert optimistic update on error
+      await mutateBooking()
+      const { toast } = await import("sonner")
+      toast.error(result.error || "Failed to mark as Invoice Sent")
     }
     setUpdatingStatus(false)
   }
@@ -561,13 +600,18 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                 {displayBooking.status === "Completed" && (
                   <Badge
                     variant="outline"
-                    className={`w-fit ${
-                      displayBooking.payment_status === "Paid"
-                        ? "bg-green-500/10 text-green-500 border-green-500/20"
+                    className={`w-fit ${displayBooking.payment_status === "Paid"
+                      ? "bg-green-500/10 text-green-500 border-green-500/20"
+                      : displayBooking.payment_status === "Invoice Sent"
+                        ? "bg-blue-500/10 text-blue-500 border-blue-500/20"
                         : "bg-orange-500/10 text-orange-500 border-orange-500/20"
-                    }`}
+                      }`}
                   >
-                    {displayBooking.payment_status === "Paid" ? "Paid" : "Payment Pending"}
+                    {displayBooking.payment_status === "Paid"
+                      ? "Paid"
+                      : displayBooking.payment_status === "Invoice Sent"
+                        ? "Invoice Sent"
+                        : "Payment Pending"}
                   </Badge>
                 )}
               </div>
@@ -686,6 +730,17 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
               {canUpdateJobDetails && (
                 <Button onClick={() => setShowUpdateJobDetails(true)} variant="outline" size="sm">
                   Update Job Details
+                </Button>
+              )}
+              {canMarkAsInvoiceSent && (
+                <Button
+                  onClick={handleMarkAsInvoiceSent}
+                  disabled={updatingStatus}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-sm text-white"
+                >
+                  <FileText className="h-3 w-3 mr-1" />
+                  Mark Invoice Sent
                 </Button>
               )}
               {canMarkAsPaid && (
@@ -863,9 +918,9 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
                           {/* Embedded Map */}
                           <div className="w-full h-64 rounded-lg overflow-hidden border bg-muted/30 flex items-center justify-center relative">
                             {displayBooking.pickup_lat &&
-                            displayBooking.pickup_lng &&
-                            displayBooking.delivery_lat &&
-                            displayBooking.delivery_lng ? (
+                              displayBooking.pickup_lng &&
+                              displayBooking.delivery_lat &&
+                              displayBooking.delivery_lng ? (
                               <img
                                 src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s-a+22c55e(${displayBooking.pickup_lng},${displayBooking.pickup_lat}),pin-s-b+ef4444(${displayBooking.delivery_lng},${displayBooking.delivery_lat}),path-5+22c55e-0.6(${displayBooking.pickup_lng},${displayBooking.pickup_lat}|${displayBooking.delivery_lng},${displayBooking.delivery_lat})/auto/600x300?padding=40&access_token=${MAPBOX_TOKEN}`}
                                 alt="Route Map"
@@ -1702,8 +1757,8 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
               </Tabs>
             </ScrollArea>
           </div>
-        </SheetContent>
-      </Sheet>
+        </SheetContent >
+      </Sheet >
 
       {showNegotiate && (
         <NegotiateBookingDialog
@@ -1716,247 +1771,268 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
             mutateBooking()
           }}
         />
-      )}
+      )
+      }
 
-      {showAssignDriver && (
-        <AssignDriverDialog
-          open={showAssignDriver}
-          onOpenChange={setShowAssignDriver}
-          bookingId={displayBooking.id}
-          onSuccess={() => {
-            onUpdate()
-            setShowAssignDriver(false)
-            mutateBooking()
-          }}
-        />
-      )}
+      {
+        showAssignDriver && (
+          <AssignDriverDialog
+            open={showAssignDriver}
+            onOpenChange={setShowAssignDriver}
+            bookingId={displayBooking.id}
+            onSuccess={() => {
+              onUpdate()
+              setShowAssignDriver(false)
+              mutateBooking()
+            }}
+          />
+        )
+      }
 
-      {showUpdateStatus && (
-        <UpdateJobStatusDialog
-          open={showUpdateStatus}
-          onOpenChange={setShowUpdateStatus}
-          booking={displayBooking}
-          onSuccess={() => {
-            onUpdate()
-            setShowUpdateStatus(false)
-            mutateBooking()
-          }}
-        />
-      )}
+      {
+        showUpdateStatus && (
+          <UpdateJobStatusDialog
+            open={showUpdateStatus}
+            onOpenChange={setShowUpdateStatus}
+            booking={displayBooking}
+            onSuccess={() => {
+              onUpdate()
+              setShowUpdateStatus(false)
+              mutateBooking()
+            }}
+          />
+        )
+      }
 
-      {showCloseJob && (
-        <CloseJobDialog
-          open={showCloseJob}
-          onOpenChange={setShowCloseJob}
-          booking={displayBooking}
-          onSuccess={() => {
-            onUpdate()
-            setShowCloseJob(false)
-            onOpenChange(false) // Close the detail sheet as well
-            mutateBooking()
-          }}
-        />
-      )}
+      {
+        showCloseJob && (
+          <CloseJobDialog
+            open={showCloseJob}
+            onOpenChange={setShowCloseJob}
+            booking={displayBooking}
+            onSuccess={() => {
+              onUpdate()
+              setShowCloseJob(false)
+              onOpenChange(false) // Close the detail sheet as well
+              mutateBooking()
+            }}
+          />
+        )
+      }
 
-      {showRateDriver && (
-        <RateDriverDialog
-          open={showRateDriver}
-          onOpenChange={setShowRateDriver}
-          booking={displayBooking}
-          onSuccess={() => {
-            onUpdate()
-            setShowRateDriver(false)
-            mutateBooking()
-          }}
-        />
-      )}
+      {
+        showRateDriver && (
+          <RateDriverDialog
+            open={showRateDriver}
+            onOpenChange={setShowRateDriver}
+            booking={displayBooking}
+            onSuccess={() => {
+              onUpdate()
+              setShowRateDriver(false)
+              mutateBooking()
+            }}
+          />
+        )
+      }
 
-      {showTripExpenses && (
-        <TripExpenseDialog
-          open={showTripExpenses}
-          onOpenChange={setShowTripExpenses}
-          bookingId={displayBooking.id}
-          onSuccess={() => {
-            mutateBooking()
-            onUpdate()
-          }}
-        />
-      )}
+      {
+        showTripExpenses && (
+          <TripExpenseDialog
+            open={showTripExpenses}
+            onOpenChange={setShowTripExpenses}
+            bookingId={displayBooking.id}
+            onSuccess={() => {
+              mutateBooking()
+              onUpdate()
+            }}
+          />
+        )
+      }
 
-      {showTripHold && (
-        <TripHoldDialog
-          open={showTripHold}
-          onOpenChange={setShowTripHold}
-          bookingId={displayBooking.id}
-          onSuccess={() => {
-            mutateBooking()
-            onUpdate()
-          }}
-        />
-      )}
+      {
+        showTripHold && (
+          <TripHoldDialog
+            open={showTripHold}
+            onOpenChange={setShowTripHold}
+            bookingId={displayBooking.id}
+            onSuccess={() => {
+              mutateBooking()
+              onUpdate()
+            }}
+          />
+        )
+      }
 
-      {showUpdateJobDetails && (
-        <UpdateJobDetailsDialog
-          open={showUpdateJobDetails}
-          onOpenChange={setShowUpdateJobDetails}
-          booking={displayBooking}
-          onSuccess={() => {
-            mutateBooking()
-            onUpdate()
-          }}
-        />
-      )}
+      {
+        showUpdateJobDetails && (
+          <UpdateJobDetailsDialog
+            open={showUpdateJobDetails}
+            onOpenChange={setShowUpdateJobDetails}
+            booking={displayBooking}
+            onSuccess={() => {
+              mutateBooking()
+              onUpdate()
+            }}
+          />
+        )
+      }
 
-      {showManualExpenseLog && (
-        <ManualExpenseLogDialog
-          open={showManualExpenseLog}
-          onOpenChange={setShowManualExpenseLog}
-          bookingId={displayBooking.id}
-          vehicleId={displayBooking.assigned_vehicle_id}
-          onSuccess={() => {
-            // Refresh expense transactions
-            mutate()
-            mutateBooking()
-            onUpdate()
-          }}
-        />
-      )}
+      {
+        showManualExpenseLog && (
+          <ManualExpenseLogDialog
+            open={showManualExpenseLog}
+            onOpenChange={setShowManualExpenseLog}
+            bookingId={displayBooking.id}
+            vehicleId={displayBooking.assigned_vehicle_id}
+            onSuccess={() => {
+              // Refresh expense transactions
+              mutate()
+              mutateBooking()
+              onUpdate()
+            }}
+          />
+        )
+      }
 
-      {viewingDocument && (
-        <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
-            <DialogHeader>
-              <DialogTitle>{viewingDocument.name}</DialogTitle>
-              <DialogDescription>Document preview</DialogDescription>
-            </DialogHeader>
-            <div className="flex items-center justify-center w-full h-[70vh] overflow-auto bg-muted/50 rounded-lg p-4">
-              {viewingDocument.type?.startsWith("image/") ? (
-                <img
-                  src={`/api/waybill?url=${encodeURIComponent(viewingDocument.url)}&bookingId=${booking.id}`}
-                  alt={viewingDocument.name}
-                  className="max-w-full max-h-full object-contain"
-                />
-              ) : (
-                <iframe
-                  src={`/api/waybill?url=${encodeURIComponent(viewingDocument.url)}&bookingId=${booking.id}`}
-                  className="w-full h-full border-0"
-                  title={viewingDocument.name}
-                />
-              )}
-            </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const proxyUrl = `/api/waybill?url=${encodeURIComponent(viewingDocument.url)}&bookingId=${booking.id}`
-                  const link = document.createElement("a")
-                  link.href = proxyUrl
-                  link.download = viewingDocument.name
-                  link.click()
+      {
+        viewingDocument && (
+          <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+              <DialogHeader>
+                <DialogTitle>{viewingDocument.name}</DialogTitle>
+                <DialogDescription>Document preview</DialogDescription>
+              </DialogHeader>
+              <div className="flex items-center justify-center w-full h-[70vh] overflow-auto bg-muted/50 rounded-lg p-4">
+                {viewingDocument.type?.startsWith("image/") ? (
+                  <img
+                    src={`/api/waybill?url=${encodeURIComponent(viewingDocument.url)}&bookingId=${booking.id}`}
+                    alt={viewingDocument.name}
+                    className="max-w-full max-h-full object-contain"
+                  />
+                ) : (
+                  <iframe
+                    src={`/api/waybill?url=${encodeURIComponent(viewingDocument.url)}&bookingId=${booking.id}`}
+                    className="w-full h-full border-0"
+                    title={viewingDocument.name}
+                  />
+                )}
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const proxyUrl = `/api/waybill?url=${encodeURIComponent(viewingDocument.url)}&bookingId=${booking.id}`
+                    const link = document.createElement("a")
+                    link.href = proxyUrl
+                    link.download = viewingDocument.name
+                    link.click()
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+                <Button variant="outline" onClick={() => setViewingDocument(null)}>
+                  Close
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )
+      }
+
+      {
+        editingExpense && (
+          <Dialog open={!!editingExpense} onOpenChange={(open) => !open && setEditingExpense(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Expense</DialogTitle>
+                <DialogDescription>Update the expense details below. Description cannot be changed.</DialogDescription>
+              </DialogHeader>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const formData = new FormData(e.currentTarget)
+                  handleUpdateExpense(editingExpense.id, {
+                    amount: Number(formData.get("amount")),
+                    quantity: Number(formData.get("quantity")) || undefined,
+                    unit: (formData.get("unit") as string) || undefined,
+                    notes: (formData.get("notes") as string) || undefined,
+                  })
                 }}
+                className="space-y-4"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Download
-              </Button>
-              <Button variant="outline" onClick={() => setViewingDocument(null)}>
-                Close
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {editingExpense && (
-        <Dialog open={!!editingExpense} onOpenChange={(open) => !open && setEditingExpense(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Expense</DialogTitle>
-              <DialogDescription>Update the expense details below. Description cannot be changed.</DialogDescription>
-            </DialogHeader>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                const formData = new FormData(e.currentTarget)
-                handleUpdateExpense(editingExpense.id, {
-                  amount: Number(formData.get("amount")),
-                  quantity: Number(formData.get("quantity")) || undefined,
-                  unit: (formData.get("unit") as string) || undefined,
-                  notes: (formData.get("notes") as string) || undefined,
-                })
-              }}
-              className="space-y-4"
-            >
-              <div>
-                <Label>Description</Label>
-                <Input
-                  value={
-                    editingExpense.booking?.job_id
-                      ? `${editingExpense.expense_type} for ${editingExpense.booking.job_id}`
-                      : editingExpense.notes || "Manual Entry"
-                  }
-                  disabled
-                  className="bg-muted"
-                />
-                <p className="text-xs text-muted-foreground mt-1">Description cannot be edited</p>
-              </div>
-              <div>
-                <Label htmlFor="amount">Amount (₦)</Label>
-                <Input
-                  id="amount"
-                  name="amount"
-                  type="number"
-                  defaultValue={editingExpense.amount}
-                  required
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-              {editingExpense.expense_type === "Fuel" && (
-                <>
-                  <div>
-                    <Label htmlFor="quantity">Quantity (Liters)</Label>
-                    <Input
-                      id="quantity"
-                      name="quantity"
-                      type="number"
-                      defaultValue={editingExpense.quantity || ""}
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="unit">Unit</Label>
-                    <Input
-                      id="unit"
-                      name="unit"
-                      defaultValue={editingExpense.unit || "Liters"}
-                      disabled
-                      className="bg-muted"
-                    />
-                  </div>
-                </>
-              )}
-              <div>
-                <Label htmlFor="notes">Additional Notes</Label>
-                <Textarea
-                  id="notes"
-                  name="notes"
-                  defaultValue={editingExpense.notes || ""}
-                  placeholder="Optional additional notes"
-                />
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setEditingExpense(null)} disabled={isUpdating}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isUpdating}>
-                  {isUpdating ? "Updating..." : "Update Expense"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      )}
+                <div>
+                  <Label>Description</Label>
+                  <Input
+                    value={
+                      editingExpense.booking?.job_id
+                        ? `${editingExpense.expense_type} for ${editingExpense.booking.job_id}`
+                        : editingExpense.notes || "Manual Entry"
+                    }
+                    disabled
+                    className="bg-muted"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Description cannot be edited</p>
+                </div>
+                <div>
+                  <Label htmlFor="amount">Amount (₦)</Label>
+                  <Input
+                    id="amount"
+                    name="amount"
+                    type="number"
+                    defaultValue={editingExpense.amount}
+                    required
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                {editingExpense.expense_type === "Fuel" && (
+                  <>
+                    <div>
+                      <Label htmlFor="quantity">Quantity (Liters)</Label>
+                      <Input
+                        id="quantity"
+                        name="quantity"
+                        type="number"
+                        defaultValue={editingExpense.quantity || ""}
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="unit">Unit</Label>
+                      <Input
+                        id="unit"
+                        name="unit"
+                        defaultValue={editingExpense.unit || "Liters"}
+                        disabled
+                        className="bg-muted"
+                      />
+                    </div>
+                  </>
+                )}
+                <div>
+                  <Label htmlFor="notes">Additional Notes</Label>
+                  <Textarea
+                    id="notes"
+                    name="notes"
+                    defaultValue={editingExpense.notes || ""}
+                    placeholder="Optional additional notes"
+                  />
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setEditingExpense(null)} disabled={isUpdating}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isUpdating}>
+                    {isUpdating ? "Updating..." : "Update Expense"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )
+      }
 
       <AlertDialog open={!!deleteExpenseId} onOpenChange={(open) => !open && setDeleteExpenseId(null)}>
         <AlertDialogContent>
