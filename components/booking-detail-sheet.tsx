@@ -503,11 +503,12 @@ export function BookingDetailSheet({ booking, open, onOpenChange, onUpdate, isAd
       onUpdate()
       const { toast } = await import("sonner")
       toast.success("Marked as Invoice Sent")
+      // Force refresh of the parent list as well if possible, but mutateBooking handles local sheet
     } else {
       // Revert optimistic update on error
       await mutateBooking()
       const { toast } = await import("sonner")
-      toast.error(result.error || "Failed to mark as Invoice Sent")
+      toast.error(result.error || "Failed to update status")
     }
     setUpdatingStatus(false)
   }

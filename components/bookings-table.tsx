@@ -205,13 +205,14 @@ export function BookingsTable({ bookings, onUpdate }: BookingsTableProps) {
                             {booking.status === "Completed" && booking.payment_status && (
                               <Badge
                                 variant="outline"
-                                className={`text-xs ${
-                                  booking.payment_status === "Paid"
+                                className={`text-xs ${booking.payment_status === "Paid"
                                     ? "bg-green-500/10 text-green-500 border-green-500/20"
-                                    : "bg-orange-500/10 text-orange-500 border-orange-500/20"
-                                }`}
+                                    : booking.payment_status === "Invoice Sent"
+                                      ? "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                                      : "bg-orange-500/10 text-orange-500 border-orange-500/20"
+                                  }`}
                               >
-                                {booking.payment_status === "Paid" ? "Paid" : "Pending"}
+                                {booking.payment_status}
                               </Badge>
                             )}
                           </div>
