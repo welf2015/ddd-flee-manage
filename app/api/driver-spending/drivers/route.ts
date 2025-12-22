@@ -31,9 +31,9 @@ export async function GET() {
 
     const { data: recentExpenses } = await supabase
       .from("driver_spending_transactions")
-      .select("driver_id, amount, transaction_date")
+      .select("driver_id, amount, created_at")
       .eq("transaction_type", "expense")
-      .gte("transaction_date", weekStart.toISOString())
+      .gte("created_at", weekStart.toISOString())
 
     const { data: accounts } = await supabase
       .from("driver_spending_accounts")
@@ -42,13 +42,13 @@ export async function GET() {
     const { data: activeBookings } = await supabase
       .from("bookings")
       .select("assigned_driver_id, job_id")
-      .in("status", ["In Progress", "Ongoing"])
+      .in("status", ["In Progress", "Ongoing", "Assigned"])
 
     const driversWithData = drivers?.map((driver) => {
       const driverExpenses = recentExpenses?.filter((e) => e.driver_id === driver.id) || []
       const weeklySpentCalculated = driverExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
 
-      const todayExpenses = driverExpenses.filter((e) => new Date(e.transaction_date) >= todayStart)
+      const todayExpenses = driverExpenses.filter((e) => new Date(e.created_at) >= todayStart)
       const dailySpentCalculated = todayExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
 
       const currentJob = activeBookings?.find((b) => b.assigned_driver_id === driver.id)

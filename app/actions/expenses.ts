@@ -114,12 +114,26 @@ export async function createExpenseTransaction(
     return { success: false, error: "Not authenticated" }
   }
 
+  // Fallback to fetch driverId from booking if not provided (crucial for balance deductions)
+  let realDriverId = data.driverId
+  if (!realDriverId && data.bookingId) {
+    const { data: booking } = await supabase
+      .from("bookings")
+      .select("assigned_driver_id")
+      .eq("id", data.bookingId)
+      .single()
+    if (booking?.assigned_driver_id) {
+      realDriverId = booking.assigned_driver_id
+      console.log(`ℹ️ [expenses] Using assigned driver ${realDriverId} from booking ${data.bookingId}`)
+    }
+  }
+
   const { data: transaction, error } = await supabase
     .from("expense_transactions")
     .insert({
       account_id: accountId,
       booking_id: data.bookingId,
-      driver_id: data.driverId,
+      driver_id: realDriverId, // Use the resolved driver ID
       vehicle_id: data.vehicleId,
       expense_type: data.expenseType,
       amount: data.amount,

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
-import { Fuel, Ticket, Wallet, Settings } from "lucide-react"
+import { Fuel, Ticket, Wallet, X, Settings, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { getPrepaidAccounts, createExpenseTransaction } from "@/app/actions/expenses"
 import { formatCurrency } from "@/lib/utils"
@@ -77,11 +77,14 @@ export function ManualExpenseLogDialog({
         .single()
 
       if (booking?.driver) {
-        setDriverInfo({
-          id: booking.driver.id,
-          name: booking.driver.full_name,
-        })
-        console.log("👤 [Manual Expense] Driver found:", booking.driver.full_name)
+        const driver = Array.isArray(booking.driver) ? booking.driver[0] : (booking.driver as any)
+        if (driver) {
+          setDriverInfo({
+            id: driver.id,
+            name: driver.full_name,
+          })
+          console.log("👤 [Manual Expense] Driver found:", driver.full_name)
+        }
       } else {
         console.warn("⚠️ [Manual Expense] No driver assigned to booking")
       }
@@ -251,10 +254,17 @@ export function ManualExpenseLogDialog({
       }
 
       if (allowanceAmount && Number.parseFloat(allowanceAmount) > 0 && allowanceAccount) {
+        // Attempt to get the latest driver info if it's not set (safety measure)
+        let targetDriverId = driverInfo?.id
+        if (!targetDriverId) {
+          const { data: b } = await supabase.from("bookings").select("assigned_driver_id").eq("id", bookingId).single()
+          if (b?.assigned_driver_id) targetDriverId = b.assigned_driver_id
+        }
+
         const allowanceResult = await createExpenseTransaction(allowanceAccount.id, {
           bookingId,
           vehicleId: vehicleId || undefined,
-          driverId: driverInfo?.id,
+          driverId: targetDriverId,
           expenseType: "Allowance",
           amount: Number.parseFloat(allowanceAmount),
           notes: `Manual allowance log for booking ${bookingId}${driverInfo ? ` - Driver: ${driverInfo.name}` : ""}`,
@@ -301,6 +311,15 @@ export function ManualExpenseLogDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {!driverInfo && !loadingAccounts && (
+            <div className="bg-amber-50 border border-amber-200 rounded-md p-3 flex gap-3 items-start">
+              <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5" />
+              <div className="text-sm text-amber-800">
+                <p className="font-semibold">No Driver Assigned</p>
+                <p>Allowances logged for this booking will not be debited from any driver balance unless a driver is assigned first.</p>
+              </div>
+            </div>
+          )}
           <Card className="border-blue-500/20 bg-blue-500/5">
             <CardContent className="pt-6 space-y-4">
               <div className="flex items-center gap-2 mb-2">
@@ -357,9 +376,8 @@ export function ManualExpenseLogDialog({
                     <>
                       <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
                       <p
-                        className={`text-sm font-medium ${
-                          (fuelAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
-                        }`}
+                        className={`text-sm font-medium ${(fuelAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
+                          }`}
                       >
                         {formatCurrency(fuelAccount.current_balance || 0, "NGN")}
                         {(fuelAccount.current_balance || 0) < 0 && " (Overdrawn)"}
@@ -399,9 +417,8 @@ export function ManualExpenseLogDialog({
                     <>
                       <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
                       <p
-                        className={`text-sm font-medium ${
-                          (ticketingAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
-                        }`}
+                        className={`text-sm font-medium ${(ticketingAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
+                          }`}
                       >
                         {formatCurrency(ticketingAccount.current_balance || 0, "NGN")}
                         {(ticketingAccount.current_balance || 0) < 0 && " (Overdrawn)"}
@@ -441,9 +458,8 @@ export function ManualExpenseLogDialog({
                     <>
                       <p className="text-xs text-muted-foreground mb-1">Account Balance</p>
                       <p
-                        className={`text-sm font-medium ${
-                          (allowanceAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
-                        }`}
+                        className={`text-sm font-medium ${(allowanceAccount.current_balance || 0) < 0 ? "text-red-500" : "text-green-500"
+                          }`}
                       >
                         {formatCurrency(allowanceAccount.current_balance || 0, "NGN")}
                         {(allowanceAccount.current_balance || 0) < 0 && " (Overdrawn)"}

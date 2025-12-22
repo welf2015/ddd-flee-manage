@@ -176,6 +176,15 @@ export async function assignDriverToBooking(bookingId: string, driverId: string)
     return { success: false, error: error.message }
   }
 
+  // Explicitly update driver status and job
+  await supabase
+    .from("drivers")
+    .update({
+      status: "Assigned to Job",
+      current_job_id: bookingId,
+    })
+    .eq("id", driverId)
+
   revalidatePath("/dashboard/bookings")
   return { success: true }
 }
@@ -824,6 +833,15 @@ export async function assignDriverWithExpenses(
     return { success: false, error: error.message }
   }
 
+  // Explicitly update driver status and job
+  await supabase
+    .from("drivers")
+    .update({
+      status: "Assigned to Job",
+      current_job_id: bookingId,
+    })
+    .eq("id", driverId)
+
   console.log("✅ [assignDriverWithExpenses] Booking updated successfully:", {
     fuel_amount: updatedBooking?.fuel_amount,
     ticketing_amount: updatedBooking?.ticketing_amount,
@@ -874,7 +892,8 @@ export async function assignDriverWithExpenses(
           .eq("id", expenses.fuelAccountId)
           .single()
 
-        const stationName = accountData?.vendor?.vendor_name || "Total Energies"
+        const vendorData = accountData?.vendor as any
+        const stationName = (Array.isArray(vendorData) ? vendorData[0]?.vendor_name : vendorData?.vendor_name) || "Total Energies"
 
         // Get vehicle fuel type (default to Petrol as user specified)
         const { data: vehicleData } = await supabase
