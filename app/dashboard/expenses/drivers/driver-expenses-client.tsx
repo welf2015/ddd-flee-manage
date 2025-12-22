@@ -2,20 +2,17 @@
 
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Plus, Wallet, TrendingUp, DollarSign } from "lucide-react"
 import useSWR from "swr"
 import DriversListTab from "./drivers-list-tab"
 import AddDriverTopupDialog from "@/components/driver-spending/add-driver-topup-dialog"
 import WeekFilterSelector from "@/components/driver-spending/week-filter-selector"
-import DriverTransactionsTable from "@/components/driver-spending/driver-transactions-table"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 type DriverExpensesClientProps = {
   initialDrivers?: any[]
-  initialTransactions?: any[]
   initialSummary?: {
     totalBalance: number
     weeklySpending: number
@@ -23,39 +20,25 @@ type DriverExpensesClientProps = {
     totalSpent?: number
   }
 }
-
 export default function DriverExpensesClient({
   initialDrivers = [],
-  initialTransactions = [],
   initialSummary = { totalBalance: 0, weeklySpending: 0, dailySpending: 0, totalSpent: 0 },
 }: DriverExpensesClientProps) {
   const [showTopupDialog, setShowTopupDialog] = useState(false)
-  const [activeTab, setActiveTab] = useState("all")
 
   const [selectedWeek, setSelectedWeek] = useState<string>("current")
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
 
   // Fetch summary data with SWR
-  const { data: summary = initialSummary, mutate: mutateSummary } = useSWR("/api/driver-spending/summary", fetcher, {
-    fallbackData: initialSummary,
-    revalidateOnMount: false,
-    refreshInterval: 30000,
-  })
-
-  // Fetch transactions based on filter
-  const {
-    data: transactions = initialTransactions,
-    isLoading: transactionsLoading,
-    mutate: mutateTransactions,
-  } = useSWR(`/api/driver-spending/transactions?week=${selectedWeek}&year=${selectedYear}`, fetcher, {
-    fallbackData: initialTransactions,
-    refreshInterval: 30000,
-  })
-
-  const handleTransactionDeleted = () => {
-    mutateSummary()
-    mutateTransactions()
-  }
+  const { data: summary = initialSummary, mutate: mutateSummary } = useSWR(
+    `/api/driver-spending/summary?week=${selectedWeek}&year=${selectedYear}`,
+    fetcher,
+    {
+      fallbackData: initialSummary,
+      revalidateOnMount: false,
+      refreshInterval: 30000,
+    }
+  )
 
   return (
     <div className="space-y-6">
@@ -117,25 +100,10 @@ export default function DriverExpensesClient({
         </Card>
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="all">Transactions</TabsTrigger>
-          <TabsTrigger value="drivers">Driver Balances</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="all" className="mt-6">
-          <DriverTransactionsTable
-            transactions={transactions}
-            isLoading={transactionsLoading}
-            onTransactionDeleted={handleTransactionDeleted}
-          />
-        </TabsContent>
-
-        <TabsContent value="drivers" className="mt-6">
-          <DriversListTab initialDrivers={initialDrivers} />
-        </TabsContent>
-      </Tabs>
+      {/* Drivers List */}
+      <div className="mt-6">
+        <DriversListTab initialDrivers={initialDrivers} />
+      </div>
 
       {/* Add Top-up Dialog */}
       <AddDriverTopupDialog
@@ -143,7 +111,6 @@ export default function DriverExpensesClient({
         onOpenChange={setShowTopupDialog}
         onSuccess={() => {
           mutateSummary()
-          mutateTransactions()
         }}
       />
     </div>
