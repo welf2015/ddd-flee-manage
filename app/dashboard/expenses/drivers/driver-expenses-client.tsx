@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Plus, Wallet, TrendingUp, DollarSign } from "lucide-react"
 import useSWR from "swr"
 import DriversListTab from "./drivers-list-tab"
-import AddDriverTopupDialog from "@/components/driver-spending/add-driver-topup-dialog"
 import WeekFilterSelector from "@/components/driver-spending/week-filter-selector"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -24,7 +23,6 @@ export default function DriverExpensesClient({
   initialDrivers = [],
   initialSummary = { totalBalance: 0, weeklySpending: 0, dailySpending: 0, totalSpent: 0 },
 }: DriverExpensesClientProps) {
-  const [showTopupDialog, setShowTopupDialog] = useState(false)
 
   const [selectedWeek, setSelectedWeek] = useState<string>("current")
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
@@ -55,10 +53,6 @@ export default function DriverExpensesClient({
             onWeekChange={setSelectedWeek}
             onYearChange={setSelectedYear}
           />
-          <Button onClick={() => setShowTopupDialog(true)} className="bg-accent hover:bg-accent/90">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Top-up
-          </Button>
         </div>
       </div>
 
@@ -104,15 +98,6 @@ export default function DriverExpensesClient({
       <div className="mt-6">
         <DriversListTab initialDrivers={initialDrivers} />
       </div>
-
-      {/* Add Top-up Dialog */}
-      <AddDriverTopupDialog
-        open={showTopupDialog}
-        onOpenChange={setShowTopupDialog}
-        onSuccess={() => {
-          mutateSummary()
-        }}
-      />
     </div>
   )
 }
