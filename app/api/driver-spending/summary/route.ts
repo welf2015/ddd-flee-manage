@@ -18,27 +18,23 @@ export async function GET(request: Request) {
 
     const supabase = await createClient()
 
-    // 1. Fetch ALL transactions to calculate Global Stats
-    // We fetch ALL to derive the true balance state (In - Out)
-    const { data: allTransactions, error: txError } = await supabase
-      .from("driver_spending_transactions")
-      .select("amount, transaction_type, created_at, week_number, year")
+    // 1. Fetch Summary Data
+    const [{ data: allTransactions, error: txError }, { data: accounts, error: accError }] = await Promise.all([
+      supabase.from("driver_spending_transactions").select("amount, transaction_type, created_at, week_number, year"),
+      supabase.from("driver_spending_accounts").select("current_balance")
+    ])
 
-    if (txError) {
-      console.error("Error fetching transactions:", txError)
-      throw txError
+    if (txError || accError) {
+      console.error("Error fetching summary data:", txError || accError)
+      throw txError || accError
     }
 
-    // 2. Separate into Expenses and Top-ups
+    // 2. Separate into Expenses and Top-ups for "Spent" metrics
     const allExpenses = allTransactions?.filter(t => t.transaction_type === 'expense' || t.transaction_type === 'manual_debit') || []
-    const allTopups = allTransactions?.filter(t => t.transaction_type === 'top_up' || t.transaction_type === 'refund') || []
-
     const totalExpensesAmount = allExpenses.reduce((sum, t) => sum + Number(t.amount), 0)
-    const totalTopupsAmount = allTopups.reduce((sum, t) => sum + Number(t.amount), 0)
 
-    // Dynamic Balance: Total In (Topups) - Total Out (Expenses)
-    // This allows negative balance if expenses > topups
-    const dynamicBalance = totalTopupsAmount - totalExpensesAmount
+    // Total Balance: Sum of all account balances for consistency with UI
+    const totalBalance = accounts?.reduce((sum, target) => sum + Number(target.current_balance), 0) || 0
 
     // 3. Calculate "Spent This Week" based on Filter
     let weeklyExpenses = []
@@ -67,8 +63,8 @@ export async function GET(request: Request) {
       .reduce((sum, t) => sum + Number(t.amount), 0)
 
     return NextResponse.json({
-      totalBalance: dynamicBalance,
-      totalAvailable: dynamicBalance, // Legacy field name compatibility
+      totalBalance: totalBalance,
+      totalAvailable: totalBalance, // Legacy field name compatibility
       weeklySpending: weeklySpending,
       dailySpending: dailySpending,
       totalSpent: totalExpensesAmount
