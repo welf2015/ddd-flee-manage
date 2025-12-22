@@ -207,63 +207,65 @@ export async function recordDriverExpense(
   } = await supabase.auth.getUser()
 
   try {
-    const { account } = await getCentralWallet()
+    // 1. Get or create the individual account for the driver
+    let { data: account } = await supabase
+      .from("driver_spending_accounts")
+      .select("*")
+      .eq("driver_id", realDriverId)
+      .maybeSingle()
 
-    // 1. Check if balance allows (optional, user said "no spending limits just keep spending and see negative balance")
-    // So we just proceed.
+    if (!account) {
+      const { data: newAccount, error: createError } = await supabase
+        .from("driver_spending_accounts")
+        .insert({
+          driver_id: realDriverId,
+          current_balance: 0,
+          spending_limit: 0,
+          weekly_spent: 0,
+          daily_spent: 0,
+          week_start_date: new Date().toISOString().split("T")[0],
+        })
+        .select("*")
+        .single()
+      if (createError) throw createError
+      account = newAccount
+    }
 
-    const newBalance = Number(account.current_balance) - amount
+    const currentBalance = Number(account?.current_balance || 0)
+    const newBalance = currentBalance - amount
     const now = new Date()
 
     // 2. Insert Transaction
-    // IMPORTANT: We link `driver_id` to the REAL driver so we can track who spent it.
-    // BUT `account_id` links to the Central Wallet.
-
     await supabase.from("driver_spending_transactions").insert({
-      driver_id: realDriverId, // REAL Driver
-      account_id: account.id, // Central Wallet
+      driver_id: realDriverId,
+      account_id: account?.id,
       transaction_type: "expense",
       amount,
       description,
       balance_after: newBalance,
+      direction: 'DEBIT',
+      booking_id: bookingId,
       week_number: getWeekNumber(now),
       year: now.getFullYear(),
       created_by: user?.id,
-      // booking_id: bookingId // Assuming schema has this, usually linked via bookings table or notes?
-      // The schema from previous grep showed `booking:bookings(job_id)` in query, implying foreign key exists or we join.
-      // I'll check `booking_id` column existence from `expenses.ts`. It passed `booking_id` in `createExpenseTransaction`.
-      // Wait, `driver_spending_transactions` might not have `booking_id`.
-      // Let's check `transactions/route.ts`: `.select('..., booking:bookings(job_id)')`
-      // Yes, it has booking linkage.
-      // But verify if `driver_spending_transactions` has `booking_id` column or if the join was via something else.
-      // Usually if I can select `booking:bookings(...)` it means there is a `booking_id` FK.
-      // I'll try to insert it if I can pass it.
-      // `driver-spending.ts` didn't have `recordDriverExpense` before?
-      // Ah, I missed it in the file view.
-
-      // I'll assume `booking` relation is via `booking_id` if possible.
     })
 
-    // 3. Update Central Wallet Balance
-    // We also update `weekly_spent` and `daily_spent` for the central wallet stats
-    const weekStart = new Date(account.week_start_date)
-    const isNewWeek = now.getTime() - weekStart.getTime() > 7 * 24 * 60 * 60 * 1000
-
-    // Simple accumulation for now
+    // 3. Update Account
     await supabase
       .from("driver_spending_accounts")
       .update({
         current_balance: newBalance,
-        // We should also track total_spent if column exists?
-        // schema check: `weekly_spent`, `daily_spent`.
-        // Let's just update balance for now to be safe, logic elsewhere calculates totals from transactions.
+        total_spent: Number(account?.total_spent || 0) + amount,
+        daily_spent: Number(account?.daily_spent || 0) + amount,
+        weekly_spent: Number(account?.weekly_spent || 0) + amount,
       })
-      .eq("id", account.id)
+      .eq("id", account?.id)
 
     revalidatePath("/dashboard/expenses")
     revalidatePath("/dashboard/expenses/drivers")
     return { success: true }
   } catch (e: any) {
+    console.error("[recordDriverExpense] Error:", e)
     return { success: false, error: e.message }
   }
 }
