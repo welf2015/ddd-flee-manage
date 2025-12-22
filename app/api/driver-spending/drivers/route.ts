@@ -35,6 +35,10 @@ export async function GET() {
       .eq("transaction_type", "expense")
       .gte("transaction_date", weekStart.toISOString())
 
+    const { data: accounts } = await supabase
+      .from("driver_spending_accounts")
+      .select("driver_id, current_balance, spending_limit, weekly_spent, daily_spent")
+
     const { data: activeBookings } = await supabase
       .from("bookings")
       .select("assigned_driver_id, job_id")
@@ -42,23 +46,28 @@ export async function GET() {
 
     const driversWithData = drivers?.map((driver) => {
       const driverExpenses = recentExpenses?.filter((e) => e.driver_id === driver.id) || []
-      const weeklySpent = driverExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
+      const weeklySpentCalculated = driverExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
 
       const todayExpenses = driverExpenses.filter((e) => new Date(e.transaction_date) >= todayStart)
-      const dailySpent = todayExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
+      const dailySpentCalculated = todayExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
 
       const currentJob = activeBookings?.find((b) => b.assigned_driver_id === driver.id)
+      const account = accounts?.find(a => a.driver_id === driver.id)
 
       return {
         id: driver.id,
         full_name: driver.full_name,
         phone: driver.phone,
         current_job_id: currentJob?.job_id || null,
-        weekly_spent: weeklySpent,
-        daily_spent: dailySpent,
+        weekly_spent: weeklySpentCalculated,
+        daily_spent: dailySpentCalculated,
+        current_balance: account?.current_balance || 0,
+        spending_limit: account?.spending_limit || 0,
         account: {
-          weekly_spent: weeklySpent,
-          daily_spent: dailySpent,
+          ...account,
+          weekly_spent: weeklySpentCalculated, // Prioritize ledger-calculated for UI consistency
+          daily_spent: dailySpentCalculated,
+          current_balance: account?.current_balance || 0
         },
       }
     })

@@ -73,11 +73,17 @@ export default function DriversListTab({ initialDrivers = [] }: DriversListTabPr
                 </Badge>
               </div>
 
-              <div className="mt-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Spent This Week</span>
+              <div className="mt-4 grid grid-cols-2 gap-2 text-sm italic">
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground text-xs">Spent Today</span>
                   <span className="font-semibold text-orange-600">
-                    ₦{(driver.account?.weekly_spent || driver.weekly_spent || 0).toLocaleString()}
+                    ₦{(driver.account?.daily_spent || driver.daily_spent || 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-muted-foreground text-xs">Account Balance</span>
+                  <span className={`font-semibold ${Number(driver.current_balance || 0) < 0 ? 'text-red-600' : 'text-primary'}`}>
+                    ₦{Number(driver.current_balance || 0).toLocaleString()}
                   </span>
                 </div>
               </div>

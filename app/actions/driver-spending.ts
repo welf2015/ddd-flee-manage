@@ -132,28 +132,51 @@ export async function topUpDriverSpending(driverId: string, amount: number, desc
   } = await supabase.auth.getUser()
 
   try {
-    const { account } = await getCentralWallet()
+    // 1. Get or create the account for THIS driver
+    let { data: account, error: accError } = await supabase
+      .from("driver_spending_accounts")
+      .select("*")
+      .eq("driver_id", driverId)
+      .maybeSingle()
+
+    if (!account) {
+      // If no account, try to see if they should be using Central Wallet or create one
+      // For now, let's just create a new individual account if one doesn't exist
+      const { data: newAccount, error: createError } = await supabase
+        .from("driver_spending_accounts")
+        .insert({
+          driver_id: driverId,
+          current_balance: 0,
+          spending_limit: 0,
+          weekly_spent: 0,
+          daily_spent: 0,
+          week_start_date: new Date().toISOString().split("T")[0],
+        })
+        .select("*")
+        .single()
+
+      if (createError) throw createError
+      account = newAccount
+    }
+
     const newBalance = Number(account.current_balance) + amount
     const now = new Date()
 
-    // We insert the transaction linked to the Central Wallet Account
-    // But driver_id? If the user selected a specific driver for the topup,
-    // we could log it, OR (better for Shared Wallet) we assign it to the Central Driver ID.
-    // Usually Top-ups are "System" level.
-    // Let's use the account.driver_id (Central Wallet Driver)
-
+    // 2. Insert Transaction
     await supabase.from("driver_spending_transactions").insert({
-      driver_id: account.driver_id, // Central Wallet Driver
+      driver_id: driverId,
       account_id: account.id,
       transaction_type: "top_up",
       amount,
-      description: description || "Central Wallet Top-up",
+      description: description || "Account Adjustment/Top-up",
       balance_after: newBalance,
+      direction: 'CREDIT',
       week_number: getWeekNumber(now),
       year: now.getFullYear(),
       created_by: user?.id,
     })
 
+    // 3. Update Account
     await supabase
       .from("driver_spending_accounts")
       .update({
@@ -163,8 +186,10 @@ export async function topUpDriverSpending(driverId: string, amount: number, desc
       .eq("id", account.id)
 
     revalidatePath("/dashboard/expenses")
+    revalidatePath("/dashboard/expenses/drivers")
     return { success: true }
   } catch (e: any) {
+    console.error("[topUpDriverSpending] Error:", e)
     return { success: false, error: e.message }
   }
 }
@@ -236,8 +261,80 @@ export async function recordDriverExpense(
       .eq("id", account.id)
 
     revalidatePath("/dashboard/expenses")
+    revalidatePath("/dashboard/expenses/drivers")
     return { success: true }
   } catch (e: any) {
+    return { success: false, error: e.message }
+  }
+}
+
+export async function adjustDriverBalance(driverId: string, amount: number, description: string) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  try {
+    const isDebit = amount < 0
+    const absoluteAmount = Math.abs(amount)
+
+    // 1. Get Account
+    let { data: account } = await supabase
+      .from("driver_spending_accounts")
+      .select("*")
+      .eq("driver_id", driverId)
+      .maybeSingle()
+
+    if (!account) {
+      const { data: newAccount, error: createError } = await supabase
+        .from("driver_spending_accounts")
+        .insert({
+          driver_id: driverId,
+          current_balance: 0,
+          spending_limit: 0,
+          weekly_spent: 0,
+          daily_spent: 0,
+          week_start_date: new Date().toISOString().split("T")[0],
+        })
+        .select("*")
+        .single()
+      if (createError) throw createError
+      account = newAccount
+    }
+
+    const currentBalance = Number(account?.current_balance || 0)
+    const newBalance = isDebit ? currentBalance - absoluteAmount : currentBalance + absoluteAmount
+    const now = new Date()
+
+    // 2. Insert Transaction
+    await supabase.from("driver_spending_transactions").insert({
+      driver_id: driverId,
+      account_id: account?.id,
+      transaction_type: isDebit ? "manual_debit" : "top_up",
+      amount: absoluteAmount,
+      description: description || (isDebit ? "Manual Balance Deduction" : "Manual Balance Addition"),
+      balance_after: newBalance,
+      direction: isDebit ? 'DEBIT' : 'CREDIT',
+      week_number: getWeekNumber(now),
+      year: now.getFullYear(),
+      created_by: user?.id,
+    })
+
+    // 3. Update Account
+    await supabase
+      .from("driver_spending_accounts")
+      .update({
+        current_balance: newBalance,
+        total_topped_up: isDebit ? account?.total_topped_up : Number(account?.total_topped_up || 0) + absoluteAmount,
+        total_spent: isDebit ? Number(account?.total_spent || 0) + absoluteAmount : account?.total_spent,
+      })
+      .eq("id", account?.id)
+
+    revalidatePath("/dashboard/expenses")
+    revalidatePath("/dashboard/expenses/drivers")
+    return { success: true }
+  } catch (e: any) {
+    console.error("[adjustDriverBalance] Error:", e)
     return { success: false, error: e.message }
   }
 }
