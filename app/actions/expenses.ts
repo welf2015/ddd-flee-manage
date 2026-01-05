@@ -124,7 +124,7 @@ export async function createExpenseTransaction(
       .single()
     if (booking?.assigned_driver_id) {
       realDriverId = booking.assigned_driver_id
-      console.log(`ℹ️ [expenses] Using assigned driver ${realDriverId} from booking ${data.bookingId}`)
+      console.log(`ℹ️ [expenses] Using assigned driver ${realDriverId} from booking ${data.bookingId || "N/A"}`)
     }
   }
 
@@ -255,12 +255,23 @@ export async function getWeeklyExpenses(expenseType?: string) {
   weekStart.setDate(now.getDate() + diff)
   weekStart.setHours(0, 0, 0, 0)
 
-  console.log("[v0] Weekly calculation - Start date:", weekStart.toISOString(), "Current date:", now.toISOString())
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekStart.getDate() + 7) // Add 7 days to get next Monday
+
+  console.log(
+    "[v0] Weekly calculation - Start date:",
+    weekStart.toISOString(),
+    "End date:",
+    weekEnd.toISOString(),
+    "Current date:",
+    now.toISOString(),
+  )
 
   let query = supabase
     .from("expense_transactions")
     .select("amount, expense_type, transaction_date")
     .gte("transaction_date", weekStart.toISOString())
+    .lt("transaction_date", weekEnd.toISOString()) // Only get transactions until next Monday
 
   if (expenseType) {
     query = query.eq("expense_type", expenseType)

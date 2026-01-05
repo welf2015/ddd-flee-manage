@@ -106,7 +106,17 @@ export function FuelTab() {
     .filter((t: any) => new Date(t.topup_date) >= weekStart)
     .reduce((sum, t: any) => sum + Number(t.amount), 0)
 
-  const weeklyClosingBalance = weeklyTopups - weeklySpent
+  const weeklyClosingBalance = currentBalance - weeklySpent
+
+  useEffect(() => {
+    console.log("[v0] Fuel Tab Debug:", {
+      currentBalance,
+      weeklySpent,
+      weeklyClosingBalance,
+      weekStart: weekStart.toISOString(),
+      transactionsCount: transactions.length,
+    })
+  }, [currentBalance, weeklySpent])
 
   const remainingLiters = currentBalance / fuelRate
   const totalPurchasedLiters = totalDeposited / fuelRate
@@ -186,7 +196,7 @@ export function FuelTab() {
             ₦{weeklyClosingBalance.toLocaleString()}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Top-ups: ₦{weeklyTopups.toLocaleString()} - Spent: ₦{weeklySpent.toLocaleString()}
+            Current Balance: ₦{currentBalance.toLocaleString()} - Spent: ₦{weeklySpent.toLocaleString()}
           </p>
         </CardContent>
       </Card>

@@ -2,11 +2,11 @@
 
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Plus, Wallet, TrendingUp, DollarSign } from "lucide-react"
+import { Wallet, TrendingUp, DollarSign } from "lucide-react"
 import useSWR from "swr"
 import DriversListTab from "./drivers-list-tab"
 import WeekFilterSelector from "@/components/driver-spending/week-filter-selector"
+import { OverdraftWidget } from "@/components/driver-spending/overdraft-widget"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -23,7 +23,6 @@ export default function DriverExpensesClient({
   initialDrivers = [],
   initialSummary = { totalBalance: 0, weeklySpending: 0, dailySpending: 0, totalSpent: 0 },
 }: DriverExpensesClientProps) {
-
   const [selectedWeek, setSelectedWeek] = useState<string>("current")
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
 
@@ -35,7 +34,7 @@ export default function DriverExpensesClient({
       fallbackData: initialSummary,
       revalidateOnMount: false,
       refreshInterval: 30000,
-    }
+    },
   )
 
   return (
@@ -55,6 +54,8 @@ export default function DriverExpensesClient({
           />
         </div>
       </div>
+
+      <OverdraftWidget />
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">

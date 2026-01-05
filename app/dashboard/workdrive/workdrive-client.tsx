@@ -181,10 +181,15 @@ export function WorkDriveClient() {
       "application/pdf",
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "image/jpg",
     ]
 
     if (!allowedTypes.includes(file.type)) {
-      toast.error("Only PDF and Word documents are allowed")
+      toast.error("Only PDF, Word documents, and images (JPG, PNG, GIF, WebP) are allowed")
       return
     }
 
@@ -204,7 +209,7 @@ export function WorkDriveClient() {
 
       // Upload to R2 - send file directly as binary data with PUT
       const timestamp = Date.now()
-      const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+      const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, "_")
       const uploadUrl = `${workerUrl}?folder=workdrive&filename=${encodeURIComponent(`${timestamp}-${sanitizedFilename}`)}`
 
       const response = await fetch(uploadUrl, {
@@ -229,6 +234,14 @@ export function WorkDriveClient() {
         fileType = "doc"
       } else if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
         fileType = "docx"
+      } else if (file.type === "image/jpeg" || file.type === "image/jpg") {
+        fileType = "jpg"
+      } else if (file.type === "image/png") {
+        fileType = "png"
+      } else if (file.type === "image/gif") {
+        fileType = "gif"
+      } else if (file.type === "image/webp") {
+        fileType = "webp"
       }
 
       // Save document to database
@@ -273,6 +286,12 @@ export function WorkDriveClient() {
       case "doc":
       case "docx":
         return <FileIcon className={`${sizeClass} text-blue-500`} />
+      case "jpg":
+      case "jpeg":
+      case "png":
+      case "gif":
+      case "webp":
+        return <FileIcon className={`${sizeClass} text-purple-500`} />
       default:
         return <FileText className={`${sizeClass} text-muted-foreground`} />
     }
@@ -330,7 +349,7 @@ export function WorkDriveClient() {
             <input
               type="file"
               className="absolute inset-0 opacity-0 cursor-pointer"
-              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/gif,image/webp"
               onChange={handleFileUpload}
               disabled={uploading}
             />
@@ -441,7 +460,10 @@ export function WorkDriveClient() {
             </thead>
             <tbody>
               {allItems.map((item) => (
-                <tr key={item.id} className="group border-b border-border last:border-none hover:bg-muted/30 transition-colors">
+                <tr
+                  key={item.id}
+                  className="group border-b border-border last:border-none hover:bg-muted/30 transition-colors"
+                >
                   {/* Name Column */}
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
@@ -646,6 +668,12 @@ export function WorkDriveClient() {
                   src={`/api/workdrive/download/${previewDocument.id}`}
                   className="w-full h-[70vh] rounded-lg border"
                   title={previewDocument.name}
+                />
+              ) : ["jpg", "jpeg", "png", "gif", "webp"].includes(previewDocument.file_type) ? (
+                <img
+                  src={`/api/workdrive/download/${previewDocument.id}`}
+                  alt={previewDocument.name}
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg border mx-auto"
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center py-12">
