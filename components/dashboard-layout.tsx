@@ -27,6 +27,7 @@ import {
   Wallet,
   Activity,
   HardDrive,
+  BarChart3,
 } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { useState, useEffect, startTransition } from "react"
@@ -100,6 +101,7 @@ export function DashboardLayout({ children, onSignOut }: DashboardLayoutProps) {
       hasSubmenu: true,
       submenu: [
         { name: "Main Expenses", href: "/dashboard/expenses", icon: Wallet },
+        { name: "Insights", href: "/dashboard/expenses/insights", icon: BarChart3 },
         { name: "Driver Expenses", href: "/dashboard/expenses/drivers", icon: Wallet },
       ],
     },
