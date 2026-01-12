@@ -13,10 +13,21 @@ export async function getExpenseVendors() {
 
 export async function getPrepaidAccounts(vendorType?: string) {
   const supabase = await createClient()
+
   const query = supabase
     .from("prepaid_accounts")
     .select(
-      "id, account_name, current_balance, total_deposited, total_spent, is_active, created_at, updated_at, vendor_id, vendor:expense_vendors!prepaid_accounts_vendor_id_fkey(*)",
+      `
+        id, 
+        account_name, 
+        is_active, 
+        created_at, 
+        updated_at, 
+        vendor_id, 
+        vendor:expense_vendors!prepaid_accounts_vendor_id_fkey(*),
+        account_topups(amount),
+        expense_transactions(amount)
+      `,
     )
     .eq("is_active", true)
     .order("account_name")
@@ -28,10 +39,29 @@ export async function getPrepaidAccounts(vendorType?: string) {
     return { data: [], error }
   }
 
-  // Filter by vendor type if specified (client-side filtering for now)
-  let filteredData = data || []
-  if (vendorType && data) {
-    filteredData = data.filter((account: any) => account.vendor?.vendor_type === vendorType)
+  const accountsWithCalculatedBalances = (data || []).map((account: any) => {
+    const totalDeposited = (account.account_topups || []).reduce(
+      (sum: number, topup: any) => sum + (topup.amount || 0),
+      0,
+    )
+    const totalSpent = (account.expense_transactions || []).reduce(
+      (sum: number, transaction: any) => sum + (transaction.amount || 0),
+      0,
+    )
+    const currentBalance = totalDeposited - totalSpent
+
+    return {
+      ...account,
+      total_deposited: totalDeposited,
+      total_spent: totalSpent,
+      current_balance: currentBalance,
+    }
+  })
+
+  // Filter by vendor type if specified
+  let filteredData = accountsWithCalculatedBalances
+  if (vendorType) {
+    filteredData = accountsWithCalculatedBalances.filter((account: any) => account.vendor?.vendor_type === vendorType)
   }
 
   return { data: filteredData, error: null }
@@ -39,13 +69,46 @@ export async function getPrepaidAccounts(vendorType?: string) {
 
 export async function getAccountBalance(accountId: string) {
   const supabase = await createClient()
-  const { data, error } = await supabase
+
+  const { data: account, error } = await supabase
     .from("prepaid_accounts")
-    .select("current_balance, total_deposited, total_spent")
+    .select(
+      `
+        id,
+        account_name,
+        account_topups(amount),
+        expense_transactions(amount)
+      `,
+    )
     .eq("id", accountId)
     .single()
 
-  return { data, error }
+  if (error) {
+    console.error("Error fetching account:", error)
+    return { data: null, error }
+  }
+
+  // Calculate totals from actual data
+  const totalDeposited = (account.account_topups || []).reduce(
+    (sum: number, topup: any) => sum + (topup.amount || 0),
+    0,
+  )
+  const totalSpent = (account.expense_transactions || []).reduce(
+    (sum: number, transaction: any) => sum + (transaction.amount || 0),
+    0,
+  )
+  const currentBalance = totalDeposited - totalSpent
+
+  return {
+    data: {
+      id: account.id,
+      account_name: account.account_name,
+      current_balance: currentBalance,
+      total_deposited: totalDeposited,
+      total_spent: totalSpent,
+    },
+    error: null,
+  }
 }
 
 export async function addAccountTopup(
@@ -314,7 +377,7 @@ export async function deleteExpenseTransaction(transactionId: string) {
     return { success: false, error: "Not authenticated" }
   }
 
-  // Check if user is admin (MD, ED, Head of Operations, Operations, or Fleet Officer)
+  // Check if user is admin
   const { data: profile } = await supabase.from("profiles").select("role, full_name").eq("id", user.id).single()
 
   const allowedRoles = ["MD", "ED", "Head of Operations", "Operations", "Fleet Officer"]
@@ -325,10 +388,9 @@ export async function deleteExpenseTransaction(transactionId: string) {
     }
   }
 
-  // Get transaction details before deletion for logging
   const { data: transaction, error: fetchError } = await supabase
     .from("expense_transactions")
-    .select("*, booking:bookings(job_id), account:prepaid_accounts(account_name), driver:drivers(full_name)")
+    .select("*, booking:bookings(job_id), account:prepaid_accounts(id, account_name), driver:drivers(full_name)")
     .eq("id", transactionId)
     .maybeSingle()
 
@@ -341,15 +403,29 @@ export async function deleteExpenseTransaction(transactionId: string) {
     return { success: false, error: "Transaction not found" }
   }
 
-  // Delete the transaction
-  const { error } = await supabase.from("expense_transactions").delete().eq("id", transactionId)
+  const { error: refundError } = await supabase.from("account_topups").insert({
+    account_id: transaction.account?.id,
+    amount: transaction.amount,
+    topup_type: "REFUND",
+    topup_date: new Date().toISOString(),
+  })
 
-  if (error) {
-    console.error("Error deleting expense transaction:", error)
-    return { success: false, error: error.message }
+  if (refundError) {
+    console.error("Error recording refund:", refundError)
+    return { success: false, error: "Error recording refund" }
   }
 
-  console.log(`✅ Expense transaction deleted: ${transactionId} (${transaction.expense_type} - ₦${transaction.amount})`)
+  const { error: deleteError } = await supabase.from("expense_transactions").delete().eq("id", transactionId)
+
+  if (deleteError) {
+    console.error("Error deleting transaction:", deleteError)
+    return { success: false, error: "Error deleting transaction" }
+  }
+
+  console.log(
+    `✅ Expense transaction deleted and refunded: ${transactionId} (${transaction.expense_type} - ₦${transaction.amount})`,
+  )
+  console.log(`✅ Refunded to account: ${transaction.account?.account_name}`)
 
   revalidatePath("/dashboard/expenses")
   revalidatePath("/dashboard/bookings")
@@ -377,7 +453,7 @@ export async function updateExpenseTransaction(
     return { success: false, error: "Not authenticated" }
   }
 
-  // Check if user is admin (MD, ED, Head of Operations, Operations, or Fleet Officer)
+  // Check if user is admin
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
 
   const allowedRoles = ["MD", "ED", "Head of Operations", "Operations", "Fleet Officer"]
@@ -432,27 +508,6 @@ export async function updateExpenseTransaction(
         deposited_by: user.id,
       })
 
-      // Update prepaid account balance
-      if (difference > 0) {
-        // Amount increased - deduct more from account
-        await supabase
-          .from("prepaid_accounts")
-          .update({
-            current_balance: originalTransaction.account.current_balance - adjustmentAmount,
-            total_spent: originalTransaction.account.total_spent + adjustmentAmount,
-          })
-          .eq("id", originalTransaction.account_id)
-      } else {
-        // Amount decreased - refund to account
-        await supabase
-          .from("prepaid_accounts")
-          .update({
-            current_balance: originalTransaction.account.current_balance + adjustmentAmount,
-            total_deposited: originalTransaction.account.total_deposited + adjustmentAmount,
-          })
-          .eq("id", originalTransaction.account_id)
-      }
-
       console.log(
         `✅ Created adjustment entry: ${difference > 0 ? "Deducted" : "Refunded"} ₦${adjustmentAmount.toLocaleString()} for ${jobId}`,
       )
@@ -481,7 +536,7 @@ export async function deleteTopup(topupId: string) {
     return { success: false, error: "Not authenticated" }
   }
 
-  // Check if user is admin (MD, ED, Head of Operations, Operations, or Fleet Officer)
+  // Check if user is admin
   const { data: profile } = await supabase.from("profiles").select("role, full_name").eq("id", user.id).single()
 
   console.log("[v0] User profile:", profile)
@@ -517,29 +572,20 @@ export async function deleteTopup(topupId: string) {
     return { success: false, error: "Topup not found" }
   }
 
-  console.log("[v0] Updating account balance before deletion")
-  console.log("[v0] Account ID:", topup.account_id, "Amount to reverse:", topup.amount)
-  console.log(
-    "[v0] Current balance:",
-    topup.account?.current_balance,
-    "Total deposited:",
-    topup.account?.total_deposited,
-  )
+  console.log("[v0] Creating reversal entry for deleted topup")
+  const { error: reversalError } = await supabase.from("account_topups").insert({
+    account_id: topup.account_id,
+    amount: -topup.amount, // Negative to reverse the topup
+    topup_type: "REVERSAL",
+    topup_date: new Date().toISOString(),
+    receipt_number: `REV-${topupId.substring(0, 8)}`,
+    notes: `Reversal of deleted topup (original amount: ₦${topup.amount.toLocaleString()})`,
+    deposited_by: user.id,
+  })
 
-  const { data: updatedAccount, error: updateError } = await supabase
-    .from("prepaid_accounts")
-    .update({
-      current_balance: (topup.account?.current_balance || 0) - topup.amount,
-      total_deposited: (topup.account?.total_deposited || 0) - topup.amount,
-    })
-    .eq("id", topup.account_id)
-    .select()
-
-  console.log("[v0] Account balance update result:", { updatedAccount, updateError })
-
-  if (updateError) {
-    console.error("[v0] Error updating account balance:", updateError)
-    return { success: false, error: "Error updating account balance" }
+  if (reversalError) {
+    console.error("[v0] Error creating reversal entry:", reversalError)
+    return { success: false, error: "Error creating reversal entry" }
   }
 
   console.log("[v0] Deleting topup from account_topups table, ID:", topupId)

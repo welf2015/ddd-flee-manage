@@ -5,12 +5,13 @@ import useSWR from "swr"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Settings, Trash2 } from "lucide-react"
-import { formatCurrency, formatRelativeTime } from "@/lib/utils"
+import { Settings, Trash2, ChevronDown } from "lucide-react"
+import { formatCurrency, formatRelativeTime, groupTransactionsByWeek, formatWeekRange } from "@/lib/utils"
 import { getExpenseTransactions, getTopups, getPrepaidAccounts, deleteExpenseTransaction } from "@/app/actions/expenses"
 import { getFuelRate } from "@/app/actions/settings"
 import { TopUpDialog } from "@/components/top-up-dialog"
 import { FuelRateSettingsDialog } from "@/components/fuel-rate-settings-dialog"
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,8 @@ export function FuelTab() {
   })
   const [isDeleting, setIsDeleting] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set())
+  const [initialLoadDone, setInitialLoadDone] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -150,6 +153,17 @@ export function FuelTab() {
     })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
+  const groupedTransactions = groupTransactionsByWeek(allTransactions)
+
+  useEffect(() => {
+    if (groupedTransactions.size > 0 && !initialLoadDone) {
+      const weeks = Array.from(groupedTransactions.keys())
+      const firstThreeWeeks = new Set(weeks.slice(0, 3))
+      setExpandedWeeks(firstThreeWeeks)
+      setInitialLoadDone(true)
+    }
+  }, [groupedTransactions.size, initialLoadDone])
+
   const getTypeBadge = (type: string) => {
     switch (type) {
       case "topup":
@@ -242,7 +256,7 @@ export function FuelTab() {
         </CardContent>
       </Card>
 
-      {/* All Transactions card */}
+      {/* All Transactions card with weekly grouping */}
       <Card>
         <CardHeader>
           <CardTitle>All Transactions</CardTitle>
@@ -255,88 +269,125 @@ export function FuelTab() {
               <Skeleton className="h-10 w-full" />
             </div>
           ) : allTransactions.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-3 text-sm font-medium text-muted-foreground">Type</th>
-                    <th className="text-left p-3 text-sm font-medium text-muted-foreground">Details</th>
-                    <th className="text-left p-3 text-sm font-medium text-muted-foreground">By</th>
-                    <th className="text-left p-3 text-sm font-medium text-muted-foreground">Date</th>
-                    <th className="text-right p-3 text-sm font-medium text-muted-foreground">Liters</th>
-                    <th className="text-right p-3 text-sm font-medium text-muted-foreground">Amount</th>
-                    {canDelete && <th className="text-right p-3 text-sm font-medium text-muted-foreground">Actions</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {allTransactions.map((item: any, index: number) => {
-                    const badge = getTypeBadge(item.type)
-                    return (
-                      <tr key={item.id || `item-${index}`} className="border-b hover:bg-muted/50">
-                        <td className="p-3">
-                          <span
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badge.className}`}
-                          >
-                            {badge.label}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          {item.type === "expense" ? (
-                            <div>
-                              <p className="font-medium">{item.booking?.job_id || "Manual Entry"}</p>
-                              <p className="text-sm text-muted-foreground">{item.driver?.full_name || "N/A"}</p>
-                            </div>
-                          ) : (
-                            <div>
-                              <p className="font-medium">{item.account?.account_name || "Fuel Account"}</p>
-                              {item.receipt_number && (
-                                <p className="text-sm text-muted-foreground">Receipt: {item.receipt_number}</p>
-                              )}
-                              {item.notes && <p className="text-sm text-muted-foreground">{item.notes}</p>}
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-3">
-                          <p className="text-sm">
-                            {item.type === "expense"
-                              ? item.driver?.full_name || "N/A"
-                              : item.deposited_by_profile?.full_name || "System"}
-                          </p>
-                        </td>
-                        <td className="p-3">
-                          <p className="text-sm text-muted-foreground">{formatRelativeTime(item.date)}</p>
-                        </td>
-                        <td className="p-3 text-right">
-                          <p className={`font-medium ${item.type === "expense" ? "text-red-600" : "text-green-600"}`}>
-                            {item.type === "expense" ? "-" : "+"}
-                            {item.liters.toLocaleString(undefined, { maximumFractionDigits: 0 })} L
-                          </p>
-                        </td>
-                        <td className="p-3 text-right">
-                          <p className={`font-bold ${item.type === "expense" ? "text-red-600" : "text-green-600"}`}>
-                            {item.type === "expense" ? "-" : "+"}
-                            {formatCurrency(Math.abs(item.amount), "NGN")}
-                          </p>
-                        </td>
-                        {canDelete && (
-                          <td className="p-3 text-right">
-                            {(item.type === "topup" || item.type === "refund") && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => setDeleteDialog({ open: true, transaction: item })}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+            <div className="space-y-2">
+              {Array.from(groupedTransactions.entries()).map(([weekKey, items]) => {
+                const weekStart = new Date(weekKey)
+                const isExpanded = expandedWeeks.has(weekKey)
+
+                return (
+                  <Collapsible
+                    key={weekKey}
+                    open={isExpanded}
+                    onOpenChange={(open) => {
+                      const newExpanded = new Set(expandedWeeks)
+                      if (open) {
+                        newExpanded.add(weekKey)
+                      } else {
+                        newExpanded.delete(weekKey)
+                      }
+                      setExpandedWeeks(newExpanded)
+                    }}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <button className="flex items-center justify-between w-full p-3 hover:bg-muted rounded-lg font-semibold text-sm">
+                        <span>{formatWeekRange(weekStart)}</span>
+                        <ChevronDown
+                          className={`h-5 w-5 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                        />
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="overflow-x-auto">
+                      <table className="w-full mt-2">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left p-3 text-sm font-medium text-muted-foreground">Type</th>
+                            <th className="text-left p-3 text-sm font-medium text-muted-foreground">Details</th>
+                            <th className="text-left p-3 text-sm font-medium text-muted-foreground">By</th>
+                            <th className="text-left p-3 text-sm font-medium text-muted-foreground">Date</th>
+                            <th className="text-right p-3 text-sm font-medium text-muted-foreground">Liters</th>
+                            <th className="text-right p-3 text-sm font-medium text-muted-foreground">Amount</th>
+                            {canDelete && (
+                              <th className="text-right p-3 text-sm font-medium text-muted-foreground">Actions</th>
                             )}
-                          </td>
-                        )}
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((item: any, index: number) => {
+                            const badge = getTypeBadge(item.type)
+                            return (
+                              <tr key={item.id || `item-${index}`} className="border-b hover:bg-muted/50">
+                                <td className="p-3">
+                                  <span
+                                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badge.className}`}
+                                  >
+                                    {badge.label}
+                                  </span>
+                                </td>
+                                <td className="p-3">
+                                  {item.type === "expense" ? (
+                                    <div>
+                                      <p className="font-medium">{item.booking?.job_id || "Manual Entry"}</p>
+                                      <p className="text-sm text-muted-foreground">{item.driver?.full_name || "N/A"}</p>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <p className="font-medium">{item.account?.account_name || "Fuel Account"}</p>
+                                      {item.receipt_number && (
+                                        <p className="text-sm text-muted-foreground">Receipt: {item.receipt_number}</p>
+                                      )}
+                                      {item.notes && <p className="text-sm text-muted-foreground">{item.notes}</p>}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="p-3">
+                                  <p className="text-sm">
+                                    {item.type === "expense"
+                                      ? item.driver?.full_name || "N/A"
+                                      : item.deposited_by_profile?.full_name || "System"}
+                                  </p>
+                                </td>
+                                <td className="p-3">
+                                  <p className="text-sm text-muted-foreground">{formatRelativeTime(item.date)}</p>
+                                </td>
+                                <td className="p-3 text-right">
+                                  <p
+                                    className={`font-medium ${item.type === "expense" ? "text-red-600" : "text-green-600"}`}
+                                  >
+                                    {item.type === "expense" ? "-" : "+"}
+                                    {item.liters.toLocaleString(undefined, { maximumFractionDigits: 0 })} L
+                                  </p>
+                                </td>
+                                <td className="p-3 text-right">
+                                  <p
+                                    className={`font-bold ${item.type === "expense" ? "text-red-600" : "text-green-600"}`}
+                                  >
+                                    {item.type === "expense" ? "-" : "+"}
+                                    {formatCurrency(Math.abs(item.amount), "NGN")}
+                                  </p>
+                                </td>
+                                {canDelete && (
+                                  <td className="p-3 text-right">
+                                    {(item.type === "topup" || item.type === "refund") && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => setDeleteDialog({ open: true, transaction: item })}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  </td>
+                                )}
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )
+              })}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-8">No transactions yet</p>
