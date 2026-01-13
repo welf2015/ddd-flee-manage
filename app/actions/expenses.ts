@@ -24,9 +24,10 @@ export async function getPrepaidAccounts(vendorType?: string) {
         created_at, 
         updated_at, 
         vendor_id, 
-        vendor:expense_vendors!prepaid_accounts_vendor_id_fkey(*),
-        account_topups(amount),
-        expense_transactions(amount)
+        current_balance,
+        total_deposited,
+        total_spent,
+        vendor:expense_vendors!prepaid_accounts_vendor_id_fkey(*)
       `,
     )
     .eq("is_active", true)
@@ -39,29 +40,19 @@ export async function getPrepaidAccounts(vendorType?: string) {
     return { data: [], error }
   }
 
-  const accountsWithCalculatedBalances = (data || []).map((account: any) => {
-    const totalDeposited = (account.account_topups || []).reduce(
-      (sum: number, topup: any) => sum + (topup.amount || 0),
-      0,
-    )
-    const totalSpent = (account.expense_transactions || []).reduce(
-      (sum: number, transaction: any) => sum + (transaction.amount || 0),
-      0,
-    )
-    const currentBalance = totalDeposited - totalSpent
-
+  const accountsWithBalances = (data || []).map((account: any) => {
     return {
       ...account,
-      total_deposited: totalDeposited,
-      total_spent: totalSpent,
-      current_balance: currentBalance,
+      total_deposited: account.total_deposited || 0,
+      total_spent: account.total_spent || 0,
+      current_balance: account.current_balance || 0,
     }
   })
 
   // Filter by vendor type if specified
-  let filteredData = accountsWithCalculatedBalances
+  let filteredData = accountsWithBalances
   if (vendorType) {
-    filteredData = accountsWithCalculatedBalances.filter((account: any) => account.vendor?.vendor_type === vendorType)
+    filteredData = accountsWithBalances.filter((account: any) => account.vendor?.vendor_type === vendorType)
   }
 
   return { data: filteredData, error: null }
@@ -130,7 +121,20 @@ export async function addAccountTopup(
     return { success: false, error: "Not authenticated" }
   }
 
-  const { error } = await supabase.from("account_topups").insert({
+  const { data: account } = await supabase
+    .from("prepaid_accounts")
+    .select("current_balance, account_name")
+    .eq("id", accountId)
+    .single()
+
+  if (!account) {
+    return { success: false, error: "Account not found" }
+  }
+
+  const currentBalance = account.current_balance || 0
+  const overdraftAmount = currentBalance < 0 ? Math.abs(currentBalance) : 0
+
+  const { error: topupError } = await supabase.from("account_topups").insert({
     account_id: accountId,
     amount: data.amount,
     receipt_number: data.receiptNumber,
@@ -139,8 +143,35 @@ export async function addAccountTopup(
     notes: data.notes,
   })
 
-  if (error) {
-    return { success: false, error: error.message }
+  if (topupError) {
+    return { success: false, error: topupError.message }
+  }
+
+  if (overdraftAmount > 0) {
+    const { error: debitError } = await supabase.from("expense_transactions").insert({
+      account_id: accountId,
+      expense_type: "Overdraft",
+      amount: overdraftAmount,
+      transaction_date: new Date().toISOString(),
+      notes: `Overdraft debit from ${account.account_name} - paid from topup of ₦${data.amount}`,
+      created_by: user.id,
+    })
+
+    if (debitError) {
+      console.error("Error creating overdraft debit transaction:", debitError)
+      // Don't fail the topup, just log the error
+    }
+  }
+
+  const newBalance = data.amount - overdraftAmount
+  const { error: balanceError } = await supabase
+    .from("prepaid_accounts")
+    .update({ current_balance: newBalance })
+    .eq("id", accountId)
+
+  if (balanceError) {
+    console.error("Error updating balance:", balanceError)
+    return { success: false, error: "Topup recorded but balance update failed" }
   }
 
   await notifyTopup({

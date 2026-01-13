@@ -146,10 +146,15 @@ export function FuelTab() {
     })),
     ...topups.map((t: any) => ({
       ...t,
-      type: t.topup_type === "refund" ? ("refund" as const) : ("topup" as const),
-      date: t.topup_date,
+      type:
+        t.topup_type === "refund"
+          ? ("refund" as const)
+          : t.topup_type === "ADJUSTMENT"
+            ? ("adjustment" as const)
+            : ("topup" as const),
+      date: t.topup_date || t.created_at,
       amount: Number(t.amount),
-      liters: Number(t.amount) / fuelRate,
+      liters: Math.abs(Number(t.amount)) / fuelRate,
     })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
@@ -170,6 +175,8 @@ export function FuelTab() {
         return { className: "bg-green-100 text-green-700", label: "Top-up" }
       case "refund":
         return { className: "bg-blue-100 text-blue-700", label: "Refund" }
+      case "adjustment":
+        return { className: "bg-yellow-100 text-yellow-700", label: "Adjustment" }
       case "expense":
       default:
         return { className: "bg-red-100 text-red-700", label: "Expense" }
@@ -367,7 +374,9 @@ export function FuelTab() {
                                 </td>
                                 {canDelete && (
                                   <td className="p-3 text-right">
-                                    {(item.type === "topup" || item.type === "refund") && (
+                                    {(item.type === "topup" ||
+                                      item.type === "refund" ||
+                                      item.type === "adjustment") && (
                                       <Button
                                         variant="ghost"
                                         size="sm"
@@ -415,9 +424,9 @@ export function FuelTab() {
       <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, transaction: null })}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Expense Transaction</AlertDialogTitle>
+            <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this fuel expense transaction?
+              Are you sure you want to delete this transaction?
               {deleteDialog.transaction && (
                 <div className="mt-2 p-3 bg-muted rounded-md text-sm">
                   <span className="font-medium block">
