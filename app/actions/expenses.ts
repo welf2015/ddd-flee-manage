@@ -11,6 +11,26 @@ export async function getExpenseVendors() {
   return { data: data || [], error }
 }
 
+async function recalculateAccountBalance(supabase: any, accountId: string) {
+  // Get all topups (deposits, refunds, adjustments)
+  const { data: topups } = await supabase.from("account_topups").select("amount").eq("account_id", accountId)
+
+  const totalDeposits = (topups || []).reduce((sum: number, t: any) => sum + (t.amount || 0), 0)
+
+  // Get all expense transactions (debits)
+  const { data: transactions } = await supabase
+    .from("expense_transactions")
+    .select("amount")
+    .eq("account_id", accountId)
+
+  const totalSpent = (transactions || []).reduce((sum: number, t: any) => sum + (t.amount || 0), 0)
+
+  // Calculate true balance
+  const trueBalance = totalDeposits - totalSpent
+
+  return { trueBalance, totalDeposits, totalSpent }
+}
+
 export async function getPrepaidAccounts(vendorType?: string) {
   const supabase = await createClient()
 
@@ -40,19 +60,30 @@ export async function getPrepaidAccounts(vendorType?: string) {
     return { data: [], error }
   }
 
-  const accountsWithBalances = (data || []).map((account: any) => {
-    return {
-      ...account,
-      total_deposited: account.total_deposited || 0,
-      total_spent: account.total_spent || 0,
-      current_balance: account.current_balance || 0,
-    }
-  })
+  const accountsWithCorrectBalances = await Promise.all(
+    (data || []).map(async (account: any) => {
+      const { trueBalance, totalDeposits, totalSpent } = await recalculateAccountBalance(supabase, account.id)
 
-  // Filter by vendor type if specified
-  let filteredData = accountsWithBalances
+      // If stored balance doesn't match calculated balance, update it
+      if (account.current_balance !== trueBalance) {
+        console.log(
+          `[v0] Balance mismatch for ${account.account_name}: stored=${account.current_balance}, calculated=${trueBalance}. Updating...`,
+        )
+        await supabase.from("prepaid_accounts").update({ current_balance: trueBalance }).eq("id", account.id)
+      }
+
+      return {
+        ...account,
+        current_balance: trueBalance,
+        total_deposited: totalDeposits,
+        total_spent: totalSpent,
+      }
+    }),
+  )
+
+  let filteredData = accountsWithCorrectBalances
   if (vendorType) {
-    filteredData = accountsWithBalances.filter((account: any) => account.vendor?.vendor_type === vendorType)
+    filteredData = accountsWithCorrectBalances.filter((account: any) => account.vendor?.vendor_type === vendorType)
   }
 
   return { data: filteredData, error: null }
@@ -159,14 +190,13 @@ export async function addAccountTopup(
 
     if (debitError) {
       console.error("Error creating overdraft debit transaction:", debitError)
-      // Don't fail the topup, just log the error
     }
   }
 
-  const newBalance = data.amount - overdraftAmount
+  const { trueBalance } = await recalculateAccountBalance(supabase, accountId)
   const { error: balanceError } = await supabase
     .from("prepaid_accounts")
-    .update({ current_balance: newBalance })
+    .update({ current_balance: trueBalance })
     .eq("id", accountId)
 
   if (balanceError) {
@@ -180,6 +210,8 @@ export async function addAccountTopup(
     depositedBy: user.id,
     receiptNumber: data.receiptNumber,
   })
+
+  console.log(`✅ Topup recorded and balance updated to: ₦${trueBalance}`)
 
   revalidatePath("/dashboard/expenses")
   return { success: true }
@@ -453,10 +485,14 @@ export async function deleteExpenseTransaction(transactionId: string) {
     return { success: false, error: "Error deleting transaction" }
   }
 
+  const { trueBalance } = await recalculateAccountBalance(supabase, transaction.account?.id)
+  await supabase.from("prepaid_accounts").update({ current_balance: trueBalance }).eq("id", transaction.account?.id)
+
   console.log(
     `✅ Expense transaction deleted and refunded: ${transactionId} (${transaction.expense_type} - ₦${transaction.amount})`,
   )
   console.log(`✅ Refunded to account: ${transaction.account?.account_name}`)
+  console.log(`✅ Updated balance to: ₦${trueBalance}`)
 
   revalidatePath("/dashboard/expenses")
   revalidatePath("/dashboard/bookings")
@@ -531,7 +567,7 @@ export async function updateExpenseTransaction(
 
       await supabase.from("account_topups").insert({
         account_id: originalTransaction.account_id,
-        amount: difference > 0 ? -adjustmentAmount : adjustmentAmount, // Negative for deduction, positive for refund
+        amount: difference > 0 ? adjustmentAmount : -adjustmentAmount,
         topup_type: adjustmentType,
         topup_date: new Date().toISOString(),
         receipt_number: `ADJ-${adjustmentType.toUpperCase()}-${Date.now()}`,
@@ -542,6 +578,13 @@ export async function updateExpenseTransaction(
       console.log(
         `✅ Created adjustment entry: ${difference > 0 ? "Deducted" : "Refunded"} ₦${adjustmentAmount.toLocaleString()} for ${jobId}`,
       )
+
+      const { trueBalance } = await recalculateAccountBalance(supabase, originalTransaction.account_id)
+      await supabase
+        .from("prepaid_accounts")
+        .update({ current_balance: trueBalance })
+        .eq("id", originalTransaction.account_id)
+      console.log(`✅ Updated stored balance to: ₦${trueBalance}`)
     }
   }
 
